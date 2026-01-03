@@ -7,7 +7,6 @@ import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.FiniteAnimationSpec
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.VisibilityThreshold
 import androidx.compose.animation.core.animateDpAsState
@@ -18,22 +17,19 @@ import androidx.compose.animation.expandHorizontally
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.scaleIn
-import androidx.compose.animation.scaleOut
 import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.slideOutVertically
-import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsHoveredAsState
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -41,29 +37,24 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -72,7 +63,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.sharp.ArrowDropDown
 import androidx.compose.material.icons.sharp.Close
 
-import androidx.compose.material.ripple.rememberRipple
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -81,22 +71,17 @@ import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderColors
 import androidx.compose.material3.SliderDefaults
+import androidx.compose.material3.SliderState
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.key
-import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.Modifier.*
 import androidx.compose.ui.*
-import androidx.compose.ui.draw.clipToBounds
-import androidx.compose.ui.draw.drawWithContent
-import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -106,22 +91,72 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 
-import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
-import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.layout.onSizeChanged
-import androidx.compose.ui.unit.IntSize.Companion
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.window.Popup
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import kotlin.math.max
+
+fun Color.toHexString(includeAlpha: Boolean = true): String {
+    val a = (alpha * 255).toInt()
+    val r = (red * 255).toInt()
+    val g = (green * 255).toInt()
+    val b = (blue * 255).toInt()
+    return if (includeAlpha) {
+        String.format("#%02X%02X%02X%02X", a, r, g, b)
+    } else {
+        String.format("#%02X%02X%02X", r, g, b)
+    }
+}
+
+
+data class HSV(
+    val h: Float, // 0..360
+    val s: Float, // 0..1
+    val v: Float  // 0..1
+)
+
+fun hsvToColor(h: Float, s: Float, v: Float): Color =
+    Color.hsv(
+        h.coerceIn(0f, 360f),
+        s.coerceIn(0f, 1f),
+        v.coerceIn(0f, 1f)
+    )
+
+fun Color.toHSV(): HSV {
+    val r = red
+    val g = green
+    val b = blue
+
+    val max = maxOf(r, g, b)
+    val min = minOf(r, g, b)
+    val delta = max - min
+
+    val hue = when {
+        delta == 0f -> 0f
+        max == r -> ((g - b) / delta) % 6f
+        max == g -> ((b - r) / delta) + 2f
+        else -> ((r - g) / delta) + 4f
+    } * 60f
+
+    val h = if (hue < 0) hue + 360f else hue
+    val s = if (max == 0f) 0f else delta / max
+    val v = max
+
+    return HSV(
+        h.coerceIn(0f, 360f),
+        s.coerceIn(0f, 1f),
+        v.coerceIn(0f, 1f)
+    )
+}
 
 /*
     wizui interface main class
@@ -192,10 +227,8 @@ object wizui {
                     shape
                 )
                 .clip(shape)
-                .clickable(
-                    interactionSource = interactionSource,
-                    indication = rememberRipple(bounded = true)
-                ) {
+                .clickable
+                 {
                     if (!delayedClick) {
                         onClick()
                     } else {
@@ -424,7 +457,7 @@ object wizui {
 
             Text(
                 text,
-                color = contentColor.copy(alpha = (selectedAlpha.value + 0.25f))
+                color = contentColor.copy(alpha = (selectedAlpha.value + 0.35f))
             )
         }
     }
@@ -630,10 +663,8 @@ object wizui {
                         shape
                     )
                     .border(BorderStroke(0.3.dp, backgroundColor.copy(alpha = borderAlpha.value)), shape)
-                    .clickable(
-                        interactionSource = interactionSource,
-                        indication = rememberRipple(bounded = true),
-                    ) {
+                    .clickable
+                    {
                         isOpened = !isOpened
                     }
                     .clip(shape)
@@ -795,6 +826,81 @@ object wizui {
 
     @OptIn(ExperimentalMaterial3Api::class)
     @Composable
+    fun FlatSliderTrack(
+        sliderState: SliderState,
+        colors: SliderColors,
+        height: Dp = 4.dp,
+        tickColor: Color = Color.White.copy(alpha = 0.3f),
+        tickHeight: Dp = 12.dp,
+        tickOffsetY: Dp = 18.dp
+    ) {
+        Canvas(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(maxOf(height, tickHeight * 2))
+        ) {
+            val trackHeightPx = height.toPx()
+            val tickHeightPx = tickHeight.toPx()
+
+            val centerY = size.height / 2
+            val trackTop = centerY - trackHeightPx / 2
+
+            /* ───────────── Fraction ───────────── */
+
+            val fraction =
+                (sliderState.value - sliderState.valueRange.start) /
+                        (sliderState.valueRange.endInclusive - sliderState.valueRange.start)
+
+            val clamped = fraction.coerceIn(0f, 1f)
+
+            /* ───────────── Track ───────────── */
+
+            // inactive
+            drawRect(
+                color = colors.inactiveTrackColor,
+                topLeft = Offset(0f, trackTop),
+                size = Size(size.width, trackHeightPx)
+            )
+
+            // active
+            drawRect(
+                color = colors.activeTrackColor,
+                topLeft = Offset(0f, trackTop),
+                size = Size(size.width * clamped, trackHeightPx)
+            )
+
+            /* ───────────── Ticks ───────────── */
+
+            val steps = sliderState.steps
+            if (steps > 0) {
+                val tickCount = steps + 1
+                val stepPx = size.width / tickCount
+
+                repeat(tickCount + 1) { i ->
+                    val x = stepPx * i
+
+                    // верхний tick
+                    drawLine(
+                        color = tickColor,
+                        start = Offset(x, trackTop - tickOffsetY.toPx() - tickHeightPx),
+                        end = Offset(x, trackTop - tickOffsetY.toPx()),
+                        strokeWidth = 1.dp.toPx()
+                    )
+
+                    // нижний tick
+                    drawLine(
+                        color = tickColor,
+                        start = Offset(x, trackTop + trackHeightPx + tickOffsetY.toPx()),
+                        end = Offset(x, trackTop + trackHeightPx + tickHeightPx + tickOffsetY.toPx()),
+                        strokeWidth = 1.dp.toPx()
+                    )
+                }
+            }
+        }
+    }
+
+    @OptIn(ExperimentalMaterial3Api::class)
+    @Composable
     fun wizSlider(
         value: Float,
         onValueChange: (Float) -> Unit,
@@ -813,42 +919,6 @@ object wizui {
                 .height(56.dp)
         ) {
 
-            /* ───────────── Деления (верх + низ) ───────────── */
-
-            val horizontalPadding = 10.dp
-            Canvas(
-                modifier = Modifier
-                    .matchParentSize()
-            ) {
-                val left = horizontalPadding.toPx()
-                val right = size.width - horizontalPadding.toPx()
-                val usableWidth = right - left
-
-                val tickCount = steps + 1
-                val stepPx = usableWidth / tickCount
-
-                repeat(tickCount + 1) { i ->
-                    val x = left + stepPx * i
-
-                    // верх
-                    drawLine(
-                        color = tickColor,
-                        start = Offset(x, 0f),
-                        end = Offset(x, tickHeight.toPx()),
-                        strokeWidth = 1.dp.toPx()
-                    )
-
-                    // низ
-                    drawLine(
-                        color = tickColor,
-                        start = Offset(x, size.height),
-                        end = Offset(x, size.height - tickHeight.toPx()),
-                        strokeWidth = 1.dp.toPx()
-                    )
-                }
-            }
-
-
             Slider(
                 value = value,
                 onValueChange = onValueChange,
@@ -859,11 +929,18 @@ object wizui {
                 modifier = Modifier.fillMaxWidth()
                     .align(Alignment.Center),
                 track = {
-                    SliderDefaults.Track(
+                    FlatSliderTrack(
                         sliderState = it,
-                        colors = sliderColors,
+                        colors = sliderColors
                     )
                 },
+                thumb = {
+                    Box(
+                        Modifier
+                            .size(4.dp, 21.dp)
+                            .background(Color.White)
+                    )
+                }
             )
         }
     }
@@ -902,6 +979,184 @@ object wizui {
         }
     }
 
+
+    @Composable
+    fun SVSquare(
+        hue: Float,
+        saturation: Float,
+        value: Float,
+        onChangeStart: () -> Unit,
+        onChangeEnd: () -> Unit,
+        onChange: (Float, Float) -> Unit,
+        modifier: Modifier = Modifier
+    ) {
+        Box(
+            modifier = modifier
+                .background(
+                    Brush.horizontalGradient(
+                        listOf(Color.White, Color.hsv(hue, 1f, 1f))
+                    )
+                )
+                .background(
+                    Brush.verticalGradient(
+                        listOf(Color.Transparent, Color.Black)
+                    )
+                )
+                .pointerInput(Unit) {
+                    detectDragGestures(
+                        onDragStart = { onChangeStart() },
+                        onDragEnd = { onChangeEnd() },
+                        onDragCancel = { onChangeEnd() }
+                    ) { change, _ ->
+                        val x = change.position.x / size.width
+                        val y = change.position.y / size.height
+                        onChange(
+                            x.coerceIn(0f, 1f),
+                            (1f - y).coerceIn(0f, 1f)
+                        )
+                    }
+                }
+        ) {
+            Canvas(Modifier.fillMaxSize()) {
+                drawCircle(
+                    color = Color.White,
+                    radius = 6.dp.toPx(),
+                    center = Offset(
+                        saturation * size.width,
+                        (1f - value) * size.height
+                    ),
+                    style = Stroke(2.dp.toPx())
+                )
+            }
+        }
+    }
+
+
+    @Composable
+    fun HueSlider(
+        hue: Float,
+        onChangeStart: () -> Unit,
+        onChangeEnd: () -> Unit,
+        onHueChange: (Float) -> Unit,
+        modifier: Modifier = Modifier
+    ) {
+        Box(
+            modifier = modifier
+                .background(
+                    Brush.verticalGradient(
+                        listOf(
+                            Color.Red,
+                            Color.Yellow,
+                            Color.Green,
+                            Color.Cyan,
+                            Color.Blue,
+                            Color.Magenta,
+                            Color.Red
+                        )
+                    )
+                )
+                .pointerInput(Unit) {
+                    detectDragGestures(
+                        onDragStart = { onChangeStart() },
+                        onDragEnd = { onChangeEnd() },
+                        onDragCancel = { onChangeEnd() }
+                    ) { change, _ ->
+                        val y = (change.position.y / size.height)
+                            .coerceIn(0f, 1f)
+                        onHueChange(y * 360f)
+                    }
+                }
+        ) {
+            Canvas(Modifier.fillMaxSize()) {
+                val y = (hue / 360f) * size.height
+                drawRect(
+                    color = Color.White,
+                    topLeft = Offset(0f, y - 2.dp.toPx()),
+                    size = Size(size.width, 4.dp.toPx())
+                )
+            }
+        }
+    }
+
+
+
+    @Composable
+    fun wizColorPicker(
+        initialColor: Color,
+        onColorChanged: (Color) -> Unit,
+        modifier: Modifier = Modifier,
+        height: Dp,
+    ) {
+        var hue by remember { mutableStateOf(0f) }
+        var saturation by remember { mutableStateOf(1f) }
+        var value by remember { mutableStateOf(1f) }
+
+        // 🔒 последний валидный hue (как в Photoshop)
+        var lastValidHue by remember { mutableStateOf(0f) }
+
+        // 🧲 флаг, чтобы не пересчитывать hue во время drag
+        var isDragging by remember { mutableStateOf(false) }
+
+        // инициализация ТОЛЬКО извне
+        LaunchedEffect(initialColor.toArgb()) {
+            if (!isDragging) {
+                val hsv = initialColor.toHSV()
+
+                saturation = hsv.s
+                value = hsv.v
+
+                if (hsv.s > 0f) {
+                    hue = hsv.h
+                    lastValidHue = hsv.h
+                } else {
+                    hue = lastValidHue
+                }
+            }
+        }
+
+        Row(modifier) {
+
+            // 🔳 SV квадрат
+            SVSquare(
+                hue = hue,
+                saturation = saturation,
+                value = value,
+                onChangeStart = { isDragging = true },
+                onChangeEnd = { isDragging = false },
+                onChange = { s, v ->
+                    saturation = s
+                    value = v
+
+                    if (s > 0f) {
+                        lastValidHue = hue
+                    }
+
+                    onColorChanged(hsvToColor(hue, s, v))
+                },
+                modifier = Modifier
+                    .weight(1f)
+                    .height(height)
+
+            )
+
+            Spacer(Modifier.width(12.dp))
+
+            // 🎚 Hue slider
+            HueSlider(
+                hue = hue,
+                onChangeStart = { isDragging = true },
+                onChangeEnd = { isDragging = false },
+                onHueChange = {
+                    hue = it
+                    lastValidHue = it
+                    onColorChanged(hsvToColor(it, saturation, value))
+                },
+                modifier = Modifier
+                    .width(28.dp)
+                    .height(height)
+            )
+        }
+    }
 
 
 }

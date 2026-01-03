@@ -1,3 +1,5 @@
+package org.example
+
 import androidx.compose.runtime.MutableFloatState
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
@@ -16,9 +18,6 @@ import java.io.File
 @Serializable
 data class Config(
     var dpiScale : Float = 1f,
-    var windowSizeX : Int = 1280,
-    var windowSizeY : Int = 720,
-
     val foldersToScan: List<String> = emptyList(),
     val themeColor: Int = Color(0xFF4CAF50).toArgb()
 )
@@ -27,15 +26,11 @@ data class LocalConfig(
     var dpiScale: MutableFloatState = mutableFloatStateOf(1f),
     val foldersToScan: SnapshotStateList<String> = mutableStateListOf(),
     val themeColor: MutableState<Color> = mutableStateOf(Color(0xFF4CAF50)),
-    var windowSizeX : Int = 500,
-    var windowSizeY : Int = 500,
 
 ) {
 
     fun apply(config: Config) {
         dpiScale.value = config.dpiScale
-        windowSizeX = config.windowSizeX
-        windowSizeY = config.windowSizeY
         themeColor.value = Color(config.themeColor)
         foldersToScan.clear()
         foldersToScan.addAll(config.foldersToScan)
@@ -44,14 +39,10 @@ data class LocalConfig(
     fun toConfig(): Config =
         Config(
             dpiScale = dpiScale.value,
-            windowSizeY = windowSizeY,
-            windowSizeX = windowSizeX,
             foldersToScan = foldersToScan.toList(),
             themeColor = themeColor.value.toArgb()
         )
 }
-
-
 
 
 private val json = Json {
