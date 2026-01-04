@@ -3,6 +3,7 @@ package org.example.ui.screens.leftPager.settings
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -82,25 +83,31 @@ fun folderScanContent(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
 
-                    when (val state = item.state) {
+                    if (item.state is FolderScanState.Preparing || item.state is FolderScanState.Refreshing)
+                    {
+                        Box(Modifier.padding(start = 16.dp)) {
+                            when (val state = item.state) {
 
-                        is FolderScanState.Preparing -> {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(16.dp),
-                                strokeWidth = 2.dp,
-                                color = Color.White
-                            )
+                                is FolderScanState.Preparing -> {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(16.dp),
+                                        strokeWidth = 2.dp,
+                                        color = Color.White
+                                    )
+                                }
+
+                                is FolderScanState.Refreshing -> {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(16.dp),
+                                        strokeWidth = 2.dp,
+                                        color = Color.White
+                                    )
+                                }
+
+                                else -> Unit
+                            }
                         }
 
-                        is FolderScanState.Refreshing -> {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(16.dp),
-                                strokeWidth = 2.dp,
-                                color = Color.White
-                            )
-                        }
-
-                        else -> Unit
                     }
 
                     Text(
@@ -108,7 +115,9 @@ fun folderScanContent(
                         fontSize = 14.sp,
                         maxLines = 1,
                         modifier = Modifier
-                            .padding(start = 16.dp)
+                            .padding(start =
+                                    16.dp
+                            )
                             .weight(1f),
                         overflow = TextOverflow.Ellipsis
                     )

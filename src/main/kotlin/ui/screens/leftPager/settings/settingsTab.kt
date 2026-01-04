@@ -56,6 +56,7 @@ import org.example.wizui.wizui.wizAnimateIf
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun settingTab(
+    allowResize: MutableState<Boolean>,
     openedTab: MutableState<Int>,
     openedSettingsTab: MutableState<Int>,
     fullscreen: FullscreenController,
@@ -351,6 +352,28 @@ fun settingTab(
                                     color = Color(60, 60, 60)
                                 )
                             }
+
+
+                            wizui.wizCheckBox(
+                                text = "allow resizable layout",
+                                checked = allowResize.value,
+                                onCheckedChange = { checked ->
+                                    allowResize.value = checked
+                                    AppPrefs.setBool("allowResize", checked)
+                                }
+                            )
+                            Text("grab layout on it's edge to change size",
+                                modifier = Modifier.padding(top = 4.dp),
+                                color = Color(255, 255, 255, 100),
+                                fontSize = 11.sp
+                            )
+
+                            HorizontalDivider(
+                                modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp),
+                                thickness = 1.0.dp,
+                                color = Color(60, 60, 60)
+                            )
+
 
 
                             Text(

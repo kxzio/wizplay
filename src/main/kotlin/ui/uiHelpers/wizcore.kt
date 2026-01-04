@@ -11,6 +11,7 @@ import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.VisibilityThreshold
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.animateIntAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandHorizontally
@@ -99,11 +100,18 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.pointer.PointerEventType
+import androidx.compose.ui.input.pointer.PointerIcon
+import androidx.compose.ui.input.pointer.onPointerEvent
+import androidx.compose.ui.input.pointer.pointerHoverIcon
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.pointerMoveFilter
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import java.awt.Cursor
 
 fun Color.toHexString(includeAlpha: Boolean = true): String {
     val a = (alpha * 255).toInt()
@@ -282,26 +290,110 @@ object wizui {
         }
     }
 
+    fun Modifier.cursorForHorizontalResize(): Modifier =
+        this.pointerHoverIcon(
+            PointerIcon(Cursor(Cursor.E_RESIZE_CURSOR))
+        )
 
+
+    @OptIn(ExperimentalComposeUiApi::class)
     @Composable
     fun wizColumn(
         modifier: Modifier = Modifier,
-        verticalArrangement: Arrangement.Vertical = Arrangement.Top,
-        horizontalAlignment: Alignment.Horizontal = Alignment.Start,
-        content: @Composable (() -> Unit))
-    {
-        Column(
-            verticalArrangement = verticalArrangement,
-            horizontalAlignment = horizontalAlignment,
-            modifier = modifier.animateContentSize(spring(
-                stiffness = Spring.StiffnessMedium,
-                visibilityThreshold = IntSize.VisibilityThreshold,
-            ))
-        ) {
-            content()
+        resizable: Boolean = false,
+
+        minWidthFraction: Float = 0.2f,
+        maxWidthFraction: Float = 0.6f,
+        initialWidthFraction: Float = 0.5f,
+
+        parentMaxWidth: Dp = 1.dp,
+
+        content: @Composable () -> Unit
+    ) {
+        val density = LocalDensity.current
+
+        var widthFraction by remember {
+            mutableStateOf(
+                initialWidthFraction.coerceIn(
+                    minWidthFraction,
+                    maxWidthFraction
+                )
+            )
         }
 
+        val widthDp = parentMaxWidth * widthFraction
+
+        val animatedWidthDp by animateDpAsState(
+            widthDp,
+            label = "wizColumnWidth"
+        )
+
+        Box(
+            modifier = modifier.then(
+                if (resizable) Modifier.width(animatedWidthDp)
+                else Modifier
+            )
+        ) {
+
+            Column(Modifier.fillMaxSize()) {
+                content()
+            }
+
+            var hovered by remember { mutableStateOf(false) }
+            var drag by remember { mutableStateOf(false) }
+
+            var alpha = animateIntAsState(
+                targetValue = if (hovered || drag) 30 else 0
+            )
+
+            if (resizable) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.CenterEnd)
+                        .width(6.dp)
+                        .onPointerEvent(PointerEventType.Enter) {
+                            hovered = true
+                        }
+                        .onPointerEvent(PointerEventType.Exit) {
+                            hovered = false
+                        }
+                        .fillMaxHeight()
+                        .background(Color(255, 255, 255, alpha.value))
+                        .cursorForHorizontalResize()
+                        .pointerInput(parentMaxWidth, density) {
+                            detectDragGestures(
+                                onDragStart = {
+                                    drag = true
+                                },
+                                onDragEnd = {
+                                    drag = false
+                                },
+                                onDragCancel = {
+                                    drag = false
+                                },
+                                onDrag = { change, dragAmount ->
+                                    change.consume()
+
+                                    val deltaFraction =
+                                        with(density) { dragAmount.x.toDp() / parentMaxWidth }
+
+                                    widthFraction =
+                                        (widthFraction + deltaFraction)
+                                            .coerceIn(
+                                                minWidthFraction,
+                                                maxWidthFraction
+                                            )
+                                }
+                            )
+                        }
+
+                )
+            }
+        }
     }
+
+
+
 
     @Composable
     fun AnimatedCheckToCloseIcon(
