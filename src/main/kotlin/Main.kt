@@ -8,10 +8,15 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.awt.ComposePanel
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Density
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import org.example.ui.screens.leftPager.settings.AppPrefs
 import ui.draw
 import win32helpers.WinFullscreen
 import java.awt.EventQueue
@@ -21,6 +26,7 @@ import javax.swing.AbstractAction
 import javax.swing.JComponent
 import javax.swing.JFrame
 import javax.swing.KeyStroke
+import kotlin.io.path.Path
 
 // глобальное состояние
 var loaderConfig by mutableStateOf(LocalConfig())
@@ -150,6 +156,13 @@ fun main() {
 @Composable
 fun preDraw() {
 
+    val audioFolderController = remember {
+        AudioFolderController()
+    }
+
+    val folderScanController = remember {
+        FolderScanController(audioFolderController)
+    }
 
     val fullscreen = LocalFullscreenController.current
 
@@ -165,6 +178,19 @@ fun preDraw() {
         }
     }
 
+    val shouldUpdateOnStart = AppPrefs.getBool("shouldUpdate", false)
+
+    LaunchedEffect(Unit) {
+        withContext(Dispatchers.IO) {
+
+            audioFolderController.start(Path("folders.config"))
+            folderScanController.restoreFromAudioController()
+
+            if (shouldUpdateOnStart)
+                folderScanController.refreshAllOnStartup()
+        }
+    }
+
     // Основной UI
     CompositionLocalProvider(
         LocalDensity provides Density(
@@ -172,7 +198,7 @@ fun preDraw() {
             loaderConfig.dpiScale.value
         )
     ) {
-        draw(fullscreen)
+        draw(fullscreen, audioFolderController, folderScanController )
     }
 
 }

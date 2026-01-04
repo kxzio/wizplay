@@ -24,7 +24,8 @@ data class Config(
 
 data class LocalConfig(
     var dpiScale: MutableFloatState = mutableFloatStateOf(1f),
-    val foldersToScan: SnapshotStateList<String> = mutableStateListOf(),
+    val foldersToScan       : SnapshotStateList<String> = mutableStateListOf(),
+    val foldersPrepareToScan: SnapshotStateList<String> = mutableStateListOf(),
     val themeColor: MutableState<Color> = mutableStateOf(Color(0xFF4CAF50)),
 
 ) {

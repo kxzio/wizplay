@@ -33,14 +33,22 @@ import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import org.example.AudioFolderController
+import org.example.FolderScanController
 import org.example.FullscreenController
 import org.example.loaderConfig
+import org.example.ui.screens.leftPager.settings.AppPrefs
+import org.example.ui.screens.leftPager.settings.folderScanContent
 import org.example.wizui.toHexString
 import org.example.wizui.wizui
 import org.example.wizui.wizui.wizAnimateIf
@@ -50,7 +58,9 @@ import org.example.wizui.wizui.wizAnimateIf
 fun settingTab(
     openedTab: MutableState<Int>,
     openedSettingsTab: MutableState<Int>,
-    fullscreen: FullscreenController
+    fullscreen: FullscreenController,
+    audioFolderController: AudioFolderController,
+    folderScanController: FolderScanController
 )
 {
     (openedTab.value == 1).wizAnimateIf(wizui.WizAnimationType.ExpandVertically) {
@@ -206,6 +216,23 @@ fun settingTab(
                     1 -> {
 
                         Column {
+
+                            val shouldUpdateOnStart = remember {
+                                mutableStateOf(AppPrefs.getBool("shouldUpdate", false))
+                            }
+
+                            wizui.wizCheckBox(
+                                text = "update folders on application open",
+                                checked = shouldUpdateOnStart.value,
+                                onCheckedChange = { checked ->
+                                    shouldUpdateOnStart.value = checked
+                                    AppPrefs.setBool("shouldUpdate", checked)
+                                }
+                            )
+
+                            Spacer(Modifier.height(16.dp))
+
+
                             Row {
                                 Text(
                                     "select folders to scan",
@@ -216,11 +243,13 @@ fun settingTab(
 
                             Spacer(Modifier.height(8.dp))
 
-                            if (loaderConfig.foldersToScan.isEmpty()) {
+                            val folders by folderScanController.folders.collectAsState()
+
+                            if (folders.isEmpty()) {
                                 Box(
                                     Modifier
                                         .fillMaxWidth()
-                                        .height(150.dp)
+                                        .height(260.dp)
                                         .background(Color(30, 30, 30)),
                                     contentAlignment = Alignment.Center
                                 )
@@ -233,15 +262,14 @@ fun settingTab(
                                 }
                             }
 
-                            wizui.wizVerticalList(
-                                modifier = Modifier.fillMaxWidth().height(150.dp)
-                                    .background(Color(20, 20, 20)),
-                                items = loaderConfig.foldersToScan,
-                            ) { item ->
-                                Column() {
-                                    Text(item)
-                                }
-                            }
+                            folderScanContent(
+                                folderScanController,
+                                folders = folders,
+                                onAddFolder = { folderScanController.addFolder(it) },
+                                onRemoveFolder = { folderScanController.removeFolder(it) }
+                            )
+
+
                         }
                     }
 
