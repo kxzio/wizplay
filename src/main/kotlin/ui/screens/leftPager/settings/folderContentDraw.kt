@@ -16,8 +16,6 @@ import androidx.compose.material.icons.sharp.Refresh
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -27,13 +25,12 @@ import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import org.example.FolderScanController
-import org.example.FolderScanState
-import org.example.ScannedFolder
+import org.example.folderGetter.FolderScanController
+import org.example.folderGetter.FolderScanState
+import org.example.folderGetter.ScannedFolder
 import org.example.pickFolderWindowsNative
 import org.example.wizui.wizui
 import java.nio.file.Path
-import kotlin.io.path.Path
 
 @Composable
 fun folderScanContent(

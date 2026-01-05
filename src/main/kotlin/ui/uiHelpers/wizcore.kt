@@ -26,6 +26,8 @@ import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Indication
+import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -63,6 +65,7 @@ import androidx.compose.material3.contentColorFor
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.sharp.ArrowDropDown
 import androidx.compose.material.icons.sharp.Close
+import androidx.compose.material.ripple.rememberRipple
 
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -105,7 +108,6 @@ import androidx.compose.ui.input.pointer.PointerIcon
 import androidx.compose.ui.input.pointer.onPointerEvent
 import androidx.compose.ui.input.pointer.pointerHoverIcon
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.input.pointer.pointerMoveFilter
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.sp
@@ -235,7 +237,10 @@ object wizui {
                     shape
                 )
                 .clip(shape)
-                .clickable
+                .clickable(
+                    interactionSource = interactionSource,
+                    indication = LocalIndication.current
+                )
                  {
                     if (!delayedClick) {
                         onClick()
@@ -252,11 +257,7 @@ object wizui {
 
             /* ───────────── Контент ───────────── */
 
-            AnimatedContent(
-                targetState = visualPressed,
-                contentAlignment = Alignment.CenterStart,
-                label = "buttonContent"
-            ) {
+
                 Row(modifier = Modifier.height(IntrinsicSize.Min)) {
 
                     if (toggleVariable == true && !turnOffToggleIndication) {
@@ -286,7 +287,7 @@ object wizui {
                         }
                     }
                 }
-            }
+
         }
     }
 
@@ -864,6 +865,7 @@ object wizui {
     @Composable
     fun <T> wizVerticalList(
         modifier: Modifier = Modifier,
+        userScrollEnabled: Boolean = true,
         contentPadding: PaddingValues = PaddingValues(0.dp),
         verticalArrangement: Arrangement.Vertical = Arrangement.Top,
         horizontalAlignment: Alignment.Horizontal = Alignment.Start,
@@ -872,6 +874,7 @@ object wizui {
         itemContent: @Composable (item: T) -> Unit
     ) {
         LazyColumn(
+            userScrollEnabled = userScrollEnabled,
             modifier = modifier,
             state = state,
             contentPadding = contentPadding,
@@ -893,15 +896,28 @@ object wizui {
     @Composable
     fun <T> wizVerticalGrid(
         modifier: Modifier = Modifier,
-        columns: Int,
+        columns: Int = 1,
+        dynamicColumnsCount: Boolean = false,
+        dynamicMinSizeForElement: Dp = 0.dp,
+        userScrollEnabled: Boolean = false,
         items: List<T>,
         state: LazyGridState = rememberLazyGridState(),
+        horizontalArrangement: Arrangement.Horizontal,
+        verticalArrangement: Arrangement.Vertical,
         contentPadding: PaddingValues = PaddingValues(0.dp),
-        itemContent: @Composable (item: T) -> Unit
+        itemContent: @Composable (item: T) -> Unit,
     ) {
         LazyVerticalGrid(
+            verticalArrangement = verticalArrangement,
+            horizontalArrangement = horizontalArrangement,
+            userScrollEnabled = userScrollEnabled,
             modifier = modifier,
-            columns = GridCells.Fixed(columns),
+            columns =
+                if (!dynamicColumnsCount)
+                    GridCells.Fixed(columns)
+                else
+                    GridCells.Adaptive(dynamicMinSizeForElement)
+            ,
             state = state,
             contentPadding = contentPadding
         ) {
@@ -920,6 +936,7 @@ object wizui {
     @Composable
     fun FlatSliderTrack(
         sliderState: SliderState,
+        steps: Int = sliderState.steps,
         colors: SliderColors,
         height: Dp = 4.dp,
         tickColor: Color = Color.White.copy(alpha = 0.3f),
@@ -963,7 +980,6 @@ object wizui {
 
             /* ───────────── Ticks ───────────── */
 
-            val steps = sliderState.steps
             if (steps > 0) {
                 val tickCount = steps + 1
                 val stepPx = size.width / tickCount
@@ -1002,6 +1018,7 @@ object wizui {
         sliderColors: SliderColors = SliderDefaults.colors(),
         tickColor: Color = Color.White.copy(alpha = 0.3f),
         tickHeight: Dp = 8.dp,
+        disableRealSliderSteps : Boolean = false
     ) {
         val interactionSource = remember { MutableInteractionSource() }
 
@@ -1015,13 +1032,14 @@ object wizui {
                 value = value,
                 onValueChange = onValueChange,
                 valueRange = valueRange,
-                steps = steps,
+                steps = if (disableRealSliderSteps) 0 else steps,
                 interactionSource = interactionSource,
                 colors = sliderColors,
                 modifier = Modifier.fillMaxWidth()
                     .align(Alignment.Center),
                 track = {
                     FlatSliderTrack(
+                        steps = if (disableRealSliderSteps) steps else it.steps,
                         sliderState = it,
                         colors = sliderColors
                     )
@@ -1064,7 +1082,6 @@ object wizui {
         Box(
             Modifier.graphicsLayer {
                 this.alpha = alpha
-                translationY = offsetY.toPx()
             }
         ) {
             content()

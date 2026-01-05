@@ -16,6 +16,8 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Density
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import org.example.audioindex.AudioFolderController
+import org.example.folderGetter.FolderScanController
 import org.example.ui.screens.leftPager.settings.AppPrefs
 import ui.draw
 import win32helpers.WinFullscreen

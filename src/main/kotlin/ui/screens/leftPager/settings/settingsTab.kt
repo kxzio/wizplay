@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -26,6 +27,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.sharp.ArrowBackIos
 import androidx.compose.material.icons.automirrored.sharp.ArrowRight
+import androidx.compose.material.icons.sharp.Album
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -39,14 +41,17 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import org.example.AudioFolderController
-import org.example.FolderScanController
+import org.example.folderGetter.FolderScanController
 import org.example.FullscreenController
+import org.example.audioindex.AudioFolderController
 import org.example.loaderConfig
+import org.example.ui.screens.leftPager.albums.artworkAsync
 import org.example.ui.screens.leftPager.settings.AppPrefs
 import org.example.ui.screens.leftPager.settings.folderScanContent
 import org.example.wizui.toHexString
@@ -61,6 +66,7 @@ fun settingTab(
     openedSettingsTab: MutableState<Int>,
     fullscreen: FullscreenController,
     audioFolderController: AudioFolderController,
+    gridMultiplier: MutableState<Float>,
     folderScanController: FolderScanController
 )
 {
@@ -374,7 +380,94 @@ fun settingTab(
                                 color = Color(60, 60, 60)
                             )
 
+                            Text(
+                                "albums/playlists grid size",
+                                color = Color(255, 255, 255, 255)
+                            )
 
+                            Spacer(Modifier.height(26.dp))
+
+                            wizui.wizSlider(
+                                value = gridMultiplier.value,
+                                onValueChange = {
+                                    gridMultiplier.value = it
+                                    AppPrefs.setFloat("gridMultiplier", it)
+                                },
+                                valueRange = 0.5f..1.9f,
+                                steps = 10,
+                                disableRealSliderSteps = true,
+                                sliderColors = sliderColors,
+                                modifier = Modifier.fillMaxWidth()
+                            )
+
+                            Spacer(Modifier.height(26.dp))
+
+                            Box(Modifier.fillMaxWidth().offset(y = 40.dp), contentAlignment = Alignment.Center) {
+
+                                Text("preview",
+                                    modifier = Modifier.padding(top = 4.dp),
+                                    color = Color(255, 255, 255, 255),
+                                    fontSize = 11.sp
+                                )
+
+                            }
+
+                            Spacer(Modifier.height(8.dp))
+
+                            Box(Modifier.scale(0.5f)) {
+                                wizui.wizVerticalGrid(
+                                    dynamicColumnsCount = true,
+                                    userScrollEnabled = false,
+                                    modifier = Modifier.padding(top = 0.dp).height(400.dp),
+                                    dynamicMinSizeForElement = 160.dp * gridMultiplier.value,
+                                    horizontalArrangement = Arrangement.spacedBy(
+                                        space = 16.dp,
+                                        alignment = Alignment.Start
+                                    ),
+                                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                                    items = listOf(
+                                        "", "1", "2", "3", "4", "5", "6", "7",
+                                        "8", "9", "10", "11", "12", "13", "14",
+                                        "15", "16", "17", "18", "19", "20", "21",
+                                        "22", "23", "24", "25", "26", "27", "28",
+                                    ),
+                                )
+                                { item ->
+
+                                    Column(Modifier.fillMaxWidth())
+                                    {
+                                        Box(modifier = Modifier.fillMaxWidth().aspectRatio(1f).background(Color(45, 45, 45))) {
+                                            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                                Icon(Icons.Sharp.Album, "",
+                                                    modifier = Modifier.fillMaxSize(0.7f),
+                                                    tint = Color(255, 255, 255, 60)
+                                                )
+                                            }
+                                        }
+
+                                        Column(modifier = Modifier.padding(top = 9.dp * gridMultiplier.value)) {
+
+                                            Text("Pretty Hate Machine",
+                                                fontSize = 14.sp * gridMultiplier.value,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis,
+                                                color = Color(255, 255, 255))
+
+                                            Spacer(Modifier.height(4.dp * gridMultiplier.value))
+
+                                            Text("Nine Inch Nails",
+                                                fontSize = 9.sp * gridMultiplier.value,
+                                                color = Color(255, 255, 255, 100))
+                                        }
+                                    }
+                                }
+                            }
+
+                            HorizontalDivider(
+                                modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp),
+                                thickness = 1.0.dp,
+                                color = Color(60, 60, 60)
+                            )
 
                             Text(
                                 "primary color",
@@ -415,6 +508,14 @@ fun settingTab(
                                     Text(loaderConfig.themeColor.value.toHexString(),  fontSize = 14.sp)
                                 }
                             }
+
+                            HorizontalDivider(
+                                modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp),
+                                thickness = 1.0.dp,
+                                color = Color(60, 60, 60)
+                            )
+
+
 
                         }
 

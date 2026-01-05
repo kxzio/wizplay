@@ -16,8 +16,15 @@ object AppPrefs {
     fun getInt(key: String, default: Int = 0): Int =
         prefs.getInt(key, default)
 
+    fun getFloat(key: String, default: Float = 0f): Float =
+        prefs.getFloat(key, default)
+
     fun setInt(key: String, value: Int) {
         prefs.putInt(key, value)
+    }
+
+    fun setFloat(key: String, value: Float) {
+        prefs.putFloat(key, value)
     }
 
     fun getString(key: String, default: String = ""): String =

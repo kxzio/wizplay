@@ -5,7 +5,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -24,9 +23,9 @@ import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import org.example.AudioFolderController
-import org.example.FolderScanController
+import org.example.folderGetter.FolderScanController
 import org.example.FullscreenController
+import org.example.audioindex.AudioFolderController
 import org.example.ui.screens.leftPager.settings.AppPrefs
 import org.example.wizui.wizui
 import ui.screens.leftPager.albums.albumTab
@@ -35,6 +34,7 @@ import ui.screens.leftPager.settings.settingTab
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun renderLeftPager(
+    openedAudioSource: MutableState<String>,
     maxWidth: Dp,
     fullscreen: FullscreenController,
     audioFolderController: AudioFolderController,
@@ -64,6 +64,7 @@ fun renderLeftPager(
             )
     ) {
         leftPagerContent(
+            openedAudioSource,
             allowResize = allowResize,
             maxWidth = maxWidth,
             fullscreen = fullscreen,
@@ -77,6 +78,7 @@ fun renderLeftPager(
 
 @Composable
 fun leftPagerContent(
+    openedAudioSource: MutableState<String>,
     allowResize: MutableState<Boolean>,
     maxWidth: Dp,
     fullscreen: FullscreenController,
@@ -86,6 +88,10 @@ fun leftPagerContent(
 {
     val openedTab = remember { mutableStateOf(1) }
     var openedSettingsTab = remember { mutableStateOf(0) }
+
+    val gridMultiplier = remember {
+        mutableStateOf(AppPrefs.getFloat("gridMultiplier", 1.3f))
+    }
 
     Column(Modifier.padding(16.dp)) {
 
@@ -116,8 +122,7 @@ fun leftPagerContent(
                     openedTab.value = 2
                 },
                 toggleVariable = openedTab.value == 2
-            )
-            {
+            ) {
                 Text("albums", fontSize = 16.sp,)
             }
 
@@ -140,10 +145,17 @@ fun leftPagerContent(
         Spacer(Modifier.height(8.dp))
 
         //render of setting tab.    OPENED TAB = 1
-        settingTab(allowResize, openedTab, openedSettingsTab, fullscreen, audioFolderController, folderScanController)
+        settingTab(allowResize,
+            openedTab,
+            openedSettingsTab,
+            fullscreen,
+            audioFolderController,
+            gridMultiplier,
+            folderScanController
+        )
 
         //render of album tab.      OPENED TAB = 2
-        albumTab(openedTab)
+        albumTab(audioFolderController, openedTab, gridMultiplier, openedAudioSource)
 
 
     }

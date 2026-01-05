@@ -1,8 +1,9 @@
-package org.example
+package org.example.folderGetter
 
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import org.example.audioindex.AudioFolderController
 import java.nio.file.Path
 import kotlin.io.path.Path
 
