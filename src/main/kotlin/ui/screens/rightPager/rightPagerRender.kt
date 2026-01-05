@@ -50,9 +50,14 @@ fun renderRightPager(audioFolderController: AudioFolderController, openedAudioSo
         .padding(16.dp)
     )
     {
-
         val openedAlbumTracks = audioFolderController.tracksByAlbum(openedAudioSource.value)
             .sortedBy { (if (it.pos != "") it.pos.toInt() else 0) }
+
+        if (openedAlbumTracks.isEmpty())
+        {
+            openedAudioSource.value = ""
+            return@wizColumn
+        }
 
         if (openedAudioSource.value.isBlank())
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -78,18 +83,18 @@ fun renderRightPager(audioFolderController: AudioFolderController, openedAudioSo
                     {
                         Spacer(Modifier.height(8.dp))
 
-                        Box(Modifier.size(250.dp)) {
+                        Box(Modifier.size(350.dp)) {
                             artworkAsync(
                                 trackWithArtOrFirst.artworkPath,
-                                Modifier.size(250.dp)
+                                Modifier.size(350.dp)
                             )
                         }
 
-                        Spacer(Modifier.height(8.dp))
+                        Spacer(Modifier.height(16.dp))
 
                         Text(
                             trackWithArtOrFirst.album,
-                            fontSize = 32.sp,
+                            fontSize = 26.sp,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                             color = Color(255, 255, 255)
@@ -99,16 +104,16 @@ fun renderRightPager(audioFolderController: AudioFolderController, openedAudioSo
 
                         Text(
                             trackWithArtOrFirst.artist,
-                            fontSize = 22.sp,
-                            color = Color(255, 255, 255, 100)
+                            fontSize = 18.sp,
+                            color = Color(255, 255, 255, 120)
                         )
 
                         Spacer(Modifier.height(8.dp))
 
                         Text(
-                            trackWithArtOrFirst.year,
-                            fontSize = 16.sp,
-                            color = Color(255, 255, 255, 50)
+                            if (trackWithArtOrFirst.year.isEmpty()) "Year not specified" else trackWithArtOrFirst.year,
+                            fontSize = 18.sp,
+                            color = Color(255, 255, 255, 70)
                         )
 
                         HorizontalDivider(

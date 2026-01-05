@@ -1,6 +1,10 @@
 package org.example
 
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
@@ -11,12 +15,16 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.awt.ComposePanel
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Density
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.example.audioindex.AudioFolderController
+import org.example.bass.Bass
 import org.example.folderGetter.FolderScanController
 import org.example.ui.screens.leftPager.settings.AppPrefs
 import ui.draw
@@ -68,7 +76,37 @@ val LocalFullscreenController =
         error("FullscreenController not provided")
     }
 
+
 fun main() {
+
+    val bass = Bass.INSTANCE
+
+    val ok = bass.BASS_Init(
+        -1,        // default audio device
+        44100,     // sample rate
+        0,
+        0,
+        0
+    )
+
+    if (!ok) {
+        error("BASS_Init failed, error=${bass.BASS_ErrorGetCode()}")
+    }
+
+    val stream = bass.BASS_StreamCreateFile(
+        false,
+        "C:\\Users\\sasha\\Downloads\\Born Under Punches (The Heat Goes On) - 2005 Remaster - Talking Heads.mp3",
+        0,
+        0,
+        0
+    )
+
+    if (stream == 0) {
+        error("Stream create failed, error=${bass.BASS_ErrorGetCode()}")
+    }
+
+    bass.BASS_ChannelPlay(stream, false)
+    
 
     loaderConfig.apply(readConfig("config.data"))
 
@@ -182,16 +220,7 @@ fun preDraw() {
 
     val shouldUpdateOnStart = AppPrefs.getBool("shouldUpdate", false)
 
-    LaunchedEffect(Unit) {
-        withContext(Dispatchers.IO) {
-
-            audioFolderController.start(Path("folders.config"))
-            folderScanController.restoreFromAudioController()
-
-            if (shouldUpdateOnStart)
-                folderScanController.refreshAllOnStartup()
-        }
-    }
+    var isReady by remember { mutableStateOf(false) }
 
     // Основной UI
     CompositionLocalProvider(
@@ -200,7 +229,30 @@ fun preDraw() {
             loaderConfig.dpiScale.value
         )
     ) {
-        draw(fullscreen, audioFolderController, folderScanController )
+
+        if (!isReady) {
+
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier.fillMaxSize().background(Color(20, 20, 20))){
+                CircularProgressIndicator(color = Color(255, 255, 255))
+            }
+
+            LaunchedEffect(Unit)
+            {
+                withContext(Dispatchers.IO) {
+                    audioFolderController.start(Path("folders.config"))
+                    folderScanController.restoreFromAudioController()
+
+                    if (shouldUpdateOnStart)
+                        folderScanController.refreshAllOnStartup()
+                }
+                isReady = true
+            }
+        }
+        else
+            draw(fullscreen, audioFolderController, folderScanController )
+
     }
 
 }

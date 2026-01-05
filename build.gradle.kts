@@ -40,9 +40,13 @@ dependencies {
 compose.desktop {
     application {
         mainClass = "org.example.MainKt"
-        jvmArgs += listOf("-Dsun.java2d.uiScale.enabled=false")
+        jvmArgs += listOf(
+            "-Dsun.java2d.uiScale.enabled=false",
+            "-Djna.library.path=${projectDir}/bass"
+        )
     }
 }
+
 
 kotlin {
     jvmToolchain(21)

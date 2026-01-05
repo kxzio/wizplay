@@ -10,17 +10,29 @@ import androidx.compose.material.icons.sharp.DiscFull
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.LineHeightStyle
+import androidx.compose.ui.unit.Dp
+import coil3.ImageLoader
 import coil3.compose.AsyncImage
+import coil3.compose.LocalPlatformContext
 import coil3.request.ImageRequest
+import coil3.size.Size
 import java.nio.file.Path
 import javax.swing.GroupLayout
+
+@Composable
+private fun dpToPx(dp: Dp): Int {
+    val density = LocalDensity.current
+    return with(density) { dp.roundToPx() }
+}
 
 @Composable
 fun artworkAsync(
@@ -38,11 +50,14 @@ fun artworkAsync(
         return
     }
 
+
     AsyncImage(
-        model = path.toString(),
+        model = ImageRequest.Builder(LocalPlatformContext.current)
+            .data(path.toString())
+            .size(Size.ORIGINAL)
+            .build(),
         contentDescription = "Album Artwork",
         modifier = modifier,
-        filterQuality = FilterQuality.Medium,
         contentScale = ContentScale.Crop
     )
 }
