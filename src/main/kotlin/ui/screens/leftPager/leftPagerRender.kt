@@ -90,7 +90,7 @@ fun leftPagerContent(
     var openedSettingsTab = remember { mutableStateOf(0) }
 
     val gridMultiplier = remember {
-        mutableStateOf(AppPrefs.getFloat("gridMultiplier", 1.3f))
+        mutableStateOf(AppPrefs.getFloat("gridMultiplier", 0f))
     }
 
     Column(Modifier.padding(16.dp)) {

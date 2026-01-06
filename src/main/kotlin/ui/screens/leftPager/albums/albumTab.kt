@@ -37,6 +37,8 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -51,6 +53,7 @@ import org.example.wizui.wizui
 import org.example.wizui.wizui.wizAnimateIf
 import ui.uiHelpers.relativeLetterSpacing
 import java.nio.file.Path
+import kotlin.math.roundToInt
 
 private fun albumKey(a: ScannedAudio): String =
     "${a.artist}::${a.album}::${a.year}"
@@ -206,11 +209,16 @@ fun albumTab(
 
             if (!results.isEmpty())
             {
+                val BaseCardWidth = 160.dp
+                val BaseTitleFont = 14.sp
+                val BaseArtistFont = 10.sp
+
                 wizui.wizVerticalGrid(
-                    dynamicColumnsCount = true,
+                    columns = gridMultiplier.value.roundToInt(),
+                    dynamicColumnsCount = gridMultiplier.value.roundToInt() == 0,
                     modifier = Modifier.padding(top = 16.dp),
                     userScrollEnabled = true,
-                    dynamicMinSizeForElement = 160.dp * gridMultiplier.value,
+                    dynamicMinSizeForElement = 160.dp,
                     horizontalArrangement = Arrangement.spacedBy(
                         space = 16.dp,
                         alignment = Alignment.Start
@@ -220,11 +228,25 @@ fun albumTab(
                 )
                 { item ->
 
-                    Column(Modifier.clickable {
-                        openedAudioSource.value = item.albumKey
-                        AppPrefs.setString("openedAudioSource", item.albumKey)
-                    })
+                    var itemWidth by remember { mutableStateOf(0.dp) }
+                    val density = LocalDensity.current
+
+                    Column(Modifier
+                        .onSizeChanged {
+                            itemWidth = with(density) { it.width.toDp() }
+                        }
+                        .clickable {
+                            openedAudioSource.value = item.albumKey
+                            AppPrefs.setString("openedAudioSource", item.albumKey)
+                        })
                     {
+
+                        val scale = (itemWidth / BaseCardWidth)
+                            .coerceIn(0.2f, 1.5f) // защита от крайностей
+
+                        val titleFontSize = BaseTitleFont * scale
+                        val artistFontSize = BaseArtistFont * scale
+
                         Box(modifier = Modifier.fillMaxWidth().aspectRatio(1f).background(Color(45, 45, 45))) {
 
                             artworkAsync(
@@ -234,20 +256,20 @@ fun albumTab(
 
                         }
 
-                        Column(modifier = Modifier.padding(top = 9.dp * gridMultiplier.value)) {
+                        Column(modifier = Modifier.padding(top = 9.dp * scale )) {
 
                             Text(item.album,
-                                fontSize = 16.sp * gridMultiplier.value,
-                                letterSpacing = relativeLetterSpacing(16.sp * gridMultiplier.value),
+                                fontSize = titleFontSize,
+                                letterSpacing = relativeLetterSpacing(titleFontSize),
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
                                 color = Color(255, 255, 255))
 
-                            Spacer(Modifier.height(4.dp * gridMultiplier.value))
+                            Spacer(Modifier.height(4.dp * scale))
 
                             Text(item.artist,
-                                letterSpacing = relativeLetterSpacing(11.sp * gridMultiplier.value),
-                                fontSize = 11.sp * gridMultiplier.value,
+                                fontSize = artistFontSize,
+                                letterSpacing = relativeLetterSpacing(artistFontSize),
                                 color = Color(255, 255, 255, 100))
                         }
 

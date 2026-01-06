@@ -25,6 +25,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.example.audioindex.AudioFolderController
 import org.example.bass.Bass
+import org.example.bass.PlayerController
 import org.example.folderGetter.FolderScanController
 import org.example.ui.screens.leftPager.settings.AppPrefs
 import ui.draw
@@ -76,37 +77,10 @@ val LocalFullscreenController =
         error("FullscreenController not provided")
     }
 
-
+val bassAudioController = PlayerController()
 fun main() {
 
-    val bass = Bass.INSTANCE
-
-    val ok = bass.BASS_Init(
-        -1,        // default audio device
-        44100,     // sample rate
-        0,
-        0,
-        0
-    )
-
-    if (!ok) {
-        error("BASS_Init failed, error=${bass.BASS_ErrorGetCode()}")
-    }
-
-    val stream = bass.BASS_StreamCreateFile(
-        false,
-        "C:\\Users\\sasha\\Downloads\\Born Under Punches (The Heat Goes On) - 2005 Remaster - Talking Heads.mp3",
-        0,
-        0,
-        0
-    )
-
-    if (stream == 0) {
-        error("Stream create failed, error=${bass.BASS_ErrorGetCode()}")
-    }
-
-    bass.BASS_ChannelPlay(stream, false)
-    
+    bassAudioController.init()
 
     loaderConfig.apply(readConfig("config.data"))
 

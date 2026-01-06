@@ -57,6 +57,7 @@ import org.example.ui.screens.leftPager.settings.folderScanContent
 import org.example.wizui.toHexString
 import org.example.wizui.wizui
 import org.example.wizui.wizui.wizAnimateIf
+import kotlin.math.roundToInt
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -393,9 +394,8 @@ fun settingTab(
                                     gridMultiplier.value = it
                                     AppPrefs.setFloat("gridMultiplier", it)
                                 },
-                                valueRange = 0.5f..1.9f,
-                                steps = 10,
-                                disableRealSliderSteps = true,
+                                valueRange = 0f..6f,
+                                steps = 6,
                                 sliderColors = sliderColors,
                                 modifier = Modifier.fillMaxWidth()
                             )
@@ -415,11 +415,14 @@ fun settingTab(
                             Spacer(Modifier.height(8.dp))
 
                             Box(Modifier.scale(0.5f)) {
+
+
                                 wizui.wizVerticalGrid(
-                                    dynamicColumnsCount = true,
+                                    columns = gridMultiplier.value.roundToInt(),
+                                    dynamicColumnsCount = gridMultiplier.value.roundToInt() == 0,
+                                    modifier = Modifier.height(200.dp).padding(top = 16.dp),
                                     userScrollEnabled = false,
-                                    modifier = Modifier.padding(top = 0.dp).height(400.dp),
-                                    dynamicMinSizeForElement = 160.dp * gridMultiplier.value,
+                                    dynamicMinSizeForElement = 160.dp,
                                     horizontalArrangement = Arrangement.spacedBy(
                                         space = 16.dp,
                                         alignment = Alignment.Start
@@ -445,18 +448,18 @@ fun settingTab(
                                             }
                                         }
 
-                                        Column(modifier = Modifier.padding(top = 9.dp * gridMultiplier.value)) {
+                                        Column(modifier = Modifier.padding(top = 9.dp)) {
 
                                             Text("Pretty Hate Machine",
-                                                fontSize = 14.sp * gridMultiplier.value,
+                                                fontSize = 16.sp,
                                                 maxLines = 1,
                                                 overflow = TextOverflow.Ellipsis,
                                                 color = Color(255, 255, 255))
 
-                                            Spacer(Modifier.height(4.dp * gridMultiplier.value))
+                                            Spacer(Modifier.height(4.dp))
 
                                             Text("Nine Inch Nails",
-                                                fontSize = 9.sp * gridMultiplier.value,
+                                                fontSize = 12.sp,
                                                 color = Color(255, 255, 255, 100))
                                         }
                                     }
