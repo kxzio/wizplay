@@ -72,9 +72,11 @@ fun settingTab(
 )
 {
     (openedTab.value == 1).wizAnimateIf(wizui.WizAnimationType.ExpandVertically) {
-        Column(Modifier.padding(top = 8.dp)) {
 
-            Row(verticalAlignment = Alignment.CenterVertically) {
+        Column(Modifier.padding()) {
+
+            Row(modifier = Modifier.padding(start = 32.dp, end = 32.dp),
+                verticalAlignment = Alignment.CenterVertically) {
 
                 Box(modifier = Modifier.offset(y = 1.dp).onClick {
                     openedSettingsTab.value = 0
@@ -122,12 +124,13 @@ fun settingTab(
 
 
             HorizontalDivider(
-                modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp),
+                modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp, horizontal = 32.dp),
                 thickness = 1.0.dp,
                 color = MaterialTheme.colorScheme.primary
             )
 
             AnimatedContent(
+                modifier = Modifier.padding(start = 32.dp, end = 32.dp),
                 targetState = openedSettingsTab.value,
                 transitionSpec = {
                     val direction =

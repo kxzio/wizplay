@@ -897,6 +897,7 @@ object wizui {
     fun <T> wizVerticalGrid(
         modifier: Modifier = Modifier,
         columns: Int = 1,
+        key: ((item: T) -> Any)? = null,
         dynamicColumnsCount: Boolean = false,
         dynamicMinSizeForElement: Dp = 0.dp,
         userScrollEnabled: Boolean = false,
@@ -921,7 +922,7 @@ object wizui {
             state = state,
             contentPadding = contentPadding
         ) {
-            itemsIndexed(items, key = { _, item -> item.hashCode() }) { index, item ->
+            itemsIndexed(items, key = { _, item -> key?.invoke(item) ?: item.hashCode() }) { index, item ->
                 WizAnimatedGridItem(
                     index = index,
                     state = state

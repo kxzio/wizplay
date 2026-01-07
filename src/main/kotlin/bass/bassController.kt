@@ -1,22 +1,19 @@
 package org.example.bass
 
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.cancel
-import kotlinx.coroutines.delay
+import com.sun.jna.Pointer
+import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
-import kotlinx.coroutines.isActive
-import kotlinx.coroutines.launch
 import org.example.audioindex.ScannedAudio
+import java.util.concurrent.atomic.AtomicBoolean
 
 data class playlistItem(
-    var track : ScannedAudio,
-    var audioSource : String,
+    val track: ScannedAudio,
+    val audioSource: String
 )
+
 data class PlayerState(
     val playlist: List<playlistItem> = emptyList(),
     val index: Int = -1,
@@ -24,25 +21,39 @@ data class PlayerState(
     val positionSec: Double = 0.0,
     val durationSec: Double = 0.0,
     val volume: Float = 1.0f
-)
-
-fun PlayerState.isPlaying(track: ScannedAudio, audioSource : String): Boolean =
-    index in playlist.indices                           &&
-    playlist[index].track == track                      &&
-    playlist[index].audioSource == audioSource
+) {
+    fun isPlayingItem(item: ScannedAudio): Boolean =
+        playlist.getOrNull(index)?.track == item
+}
 
 class PlayerController {
+
+    /* ───────────── BASS SYNC ───────────── */
+
+    private val endSync = object : BASS_SYNC_PROC {
+        override fun callback(
+            handle: Int,
+            channel: Int,
+            data: Int,
+            user: Pointer?
+        ) {
+            scope.launch {
+                onTrackEnded()
+            }
+        }
+    }
 
     private val bass = Bass.INSTANCE
     private val mix = BassMix.INSTANCE
 
-    private var mixer: Int = 0
-    private var currentDecode: Int = 0
+    private var mixer = 0
+    private var decode = 0
 
     private val playlist = mutableListOf<playlistItem>()
     private var index = -1
 
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+    private val isSeeking = AtomicBoolean(false)
 
     private val _state = MutableStateFlow(PlayerState())
     val state: StateFlow<PlayerState> = _state.asStateFlow()
@@ -64,27 +75,25 @@ class PlayerController {
             error("Mixer create failed: ${bass.BASS_ErrorGetCode()}")
         }
 
-        startPositionPolling()
+        startPositionUpdater()
     }
 
     /* ───────────── QUEUE ───────────── */
 
-    fun add(track: playlistItem) {
-        playlist += track
+    fun playQueue(list: List<playlistItem>, startIndex: Int = 0) {
+        stopInternal()
+
+        playlist.clear()
+        playlist.addAll(list)
+
+        index = startIndex.coerceIn(list.indices)
         updateState()
+
+        play(index)
     }
 
-
-
-    fun addAll(tracks: List<playlistItem>) {
-        playlist += tracks
-        updateState()
-    }
-
-    fun removeAt(i: Int) {
-        if (i !in playlist.indices) return
-        playlist.removeAt(i)
-        if (i <= index) index--
+    fun add(item: playlistItem) {
+        playlist += item
         updateState()
     }
 
@@ -95,67 +104,15 @@ class PlayerController {
         updateState()
     }
 
-    fun playQueue(tracks: List<playlistItem>, startIndex: Int) {
-        if (tracks.isEmpty()) return
-
-        stop()
-
-        playlist.clear()
-        playlist.addAll(tracks)
-
-        index = startIndex.coerceIn(playlist.indices)
-
-        updateState()
-        play(index)
-    }
-
-
-
     /* ───────────── PLAYBACK ───────────── */
 
     fun play(i: Int = index) {
         if (playlist.isEmpty()) return
 
-        val newIndex = if (i in playlist.indices) i else 0
-        index = newIndex
-
+        index = i.coerceIn(playlist.indices)
         updateState()
 
         playTrack(playlist[index])
-    }
-
-    private fun playTrack(track: playlistItem) {
-        stopCurrentDecode()
-
-        currentDecode = bass.BASS_StreamCreateFile(
-            false,
-            track.track.path.toString(),
-            0,
-            0,
-            Bass.BASS_STREAM_DECODE or Bass.BASS_SAMPLE_FLOAT
-        )
-
-        if (currentDecode == 0) {
-            error("Decode create failed: ${bass.BASS_ErrorGetCode()}")
-        }
-
-        mix.BASS_Mixer_StreamAddChannel(
-            mixer,
-            currentDecode,
-            BassMix.BASS_MIXER_NORAMPIN
-        )
-
-        bass.BASS_ChannelPlay(mixer, false)
-
-        val lenBytes = bass.BASS_ChannelGetLength(currentDecode, Bass.BASS_POS_BYTE)
-        val duration = bass.BASS_ChannelBytes2Seconds(currentDecode, lenBytes)
-
-        _state.update {
-            it.copy(
-                isPlaying = true,
-                durationSec = duration
-            )
-        }
     }
 
     fun pause() {
@@ -169,40 +126,31 @@ class PlayerController {
     }
 
     fun stop() {
-        bass.BASS_ChannelStop(mixer)
-        stopCurrentDecode()
+        stopInternal()
         _state.update { it.copy(isPlaying = false, positionSec = 0.0) }
     }
 
     fun next() {
-        if (index + 1 < playlist.size) {
-            play(index + 1)
-        }
+        if (index + 1 < playlist.size) play(index + 1)
     }
 
     fun prev() {
-        if (index - 1 >= 0) {
-            play(index - 1)
-        }
+        if (index - 1 >= 0) play(index - 1)
     }
 
     /* ───────────── SEEK / VOLUME ───────────── */
 
     fun seek(seconds: Double) {
-        if (currentDecode == 0) return
+        if (decode == 0) return
 
-        val bytes =
-            bass.BASS_ChannelSeconds2Bytes(currentDecode, seconds)
+        isSeeking.set(true)
 
-        bass.BASS_ChannelSetPosition(
-            currentDecode,
-            bytes,
-            Bass.BASS_POS_BYTE
-        )
+        val bytes = bass.BASS_ChannelSeconds2Bytes(decode, seconds)
+        bass.BASS_ChannelSetPosition(decode, bytes, Bass.BASS_POS_BYTE)
 
-        _state.update {
-            it.copy(positionSec = seconds)
-        }
+        _state.update { it.copy(positionSec = seconds) }
+
+        isSeeking.set(false)
     }
 
     fun setVolume(v: Float) {
@@ -212,45 +160,53 @@ class PlayerController {
 
     /* ───────────── INTERNAL ───────────── */
 
-    private fun stopCurrentDecode() {
-        if (currentDecode != 0) {
-            mix.BASS_Mixer_ChannelRemove(currentDecode)
-            bass.BASS_StreamFree(currentDecode)
-            currentDecode = 0
-        }
-    }
+    private fun playTrack(item: playlistItem) {
 
-    private fun updateState() {
+        bass.BASS_ChannelStop(mixer)
+        bass.BASS_ChannelSetPosition(mixer, 0, Bass.BASS_POS_BYTE)
+
+        if (decode != 0) {
+            mix.BASS_Mixer_ChannelRemove(decode)
+            freeDecode()
+        }
+
+        decode = bass.BASS_StreamCreateFile(
+            false,
+            item.track.path.toString(),
+            0,
+            0,
+            Bass.BASS_STREAM_DECODE or Bass.BASS_SAMPLE_FLOAT
+        )
+
+        if (decode == 0) {
+            error("Decode create failed: ${bass.BASS_ErrorGetCode()}")
+        }
+
+        mix.BASS_Mixer_StreamAddChannel(
+            mixer,
+            decode,
+            BassMix.BASS_MIXER_NORAMPIN or BassMix.BASS_MIXER_DOWNMIX
+        )
+
+        bass.BASS_ChannelPlay(mixer, true)
+
+        val lenBytes = bass.BASS_ChannelGetLength(decode, Bass.BASS_POS_BYTE)
+        val duration = bass.BASS_ChannelBytes2Seconds(decode, lenBytes)
+
+        bass.BASS_ChannelSetSync(
+            decode,
+            Bass.BASS_SYNC_END,
+            0,
+            endSync,
+            null
+        )
+
         _state.update {
             it.copy(
-                playlist = playlist,
-                index = index
+                isPlaying = true,
+                positionSec = 0.0,
+                durationSec = duration
             )
-        }
-    }
-
-    private fun startPositionPolling() {
-        scope.launch {
-            while (isActive) {
-                if (_state.value.isPlaying && currentDecode != 0) {
-
-                    val posBytes =
-                        bass.BASS_ChannelGetPosition(currentDecode, Bass.BASS_POS_BYTE)
-                    val lenBytes =
-                        bass.BASS_ChannelGetLength(currentDecode, Bass.BASS_POS_BYTE)
-
-                    val posSec =
-                        bass.BASS_ChannelBytes2Seconds(currentDecode, posBytes)
-
-                    _state.update { it.copy(positionSec = posSec) }
-
-                    if (posBytes >= lenBytes - 4096) {
-                        onTrackEnded()
-                    }
-                }
-
-                delay(50)
-            }
         }
     }
 
@@ -262,11 +218,51 @@ class PlayerController {
         }
     }
 
+    private fun startPositionUpdater() {
+        scope.launch {
+            while (isActive) {
+                if (_state.value.isPlaying && decode != 0 && !isSeeking.get()) {
+                    val posBytes =
+                        bass.BASS_ChannelGetPosition(decode, Bass.BASS_POS_BYTE)
+                    val posSec =
+                        bass.BASS_ChannelBytes2Seconds(decode, posBytes)
+
+                    _state.update { it.copy(positionSec = posSec) }
+                }
+                delay(150)
+            }
+        }
+    }
+
+    private fun stopInternal() {
+        bass.BASS_ChannelStop(mixer)
+        bass.BASS_ChannelSetPosition(mixer, 0, Bass.BASS_POS_BYTE)
+
+        if (decode != 0) {
+            mix.BASS_Mixer_ChannelRemove(decode)
+            freeDecode()
+        }
+    }
+
+    private fun freeDecode() {
+        bass.BASS_StreamFree(decode)
+        decode = 0
+    }
+
+    private fun updateState() {
+        _state.update {
+            it.copy(
+                playlist = playlist.toList(),
+                index = index
+            )
+        }
+    }
+
     /* ───────────── DESTROY ───────────── */
 
     fun release() {
         scope.cancel()
-        stop()
+        stopInternal()
         bass.BASS_Free()
     }
 }

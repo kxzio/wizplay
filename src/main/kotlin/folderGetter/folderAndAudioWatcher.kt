@@ -20,7 +20,7 @@ data class ScannedAudio(
     val artworkPath: Path? = null
 ) {
     val albumKey: String
-    get() = "$artist::$album::$year"
+    get() = "$album::$year"
 }
 
 

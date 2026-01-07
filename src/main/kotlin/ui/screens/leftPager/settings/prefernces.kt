@@ -31,6 +31,9 @@ object AppPrefs {
         prefs.get(key, default)
 
     fun setString(key: String, value: String) {
-        prefs.put(key, value)
+        // Remove null characters before storing
+        val sanitized = value.replace("\u0000", "")
+        prefs.put(key, sanitized)
     }
+
 }

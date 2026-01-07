@@ -44,7 +44,43 @@ compose.desktop {
     application {
         mainClass = "org.example.MainKt"
         jvmArgs += listOf(
+
+            "-XX:+UnlockExperimentalVMOptions",
+
+            "-Dskiko.renderApi=direct3d",
+
+            "-Xms512m",
+            "-Xmx2048m",
+            "-XX:+UseG1GC",
+
+            "-XX:MaxGCPauseMillis=20",
+
             "-Dsun.java2d.uiScale.enabled=false",
+            "-Dsun.java2d.dpiaware=true",
+
+            "-XX:+DisableExplicitGC",
+            "-XX:+AlwaysPreTouch",
+
+            "-XX:+UseG1GC" ,
+            "-XX:MaxGCPauseMillis=8",
+            "-XX:InitiatingHeapOccupancyPercent=30",
+            "-XX:G1NewSizePercent=40",
+            "-XX:G1MaxNewSizePercent=60",
+
+            "-XX:+UseStringDeduplication",
+            "-XX:+OptimizeStringConcat",
+
+            "-Dskiko.vsync.enabled=true",
+
+            "-Dskiko.direct3d.flushOnPresent=false",
+
+            "-Dskiko.debug=false",
+            "-Dskiko.trace.enabled=false",
+
+            "-XX:CICompilerCount=2",
+            "-XX:+TieredCompilation",
+            "-XX:TieredStopAtLevel=1",
+
             "-Djna.library.path=${projectDir}/bass"
         )
     }

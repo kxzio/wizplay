@@ -2,6 +2,13 @@ package org.example.bass
 
 import com.sun.jna.Library
 import com.sun.jna.Native
+import com.sun.jna.Callback
+import com.sun.jna.Pointer
+
+interface BASS_SYNC_PROC : Callback {
+    fun callback(handle: Int, channel: Int, data: Int, user: Pointer?)
+}
+
 
 interface Bass : Library {
 
@@ -25,7 +32,6 @@ interface Bass : Library {
 
     fun BASS_ChannelGetPosition(handle: Int, mode: Int): Long
     fun BASS_ChannelGetLength(handle: Int, mode: Int): Long
-
     fun BASS_ChannelSetPosition(handle: Int, pos: Long, mode: Int): Boolean
 
     fun BASS_ChannelBytes2Seconds(handle: Int, pos: Long): Double
@@ -34,14 +40,23 @@ interface Bass : Library {
     fun BASS_ChannelSetAttribute(handle: Int, attrib: Int, value: Float): Boolean
     fun BASS_ChannelGetAttribute(handle: Int, attrib: Int, value: FloatArray): Boolean
 
+    fun BASS_ChannelSetSync(
+        handle: Int,
+        type: Int,
+        param: Long,
+        proc: BASS_SYNC_PROC,
+        user: Pointer? = null
+    ): Int
+
     companion object {
-        val INSTANCE: Bass =
-            Native.load("bass", Bass::class.java)
+        val INSTANCE: Bass = Native.load("bass", Bass::class.java)
 
         const val BASS_SAMPLE_FLOAT = 0x100
         const val BASS_STREAM_DECODE = 0x200000
         const val BASS_POS_BYTE = 0
         const val BASS_ATTRIB_VOL = 2
+
+        const val BASS_SYNC_END = 2
     }
 }
 
@@ -66,6 +81,8 @@ interface BassMix : Library {
             Native.load("bassmix", BassMix::class.java)
 
         const val BASS_MIXER_NORAMPIN = 0x1000
+        const val BASS_MIXER_DOWNMIX = 0x400000
     }
 }
+
 

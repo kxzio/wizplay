@@ -2,6 +2,7 @@ package ui.screens.leftPager
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -10,6 +11,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.sharp.Settings
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -93,15 +95,16 @@ fun leftPagerContent(
         mutableStateOf(AppPrefs.getFloat("gridMultiplier", 0f))
     }
 
-    Column(Modifier.padding(16.dp)) {
+    Column(Modifier.padding()) {
 
-        Row(Modifier.fillMaxWidth())
+        Row(Modifier.fillMaxWidth().padding(start = 32.dp, end = 32.dp, top = 32.dp, bottom = 16.dp))
         {
             wizui.wizButton(
-                contentColor = Color(255, 255, 255),
+                contentColor = Color(255, 255, 255, 100),
                 contentColorToggled = MaterialTheme.colorScheme.primary,
+                backgroundColor = Color(255, 255, 255, 5),
                 turnOffToggleIndication = true,
-                modifier = Modifier.height(50.dp),
+                modifier = Modifier.height(50.dp).border(1.dp, Color(255, 255, 255, 30)),
                 shape = RectangleShape,
                 onClick = {
                     openedTab.value = 1
@@ -113,10 +116,11 @@ fun leftPagerContent(
             }
 
             wizui.wizButton(
-                contentColor = Color(255, 255, 255),
+                contentColor = Color(255, 255, 255, 100),
                 contentColorToggled = MaterialTheme.colorScheme.primary,
+                backgroundColor = Color(255, 255, 255, 5),
                 turnOffToggleIndication = true,
-                modifier = Modifier.weight(1f).height(50.dp),
+                modifier = Modifier.weight(1f).height(50.dp).border(1.dp, Color(255, 255, 255, 30)),
                 shape = RectangleShape,
                 onClick = {
                     openedTab.value = 2
@@ -127,10 +131,11 @@ fun leftPagerContent(
             }
 
             wizui.wizButton(
-                contentColor = Color(255, 255, 255),
+                contentColor = Color(255, 255, 255, 100),
                 contentColorToggled = MaterialTheme.colorScheme.primary,
+                backgroundColor = Color(255, 255, 255, 10),
                 turnOffToggleIndication = true,
-                modifier = Modifier.weight(1f).height(50.dp),
+                modifier = Modifier.weight(1f).height(50.dp).border(1.dp, Color(255, 255, 255, 30)),
                 shape = RectangleShape,
                 onClick = {
                     openedTab.value = 3
@@ -142,7 +147,6 @@ fun leftPagerContent(
             }
         }
 
-        Spacer(Modifier.height(8.dp))
 
         //render of setting tab.    OPENED TAB = 1
         settingTab(allowResize,
@@ -156,6 +160,8 @@ fun leftPagerContent(
 
         //render of album tab.      OPENED TAB = 2
         albumTab(audioFolderController, openedTab, gridMultiplier, openedAudioSource)
+
+
 
 
     }
