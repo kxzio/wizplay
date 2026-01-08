@@ -37,18 +37,20 @@ dependencies {
     implementation("dev.chrisbanes.haze:haze:1.7.1")
     implementation("dev.chrisbanes.haze:haze-materials:1.7.1")
 
+    implementation("org.xerial:sqlite-jdbc:3.51.1.0")
+
 }
 
 
 compose.desktop {
     application {
         mainClass = "org.example.MainKt"
+
         jvmArgs += listOf(
 
             "-XX:+UnlockExperimentalVMOptions",
 
             "-Dskiko.renderApi=direct3d",
-
             "-Xms512m",
             "-Xmx2048m",
             "-XX:+UseG1GC",
@@ -77,9 +79,7 @@ compose.desktop {
             "-Dskiko.debug=false",
             "-Dskiko.trace.enabled=false",
 
-            "-XX:CICompilerCount=2",
             "-XX:+TieredCompilation",
-            "-XX:TieredStopAtLevel=1",
 
             "-Djna.library.path=${projectDir}/bass"
         )

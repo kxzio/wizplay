@@ -3,8 +3,7 @@ package org.example.audioindex
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.serialization.*
-import kotlinx.serialization.json.Json
+import org.example.folderGetter.tagsAndAudioGetter.AudioDatabase
 import org.jaudiotagger.audio.AudioFileIO
 import org.jaudiotagger.tag.FieldKey
 import java.nio.file.*
@@ -16,141 +15,102 @@ data class ScannedAudio(
     val artist: String,
     val album: String,
     val year: String,
-    val pos : String,
-    val artworkPath: Path? = null
+    val pos: String,
+    val artworkPath: Path? = null,
+    val albumCreator: Boolean = false
 ) {
     val albumKey: String
-    get() = "$album::$year"
+        get() = "$album::$year"
 }
-
 
 private fun norm(path: Path): Path =
     path.toAbsolutePath().normalize()
 
 class AudioFolderController {
 
-    /* ================= CONFIG ================= */
-
+    // tools for audio extracting
     private val audioExt = setOf("mp3", "wav", "flac", "ogg", "aac", "m4a")
+
+    //image / caching
     private val artworkDir = Path("artwork")
-
-    private val json = Json {
-        prettyPrint = true
-        ignoreUnknownKeys = true
-    }
-
-    /* ================= STATE ================= */
-
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-
-    private val roots = mutableSetOf<Path>()
-
-    private val _audioMap =
-        MutableStateFlow<Map<Path, ScannedAudio>>(emptyMap())
-    val audioMap: StateFlow<Map<Path, ScannedAudio>> = _audioMap
-
-    /** albumKey -> artworkPath */
     private val albumArtworkCache = mutableMapOf<String, Path>()
 
-    private var dirty = false
+    //sq lite database
+    private val db = AudioDatabase(Path("audio-index.db"))
 
-    /* ================= DTO ================= */
+    //thread controlling to not block ui layer
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
-    @Serializable
-    private data class AudioDto(
-        val path: String,
-        val title: String,
-        val artist: String,
-        val album: String,
-        val year: String,
-        val pos : String,
-        val artworkPath: String?
-    )
+    //roots added by user
+    private val roots = mutableSetOf<Path>()
 
-    @Serializable
-    private data class IndexDto(
-        val roots: List<String>,
-        val audios: List<AudioDto>
-    )
+    //containts only album creators audio files, to get albums tracks use getTracksByAlbum
+    private val _audioMap =
+        MutableStateFlow<Map<String, ScannedAudio>>(emptyMap())
+    val audioMap: StateFlow<Map<String, ScannedAudio>> = _audioMap
 
-    /* ================= STARTUP ================= */
 
-    suspend fun start(config: Path) {
+    suspend fun start() {
+
+        //create art dir if it not
         Files.createDirectories(artworkDir)
-        loadFromFile(config)
-        saveIfDirty(config)
+
+        //clear all roots that could be
+        roots.clear()
+        roots.addAll(db.loadRoots())
+
+        //get creators by DB, not to load all songs
+        val creators = db.loadAlbumCreators()
+        _audioMap.value = creators.associateBy { it.albumKey }
+
+        //doing the same to load artworks and get artwork for creators
+        albumArtworkCache.clear()
+        creators.forEach {
+            it.artworkPath?.let { p ->
+                albumArtworkCache[it.albumKey] = p
+            }
+        }
+
     }
 
     fun stop() {
         scope.cancel()
+        db.close()
     }
 
     fun getRoots(): Set<Path> = roots.toSet()
 
-    /* ================= ROOTS ================= */
-
     suspend fun addRoot(path: Path) {
+
         val root = norm(path)
         if (!root.isDirectory() || roots.contains(root)) return
 
         roots.add(root)
+        db.insertRoot(root)
+
         scanRoot(root)
-        dirty = true
-        saveIfDirty()
     }
 
     fun removeRoot(path: Path) {
         val root = norm(path)
         if (!roots.remove(root)) return
 
-        val current = _audioMap.value
+        db.deleteRoot(root)
+        db.deleteByRoot(root)
 
-        // 1. Треки, которые удаляются
-        val removedAudios =
-            current
-                .filterKeys { it.startsWith(root) }
-                .values
+        val creators = db.loadAlbumCreators()
+        _audioMap.value = creators.associateBy { it.albumKey }
 
-        // 2. Их albumKey
-        val removedAlbumKeys =
-            removedAudios
-                .map { it.albumKey }
-                .toSet()
-
-        // 3. Оставшиеся треки
-        val remaining =
-            current
-                .filterKeys { !it.startsWith(root) }
-
-        // 4. Проверяем, какие albumKey больше нигде не используются
-        val stillUsedAlbumKeys =
-            remaining.values
-                .map { it.albumKey }
-                .toSet()
-
-        val albumsToDelete =
-            removedAlbumKeys - stillUsedAlbumKeys
-
-        // 5. Удаляем artwork-файлы
-        for (albumKey in albumsToDelete) {
-            val artworkPath = albumArtworkCache.remove(albumKey)
-            if (artworkPath != null) {
-                runCatching {
-                    Files.deleteIfExists(artworkPath)
-                }
+        albumArtworkCache.clear()
+        creators.forEach {
+            it.artworkPath?.let { p ->
+                albumArtworkCache[it.albumKey] = p
             }
         }
-
-        // 6. Обновляем audioMap
-        _audioMap.value = remaining
-
-        dirty = true
-        saveIfDirty()
     }
 
-    /* ================= SCANNING ================= */
-
     private suspend fun scanRoot(root: Path) {
+
         val current = _audioMap.value.toMutableMap()
 
         Files.walk(root).use { stream ->
@@ -158,15 +118,21 @@ class AudioFolderController {
                 .filter { it.isRegularFile() }
                 .filter { isAudio(it) }
                 .forEach { file ->
-                    val path = norm(file)
-                    if (current.containsKey(path)) return@forEach
 
-                    readTagsAndArtwork(path)?.let {
-                        current[path] = it
+                    //update all audio files, BUT we dont write them in memory. only in bd
+                    val path = norm(file)
+
+                    readTagsAndArtwork(path)?.let { audio ->
+                        db.upsertAudio(audio)
+
+                        if (audio.albumCreator && !current.containsKey(audio.albumKey)) {
+                            current[audio.albumKey] = audio
+                        }
                     }
                 }
         }
 
+        //update creators
         _audioMap.value = current
     }
 
@@ -177,10 +143,7 @@ class AudioFolderController {
         val root = norm(rootPath)
         if (!roots.contains(root)) return
 
-        val existing =
-            _audioMap.value
-                .filterKeys { it.startsWith(root) }
-                .toMutableMap()
+        val current = _audioMap.value.toMutableMap()
 
         val files = Files.walk(root).use { stream ->
             stream
@@ -191,32 +154,26 @@ class AudioFolderController {
         }
 
         val total = files.size
-        var currentIndex = 0
-
-        val updated = mutableMapOf<Path, ScannedAudio>()
+        var index = 0
 
         for (file in files) {
-            currentIndex++
-            onProgress(currentIndex, total)
+            index++
+            onProgress(index, total)
 
-            val old = existing[file]
-            if (old != null) {
-                updated[file] = old
-            } else {
-                readTagsAndArtwork(file)?.let {
-                    updated[file] = it
+            readTagsAndArtwork(file)?.let { audio ->
+                db.upsertAudio(audio)
+
+                //update full songs in bd, but dont update all of them in UI
+
+                if (audio.albumCreator) {
+                    current[audio.albumKey] = audio
                 }
             }
 
             yield()
         }
 
-        _audioMap.value =
-            _audioMap.value
-                .filterKeys { !it.startsWith(root) } + updated
-
-        dirty = true
-        saveIfDirty()
+        _audioMap.value = current
     }
 
     /* ================= TAGS + ARTWORK ================= */
@@ -227,15 +184,14 @@ class AudioFolderController {
             val tag = audio.tag ?: return null
 
             val artist = tag.getFirst(FieldKey.ARTIST)
-            val album  = tag.getFirst(FieldKey.ALBUM)
-            val year   = tag.getFirst(FieldKey.YEAR)
-            val title  = tag.getFirst(FieldKey.TITLE)
-            val pos    = tag.getFirst(FieldKey.TRACK)
+            val album = tag.getFirst(FieldKey.ALBUM)
+            val year = tag.getFirst(FieldKey.YEAR)
+            val title = tag.getFirst(FieldKey.TITLE)
+            val pos = tag.getFirst(FieldKey.TRACK)
 
-            val albumKey = "$artist::$album::$year"
+            val albumKey = "$album::$year"
 
-            // 🔴 ВАЖНО: проверяем ДО извлечения
-            val alreadyHadArtwork = albumArtworkCache.containsKey(albumKey)
+            val alreadyHasCreator = db.hasAlbumCreator(albumKey)
 
             val artworkPath =
                 albumArtworkCache[albumKey]
@@ -248,7 +204,8 @@ class AudioFolderController {
                 album = album,
                 year = year,
                 pos = pos,
-                artworkPath = if (alreadyHadArtwork) null else artworkPath
+                artworkPath = artworkPath,
+                albumCreator = !alreadyHasCreator
             )
 
         } catch (_: Exception) {
@@ -259,7 +216,6 @@ class AudioFolderController {
         albumKey: String,
         audio: org.jaudiotagger.audio.AudioFile
     ): Path? {
-
         val artwork = audio.tag?.firstArtwork ?: return null
         val data = artwork.binaryData ?: return null
 
@@ -269,81 +225,16 @@ class AudioFolderController {
 
         if (!Files.exists(target)) {
             Files.write(target, data)
-            dirty = true
         }
 
         albumArtworkCache[albumKey] = target
         return target
     }
 
-    /* ================= JSON ================= */
+    /* ================= QUERIES ================= */
 
-    fun tracksByAlbum(
-        albumKey: String,
-    ): List<ScannedAudio> =
-        _audioMap.value.values
-            .filter { it.albumKey == albumKey }
-
-    fun saveIfDirty(path: Path = Path("folders.config")) {
-        if (!dirty) return
-        Files.writeString(path, toJson())
-        dirty = false
-    }
-
-    private fun toJson(): String =
-        json.encodeToString(
-            IndexDto(
-                roots = roots.map { it.toString() },
-                audios = _audioMap.value.values.map {
-                    AudioDto(
-                        path = it.path.toString(),
-                        title = it.title,
-                        artist = it.artist,
-                        album = it.album,
-                        year = it.year,
-                        pos = it.pos,
-                        artworkPath = it.artworkPath?.toString()
-                    )
-                }
-            )
-        )
-
-
-    private fun loadFromFile(path: Path) {
-        if (!Files.exists(path)) return
-        loadFromJson(Files.readString(path))
-    }
-
-    private fun loadFromJson(text: String) {
-        val dto = json.decodeFromString<IndexDto>(text)
-
-        roots.clear()
-        roots += dto.roots
-            .map { norm(Paths.get(it)) }
-            .filter { it.isDirectory() }
-
-        val map = mutableMapOf<Path, ScannedAudio>()
-
-        for (a in dto.audios) {
-            val p = norm(Paths.get(a.path))
-            val audio = ScannedAudio(
-                path = p,
-                title = a.title,
-                artist = a.artist,
-                album = a.album,
-                year = a.year,
-                pos = a.pos,
-                artworkPath = a.artworkPath?.let { Path(it) }
-            )
-            map[p] = audio
-
-            audio.artworkPath?.let {
-                albumArtworkCache[audio.albumKey] = it
-            }
-        }
-
-        _audioMap.value = map
-    }
+    fun tracksByAlbum(albumKey: String): List<ScannedAudio> =
+        db.tracksByAlbum(albumKey)
 
     /* ================= HELPERS ================= */
 

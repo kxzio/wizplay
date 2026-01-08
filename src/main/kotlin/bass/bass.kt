@@ -53,6 +53,7 @@ interface Bass : Library {
 
         const val BASS_SAMPLE_FLOAT = 0x100
         const val BASS_STREAM_DECODE = 0x200000
+        const val BASS_STREAM_PRESCAN = 0x20000
         const val BASS_POS_BYTE = 0
         const val BASS_ATTRIB_VOL = 2
 
@@ -82,6 +83,7 @@ interface BassMix : Library {
 
         const val BASS_MIXER_NORAMPIN = 0x1000
         const val BASS_MIXER_DOWNMIX = 0x400000
+        const val BASS_MIXER_QUEUE   = 0x2000
     }
 }
 

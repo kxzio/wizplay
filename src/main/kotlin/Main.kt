@@ -24,8 +24,7 @@ import androidx.compose.ui.unit.Density
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.example.audioindex.AudioFolderController
-import org.example.bass.Bass
-import org.example.bass.PlayerController
+import org.example.bass.bassController.PlayerController
 import org.example.folderGetter.FolderScanController
 import org.example.ui.screens.leftPager.settings.AppPrefs
 import ui.draw
@@ -37,7 +36,6 @@ import javax.swing.AbstractAction
 import javax.swing.JComponent
 import javax.swing.JFrame
 import javax.swing.KeyStroke
-import kotlin.io.path.Path
 
 // глобальное состояние
 var loaderConfig by mutableStateOf(LocalConfig())
@@ -78,6 +76,7 @@ val LocalFullscreenController =
     }
 
 val bassAudioController = PlayerController()
+
 fun main() {
 
     bassAudioController.init()
@@ -215,7 +214,7 @@ fun preDraw() {
             LaunchedEffect(Unit)
             {
                 withContext(Dispatchers.IO) {
-                    audioFolderController.start(Path("folders.config"))
+                    audioFolderController.start()
                     folderScanController.restoreFromAudioController()
 
                     if (shouldUpdateOnStart)

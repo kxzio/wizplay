@@ -50,6 +50,7 @@ import dev.chrisbanes.haze.HazeTint
 import dev.chrisbanes.haze.hazeEffect
 import dev.chrisbanes.haze.hazeSource
 import dev.chrisbanes.haze.rememberHazeState
+import kotlinx.coroutines.flow.forEach
 import org.example.folderGetter.FolderScanController
 import org.example.FullscreenController
 import org.example.audioindex.AudioFolderController
@@ -92,7 +93,6 @@ fun draw(
         val openedAudioSource = remember {
             mutableStateOf(AppPrefs.getString("openedAudioSource", ""))
         }
-
 
         BoxWithConstraints(
             modifier = Modifier.fillMaxSize()

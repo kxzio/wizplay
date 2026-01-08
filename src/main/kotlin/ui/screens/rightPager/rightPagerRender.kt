@@ -1,17 +1,11 @@
 package ui.screens.rightPager
 
-import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.ExperimentalAnimationApi
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.animateIntAsState
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -29,13 +23,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Pause
-import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.SkipNext
-import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.material.icons.sharp.Pause
 import androidx.compose.material.icons.sharp.PermMedia
 import androidx.compose.material.icons.sharp.PlayArrow
@@ -63,9 +52,7 @@ import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.blur
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithCache
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
@@ -85,7 +72,6 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.lerp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.unit.times
 import androidx.compose.ui.zIndex
 import dev.chrisbanes.haze.HazeStyle
 import dev.chrisbanes.haze.HazeTint
@@ -93,8 +79,7 @@ import dev.chrisbanes.haze.hazeEffect
 import dev.chrisbanes.haze.hazeSource
 import dev.chrisbanes.haze.rememberHazeState
 import org.example.audioindex.AudioFolderController
-import org.example.bass.PlayerState
-import org.example.bass.playlistItem
+import org.example.bass.bassController.playlistItem
 import org.example.bassAudioController
 import org.example.ui.screens.leftPager.albums.artworkAsync
 import org.example.wizui.wizui
@@ -313,18 +298,27 @@ fun renderRightPager(
                             backgroundColor = Color(35, 35, 35, 0),
                             onClick = {
 
-                                bassAudioController.playQueue(
+                                val state = bassAudioController.state.value
 
-                                    list =
-                                        openedAlbumTracks.map { track ->
+                                val sameAlbum =
+                                    state.playlist.isNotEmpty() &&
+                                            state.playlist.first().audioSource == item.albumKey
+
+                                val sameTrack =
+                                    sameAlbum &&
+                                            state.index == openedAlbumTracks.indexOf(item)
+
+                                if (!sameAlbum || !sameTrack) {
+                                    bassAudioController.playQueue(
+                                        list = openedAlbumTracks.map { track ->
                                             playlistItem(
                                                 track = track,
                                                 audioSource = track.albumKey
                                             )
                                         },
-
-                                    startIndex = openedAlbumTracks.indexOf(item)
-                                )
+                                        startIndex = openedAlbumTracks.indexOf(item)
+                                    )
+                                }
                             }
                         ) {
 

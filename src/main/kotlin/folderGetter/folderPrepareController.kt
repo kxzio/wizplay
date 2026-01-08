@@ -62,8 +62,6 @@ class FolderScanController(
                     }
                 }
 
-                audioController.saveIfDirty(Path("folders.config"))
-
                 updateState(path) { FolderScanState.Ready }
 
             } catch (e: Exception) {
@@ -106,7 +104,6 @@ class FolderScanController(
         scanQueue.remove(path)
         _folders.value = _folders.value.filterNot { it.path == path }
         audioController.removeRoot(path)
-        audioController.saveIfDirty(Path("folders.config"))
     }
 
     private fun markReady(path: Path) {

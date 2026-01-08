@@ -82,7 +82,7 @@ private fun albumKey(a: ScannedAudio): String =
     "${a.album}::${a.year}"
 
 fun buildAlbumRepresentatives(
-    audioMap: Map<Path, ScannedAudio>
+    audioMap: Map<String, ScannedAudio>
 ): List<ScannedAudio> =
     audioMap.values
         .groupBy { albumKey(it) }
@@ -276,7 +276,6 @@ fun albumTab(
                                 ),
 
                             ) {
-
 
                                 itemsIndexed(
                                     items = results,
