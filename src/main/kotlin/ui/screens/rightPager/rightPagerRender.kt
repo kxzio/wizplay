@@ -23,6 +23,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.sharp.Pause
@@ -81,7 +82,9 @@ import dev.chrisbanes.haze.rememberHazeState
 import org.example.audioindex.AudioFolderController
 import org.example.bass.bassController.playlistItem
 import org.example.bassAudioController
+import org.example.bassQueueController
 import org.example.ui.screens.leftPager.albums.artworkAsync
+import org.example.ui.screens.leftPager.settings.AppPrefs
 import org.example.wizui.wizui
 import org.example.wizui.wizui.FlatSliderTrack
 
@@ -157,6 +160,8 @@ fun renderRightPager(
 
     val state by bassAudioController.state.collectAsState()
 
+    val listState = rememberLazyListState()
+
     wizui.wizColumn(
         modifier = Modifier
             .fillMaxHeight()
@@ -199,6 +204,11 @@ fun renderRightPager(
         else
         {
 
+            LaunchedEffect(openedAudioSource.value)
+            {
+                listState.scrollToItem(index = 0)
+            }
+
             Box(Modifier.fillMaxSize().background(Color(16, 16, 16))) {
 
                 var trackWithArtOrFirst = openedAlbumTracks.firstOrNull { it.artworkPath != null }
@@ -206,7 +216,9 @@ fun renderRightPager(
                     trackWithArtOrFirst = openedAlbumTracks.first()
 
 
-                LazyColumn(Modifier
+                LazyColumn(
+                    state = listState,
+                    modifier = Modifier
                     .padding(0.dp)
                     .background(Color(16, 16, 16))
                     .hazeSource(hazeState)
@@ -297,28 +309,11 @@ fun renderRightPager(
                             contentColor = Color(255, 255, 255),
                             backgroundColor = Color(35, 35, 35, 0),
                             onClick = {
-
-                                val state = bassAudioController.state.value
-
-                                val sameAlbum =
-                                    state.playlist.isNotEmpty() &&
-                                            state.playlist.first().audioSource == item.albumKey
-
-                                val sameTrack =
-                                    sameAlbum &&
-                                            state.index == openedAlbumTracks.indexOf(item)
-
-                                if (!sameAlbum || !sameTrack) {
-                                    bassAudioController.playQueue(
-                                        list = openedAlbumTracks.map { track ->
-                                            playlistItem(
-                                                track = track,
-                                                audioSource = track.albumKey
-                                            )
-                                        },
-                                        startIndex = openedAlbumTracks.indexOf(item)
-                                    )
-                                }
+                                bassQueueController.buildFromSource(
+                                    tracks = openedAlbumTracks,
+                                    audioSource = openedAudioSource.value,
+                                    startTrack = item
+                                )
                             }
                         ) {
 
@@ -343,7 +338,7 @@ fun renderRightPager(
                                 ) {
 
                                     Text(item.title, fontSize = 16.sp,
-                                        color = if (state.isPlayingItem(item))
+                                        color = if (bassQueueController.isPlaying(item))
                                             MaterialTheme.colorScheme.primary else Color.White)
 
                                     Spacer(Modifier.height(4.dp))
@@ -365,7 +360,7 @@ fun renderRightPager(
 
                 )
                 {
-                    val track = state.playlist.getOrNull(state.index)
+                    val track = bassQueueController.currentTrack()
 
                     var realHeight by remember { mutableStateOf(0.dp) }
                     val density = LocalDensity.current
@@ -405,6 +400,7 @@ fun renderRightPager(
                                 label = "thumbAlpha"
                             )
 
+                            if (state.durationSec > 0)
                             Slider(
                                 value = sliderValue,
                                 onValueChange = {
@@ -501,12 +497,15 @@ fun renderRightPager(
                                     .padding(32.dp)
                             )
                             {
-                                Column(Modifier.zIndex(3f)) {
+                                Column(Modifier.zIndex(3f).clickable {
+                                    openedAudioSource.value = track.albumKey
+                                    AppPrefs.setString("openedAudioSource", track.albumKey)
+                                }) {
 
                                     /* ───── ТРЕК ───── */
 
                                     Text(
-                                        text = track!!.track.title,
+                                        text = track.title,
                                         color = Color.White,
                                         fontSize = 18.sp,
                                         maxLines = 1,
@@ -516,7 +515,7 @@ fun renderRightPager(
                                     Spacer(Modifier.height(6.dp))
 
                                     Text(
-                                        text = track!!.track.artist,
+                                        text = track.artist,
                                         color = Color(255, 255, 255, 100),
                                         fontSize = 14.sp,
                                         maxLines = 1,
@@ -542,8 +541,7 @@ fun renderRightPager(
                                     ),
                                     onClick = {
 
-                                        bassAudioController.prev()
-
+                                        bassQueueController.movePrev()
                                     }
                                 )
                                 {
@@ -593,7 +591,7 @@ fun renderRightPager(
                                     ),
                                     onClick = {
 
-                                        bassAudioController.next()
+                                        bassQueueController.moveNext()
 
                                     }
                                 )

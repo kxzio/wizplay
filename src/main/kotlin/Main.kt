@@ -4,7 +4,9 @@ package org.example
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
@@ -21,10 +23,12 @@ import androidx.compose.ui.awt.ComposePanel
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.example.audioindex.AudioFolderController
 import org.example.bass.bassController.PlayerController
+import org.example.bass.queue.QueueController
 import org.example.folderGetter.FolderScanController
 import org.example.ui.screens.leftPager.settings.AppPrefs
 import ui.draw
@@ -75,11 +79,13 @@ val LocalFullscreenController =
         error("FullscreenController not provided")
     }
 
+val bassQueueController = QueueController()
 val bassAudioController = PlayerController()
 
 fun main() {
 
     bassAudioController.init()
+    bassQueueController.attachPlayer(bassAudioController)
 
     loaderConfig.apply(readConfig("config.data"))
 
@@ -223,8 +229,21 @@ fun preDraw() {
                 isReady = true
             }
         }
-        else
+        else {
+
+
             draw(fullscreen, audioFolderController, folderScanController )
+
+            val fps by FpsCounter()
+
+            Text(
+                text = "FPS: $fps",
+                color = Color.Green,
+                modifier = Modifier.padding(8.dp)
+            )
+
+        }
+
 
     }
 

@@ -140,6 +140,61 @@ class AudioDatabase(dbPath: Path) {
         }
     }
 
+    fun pathsByRoot(root: Path): Set<Path> =
+        conn.prepareStatement(
+            "SELECT path FROM audio WHERE path LIKE ?"
+        ).use { ps ->
+            ps.setString(1, root.toString() + "%")
+            ps.executeQuery().use { rs ->
+                buildSet {
+                    while (rs.next()) {
+                        add(Path(rs.getString(1)))
+                    }
+                }
+            }
+        }
+
+    fun deleteByPath(path: Path) {
+        conn.prepareStatement(
+            "DELETE FROM audio WHERE path = ?"
+        ).use { ps ->
+            ps.setString(1, path.toString())
+            ps.executeUpdate()
+        }
+    }
+
+    fun albumKeyByPath(path: Path): String? =
+        conn.prepareStatement(
+            "SELECT album_key FROM audio WHERE path = ?"
+        ).use { ps ->
+            ps.setString(1, path.toString())
+            ps.executeQuery().use { rs ->
+                if (rs.next()) rs.getString(1) else null
+            }
+        }
+
+    fun findAnyTrackInAlbum(albumKey: String): ScannedAudio? =
+        conn.prepareStatement(
+            "SELECT * FROM audio WHERE album_key = ? LIMIT 1"
+        ).use { ps ->
+            ps.setString(1, albumKey)
+            ps.executeQuery().use { rs ->
+                if (!rs.next()) return null
+
+                ScannedAudio(
+                    path = Path(rs.getString("path")),
+                    title = rs.getString("title"),
+                    artist = rs.getString("artist"),
+                    album = rs.getString("album"),
+                    year = rs.getString("year"),
+                    pos = rs.getString("pos"),
+                    artworkPath = rs.getString("artwork_path")?.let { Path(it) },
+                    albumCreator = true
+                )
+            }
+        }
+
+
     fun loadAll(): Map<Path, ScannedAudio> {
         val map = mutableMapOf<Path, ScannedAudio>()
 

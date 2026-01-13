@@ -135,305 +135,303 @@ fun albumTab(
     var debouncedQuery by remember { mutableStateOf("") }
     var isFocused by remember { mutableStateOf(false) }
 
-    (openedTab.value == 2).wizAnimateIf(wizui.WizAnimationType.ExpandVertically) {
-        Column(Modifier.padding(horizontal = 32.dp)) {
+    Column(Modifier.padding(horizontal = 32.dp).fillMaxSize()) {
 
-            val albums = remember(audioFolderController.audioMap.value) {
-                buildAlbumRepresentatives(audioFolderController.audioMap.value)
-            }
+        val albums = remember(audioFolderController.audioMap.value) {
+            buildAlbumRepresentatives(audioFolderController.audioMap.value)
+        }
 
-            LaunchedEffect(Unit) {
-                snapshotFlow { searchQr }
-                    .debounce(300)
-                    .collect { value ->
-                        debouncedQuery = value
-                    }
-            }
+        LaunchedEffect(Unit) {
+            snapshotFlow { searchQr }
+                .debounce(300)
+                .collect { value ->
+                    debouncedQuery = value
+                }
+        }
 
-            val results = remember(debouncedQuery, albums) {
-                albums
-                    .filter { matchesQuery(searchQr, it) }
-                    .map { album ->
-                        album to albumScore(searchQr, album)
-                    }
-                    .sortedByDescending { it.second }
-                    .map { it.first }
+        val results = remember(debouncedQuery, albums) {
+            albums
+                .filter { matchesQuery(searchQr, it) }
+                .map { album ->
+                    album to albumScore(searchQr, album)
+                }
+                .sortedByDescending { it.second }
+                .map { it.first }
 
-            }
+        }
 
-            LaunchedEffect(results) {
-                gridState.stopScroll()
-                gridState.scrollToItem(0)
-            }
+        LaunchedEffect(results) {
+            gridState.stopScroll()
+            gridState.scrollToItem(0)
+        }
 
-            Box {
+        Box {
 
-                val hazeState = rememberHazeState()
+            val hazeState = rememberHazeState()
 
-                if (!results.isEmpty())
-                {
+            if (!results.isEmpty())
+            {
 
-                    val BaseCardWidth = 160.dp
-                    val BaseTitleFont = 14.sp
-                    val BaseArtistFont = 10.sp
+                val BaseCardWidth = 160.dp
+                val BaseTitleFont = 14.sp
+                val BaseArtistFont = 10.sp
 
-                    var gridWidth by remember { mutableStateOf(0.dp) }
+                var gridWidth by remember { mutableStateOf(0.dp) }
 
-                    var itemWidth by remember { mutableStateOf(0.dp) }
-                    val density = LocalDensity.current
+                var itemWidth by remember { mutableStateOf(0.dp) }
+                val density = LocalDensity.current
 
-                    val scale by remember {
-                        derivedStateOf {
-                            if (gridMultiplier.value.roundToInt() == 0) {
-                                val adaptiveColumns =
-                                    maxOf(1, (gridWidth / BaseCardWidth).toInt())
+                val scale by remember {
+                    derivedStateOf {
+                        if (gridMultiplier.value.roundToInt() == 0) {
+                            val adaptiveColumns =
+                                maxOf(1, (gridWidth / BaseCardWidth).toInt())
 
-                                lerp(
-                                    start = 1.5f,
-                                    stop = 0.6f,
-                                    fraction = ((adaptiveColumns - 1) / 6f).coerceIn(0f, 1f)
-                                )
-                            } else {
-                                (itemWidth / BaseCardWidth)
-                                    .coerceIn(0.2f, 1.5f)
-                            }
+                            lerp(
+                                start = 1.5f,
+                                stop = 0.6f,
+                                fraction = ((adaptiveColumns - 1) / 6f).coerceIn(0f, 1f)
+                            )
+                        } else {
+                            (itemWidth / BaseCardWidth)
+                                .coerceIn(0.2f, 1.5f)
                         }
                     }
+                }
 
-                    val titleFontSize = BaseTitleFont * scale
-                    val artistFontSize = BaseArtistFont * scale
+                val titleFontSize = BaseTitleFont * scale
+                val artistFontSize = BaseArtistFont * scale
 
 
-                    Box(Modifier.hazeSource(hazeState)) {
+                Box(Modifier.hazeSource(hazeState)) {
 
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(110.dp)
-                                .align(Alignment.TopCenter)
-                                .zIndex(1f)
-                                .background(
-                                    Brush.verticalGradient(
-                                        colors = listOf(
-                                            Color(20, 20, 20),
-                                            Color.Black.copy(alpha = 0f)
-                                        )
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(110.dp)
+                            .align(Alignment.TopCenter)
+                            .zIndex(1f)
+                            .background(
+                                Brush.verticalGradient(
+                                    colors = listOf(
+                                        Color(20, 20, 20),
+                                        Color.Black.copy(alpha = 0f)
                                     )
                                 )
-                        )
+                            )
+                    )
 
-                        BoxWithConstraints(
-                            modifier = Modifier.fillMaxSize().onSizeChanged {
-                                gridWidth = with(density) { it.width.toDp() }
-                            }
-                        ) {
-                            val baseSpacing = 16.dp
-                            val spacing =
-                                if (gridMultiplier.value.roundToInt() == 0)
-                                    baseSpacing
-                                else
-                                    baseSpacing * scale
+                    BoxWithConstraints(
+                        modifier = Modifier.fillMaxSize().onSizeChanged {
+                            gridWidth = with(density) { it.width.toDp() }
+                        }
+                    ) {
+                        val baseSpacing = 16.dp
+                        val spacing =
+                            if (gridMultiplier.value.roundToInt() == 0)
+                                baseSpacing
+                            else
+                                baseSpacing * scale
 
-                            val columns =
+                        val columns =
+                            if (gridMultiplier.value.roundToInt() != 0)
+                                gridMultiplier.value.roundToInt()
+                            else
+                                maxOf(1, (maxWidth / 160.dp).toInt())
+
+                        val totalSpacing = spacing * (columns - 1)
+                        val cellWidth = (maxWidth - totalSpacing) / columns
+
+                        // ⬇️ ВОТ ТВОЙ ИДЕАЛЬНЫЙ WIDTH
+                        LaunchedEffect(cellWidth) {
+                            itemWidth = cellWidth
+                        }
+
+                        val gridSpacing =
+                            if (gridMultiplier.value.roundToInt() == 0)
+                                16.dp
+                            else
+                                16.dp * scale
+
+                        LazyVerticalGrid(
+                            columns =
                                 if (gridMultiplier.value.roundToInt() != 0)
-                                    gridMultiplier.value.roundToInt()
+                                    GridCells.Fixed(gridMultiplier.value.roundToInt())
                                 else
-                                    maxOf(1, (maxWidth / 160.dp).toInt())
+                                    GridCells.Adaptive(160.dp),
 
-                            val totalSpacing = spacing * (columns - 1)
-                            val cellWidth = (maxWidth - totalSpacing) / columns
+                            modifier = Modifier.padding(),
+                            state = gridState,
+                            userScrollEnabled = true,
 
-                            // ⬇️ ВОТ ТВОЙ ИДЕАЛЬНЫЙ WIDTH
-                            LaunchedEffect(cellWidth) {
-                                itemWidth = cellWidth
-                            }
+                            horizontalArrangement = Arrangement.spacedBy(
+                                space = gridSpacing,
+                                alignment = Alignment.Start
+                            ),
+                            verticalArrangement = Arrangement.spacedBy(gridSpacing),
+                            contentPadding = PaddingValues(
+                                top = 69.dp,
+                                bottom = 16.dp
+                            ),
 
-                            val gridSpacing =
-                                if (gridMultiplier.value.roundToInt() == 0)
-                                    16.dp
-                                else
-                                    16.dp * scale
+                        ) {
 
-                            LazyVerticalGrid(
-                                columns =
-                                    if (gridMultiplier.value.roundToInt() != 0)
-                                        GridCells.Fixed(gridMultiplier.value.roundToInt())
-                                    else
-                                        GridCells.Adaptive(160.dp),
+                            itemsIndexed(
+                                items = results,
+                                key = { _, album -> album.albumKey }
+                            ) { index, item ->
 
-                                modifier = Modifier.padding(),
-                                state = gridState,
-                                userScrollEnabled = true,
+                                Box(
 
-                                horizontalArrangement = Arrangement.spacedBy(
-                                    space = gridSpacing,
-                                    alignment = Alignment.Start
-                                ),
-                                verticalArrangement = Arrangement.spacedBy(gridSpacing),
-                                contentPadding = PaddingValues(
-                                    top = 69.dp,
-                                    bottom = 16.dp
-                                ),
+                                ) {
 
-                            ) {
-
-                                itemsIndexed(
-                                    items = results,
-                                    key = { _, album -> album.albumKey }
-                                ) { index, item ->
-
-                                    Box(
-                                        modifier = Modifier.animateItem()
+                                    Column(
+                                        modifier = Modifier
+                                            .clickable {
+                                                openedAudioSource.value = item.albumKey
+                                                AppPrefs.setString("openedAudioSource", item.albumKey)
+                                            }
                                     ) {
 
-                                        Column(
+                                        Box(
                                             modifier = Modifier
-                                                .clickable {
-                                                    openedAudioSource.value = item.albumKey
-                                                    AppPrefs.setString("openedAudioSource", item.albumKey)
-                                                }
+                                                .fillMaxWidth()
+                                                .aspectRatio(1f)
+                                                .background(Color(45, 45, 45))
                                         ) {
+                                            artworkAsync(
+                                                item.artworkPath,
+                                                Modifier.fillMaxSize()
+                                            )
+                                        }
 
-                                            Box(
-                                                modifier = Modifier
-                                                    .fillMaxWidth()
-                                                    .aspectRatio(1f)
-                                                    .background(Color(45, 45, 45))
+                                        if (titleFontSize > 9.5.sp) {
+                                            Column(
+                                                modifier = Modifier.padding(top = 9.dp * scale)
                                             ) {
-                                                artworkAsync(
-                                                    item.artworkPath,
-                                                    Modifier.fillMaxSize()
+
+                                                Text(
+                                                    text = item.album,
+                                                    fontSize = titleFontSize,
+                                                    letterSpacing = relativeLetterSpacing(titleFontSize),
+                                                    maxLines = 1,
+                                                    overflow = TextOverflow.Ellipsis,
+                                                    color = Color.White
                                                 )
-                                            }
 
-                                            if (titleFontSize > 9.5.sp) {
-                                                Column(
-                                                    modifier = Modifier.padding(top = 9.dp * scale)
-                                                ) {
+                                                Spacer(Modifier.height(4.dp * scale))
 
-                                                    Text(
-                                                        text = item.album,
-                                                        fontSize = titleFontSize,
-                                                        letterSpacing = relativeLetterSpacing(titleFontSize),
-                                                        maxLines = 1,
-                                                        overflow = TextOverflow.Ellipsis,
-                                                        color = Color.White
-                                                    )
-
-                                                    Spacer(Modifier.height(4.dp * scale))
-
-                                                    Text(
-                                                        text = item.artist,
-                                                        fontSize = artistFontSize,
-                                                        letterSpacing = relativeLetterSpacing(artistFontSize),
-                                                        maxLines = 1,
-                                                        overflow = TextOverflow.Ellipsis,
-                                                        color = Color.White.copy(alpha = 0.4f)
-                                                    )
-                                                }
+                                                Text(
+                                                    text = item.artist,
+                                                    fontSize = artistFontSize,
+                                                    letterSpacing = relativeLetterSpacing(artistFontSize),
+                                                    maxLines = 1,
+                                                    overflow = TextOverflow.Ellipsis,
+                                                    color = Color.White.copy(alpha = 0.4f)
+                                                )
                                             }
                                         }
                                     }
                                 }
                             }
                         }
-
                     }
+
                 }
+            }
 
-                Row(Modifier.padding(top = 8.dp).zIndex(3f)) {
-                    BasicTextField(
-                        cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
-                        value = searchQr,
-                        onValueChange = { searchQr = it },
-                        singleLine = true,
-                        textStyle = MaterialTheme.typography.bodyMedium.copy(
-                            color = MaterialTheme.colorScheme.onSurface
-                        ),
-                        modifier = Modifier
+            Row(Modifier.padding(top = 8.dp).zIndex(3f)) {
+                BasicTextField(
+                    cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+                    value = searchQr,
+                    onValueChange = { searchQr = it },
+                    singleLine = true,
+                    textStyle = MaterialTheme.typography.bodyMedium.copy(
+                        color = MaterialTheme.colorScheme.onSurface
+                    ),
+                    modifier = Modifier
 
-                            .padding(bottom = 16.dp)
-                            .weight(1f)
-                            .height(40.dp)
-                            .hazeEffect(
-                                hazeState,
-                                style = HazeStyle(
-                                    backgroundColor = Color(15, 15, 15),
-                                    blurRadius = 25.dp,
-                                    tint = (HazeTint(
-                                        color = Color(0, 0, 0, 0)
-                                    )),
-                                    noiseFactor = 0.15f
-                                )
-                            )
-                            .background(Color(25, 25, 25, 150))
-                            .border(
-                                width = 0.5.dp,
-                                color = if (searchQr.isNotEmpty() || isFocused)
-                                    MaterialTheme.colorScheme.primary
-                                else
-                                    MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f),
-                                shape = RectangleShape
-                            )
-                            .onFocusChanged { focusState ->
-                                isFocused = focusState.isFocused
-                            }
-                            .padding(horizontal = 12.dp, vertical = 8.dp),
-                        decorationBox = { innerTextField ->
-                            Box(
-                                modifier = Modifier.fillMaxSize(),
-                                contentAlignment = Alignment.CenterStart // или Center, CenterEnd
-                            ) {
-                                if (searchQr.isEmpty() && !isFocused) {
-                                    Text(
-                                        "searching",
-                                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
-                                    )
-                                }
-                                innerTextField()
-                            }
-                        }
-
-                    )
-
-                    (!searchQr.isEmpty()).wizAnimateIf(wizui.WizAnimationType.ExpandHorizontally) {
-                        Button({
-                            searchQr = ""
-                        },
-                            modifier = Modifier.height(40.dp),
-                            shape = RectangleShape,
-                            colors = ButtonDefaults.buttonColors(
-                                contentColor = Color(255, 255, 255),
-                                containerColor = MaterialTheme.colorScheme.primary
+                        .padding(bottom = 16.dp)
+                        .weight(1f)
+                        .height(40.dp)
+                        .hazeEffect(
+                            hazeState,
+                            style = HazeStyle(
+                                backgroundColor = Color(15, 15, 15),
+                                blurRadius = 25.dp,
+                                tint = (HazeTint(
+                                    color = Color(0, 0, 0, 0)
+                                )),
+                                noiseFactor = 0.15f
                             )
                         )
-                        {
-                            Text("clear")
+                        .background(Color(25, 25, 25, 150))
+                        .border(
+                            width = 0.5.dp,
+                            color = if (searchQr.isNotEmpty() || isFocused)
+                                MaterialTheme.colorScheme.primary
+                            else
+                                MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f),
+                            shape = RectangleShape
+                        )
+                        .onFocusChanged { focusState ->
+                            isFocused = focusState.isFocused
+                        }
+                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                    decorationBox = { innerTextField ->
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.CenterStart // или Center, CenterEnd
+                        ) {
+                            if (searchQr.isEmpty() && !isFocused) {
+                                Text(
+                                    "searching",
+                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
+                                )
+                            }
+                            innerTextField()
                         }
                     }
 
-                }
-            }
+                )
 
-
-
-
-            if (results.isEmpty())
-            {
-                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center)
-                {
-
-                    Icon(Icons.Sharp.Folder, "",
-                        tint = Color(255, 255, 255, 30),
-                        modifier = Modifier.size(150.dp)
+                (!searchQr.isEmpty()).wizAnimateIf(wizui.WizAnimationType.ExpandHorizontally) {
+                    Button({
+                        searchQr = ""
+                    },
+                        modifier = Modifier.height(40.dp),
+                        shape = RectangleShape,
+                        colors = ButtonDefaults.buttonColors(
+                            contentColor = Color(255, 255, 255),
+                            containerColor = MaterialTheme.colorScheme.primary
+                        )
                     )
-
-                    Text("nothing here :)", color = Color(255, 255, 255))
-
+                    {
+                        Text("clear")
+                    }
                 }
-            }
 
+            }
         }
+
+
+
+
+        if (results.isEmpty())
+        {
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center)
+            {
+
+                Icon(Icons.Sharp.Folder, "",
+                    tint = Color(255, 255, 255, 30),
+                    modifier = Modifier.size(150.dp)
+                )
+
+                Text("nothing here :)", color = Color(255, 255, 255))
+
+            }
+        }
+
     }
 
 }

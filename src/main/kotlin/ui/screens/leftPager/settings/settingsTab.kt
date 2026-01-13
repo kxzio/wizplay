@@ -71,467 +71,466 @@ fun settingTab(
     folderScanController: FolderScanController
 )
 {
-    (openedTab.value == 1).wizAnimateIf(wizui.WizAnimationType.ExpandVertically) {
 
-        Column(Modifier.padding()) {
+    Column(Modifier.fillMaxSize()) {
 
-            Row(modifier = Modifier.padding(start = 32.dp, end = 32.dp),
-                verticalAlignment = Alignment.CenterVertically) {
+        Row(modifier = Modifier.padding(start = 32.dp, end = 32.dp),
+            verticalAlignment = Alignment.CenterVertically) {
 
-                Box(modifier = Modifier.offset(y = 1.dp).onClick {
-                    openedSettingsTab.value = 0
-                }) {
-                    (openedSettingsTab.value != 0).wizAnimateIf(
-                        speedIn = 250,
-                        speedOut = 250,
-                        type = wizui.WizAnimationType.ExpandHorizontally
-                    ) {
+            Box(modifier = Modifier.offset(y = 1.dp).onClick {
+                openedSettingsTab.value = 0
+            }) {
+                (openedSettingsTab.value != 0).wizAnimateIf(
+                    speedIn = 250,
+                    speedOut = 250,
+                    type = wizui.WizAnimationType.ExpandHorizontally
+                ) {
 
-                        Icon(
-                            modifier = Modifier.size(18.dp),
-                            imageVector = Icons.AutoMirrored.Sharp.ArrowBackIos,
-                            contentDescription = "",
-                            tint = Color(255, 255, 255),
-                        )
-
-                    }
-                }
-
-                Row {
-
-                    wizui.wizBlinkingText(
-                        "settings",
-                        normalColor = Color(255, 255, 255),
-                        blinkColor = MaterialTheme.colorScheme.primary,
-                        fontSize = 22.sp,
-                        modifier = Modifier.padding(start = 12.dp),
-                        onClick = {
-                            openedSettingsTab.value = 0
-                        }
+                    Icon(
+                        modifier = Modifier.size(18.dp),
+                        imageVector = Icons.AutoMirrored.Sharp.ArrowBackIos,
+                        contentDescription = "",
+                        tint = Color(255, 255, 255),
                     )
 
-                    (openedSettingsTab.value != 0).wizAnimateIf {
-
-                        var listoftabs = listOf("", "folders", "interface", "audio")
-                        var tab = listoftabs[openedSettingsTab.value]
-                        Text(" / $tab ",
-                            color = Color(255, 255, 255, 150),
-                            fontSize = 22.sp,
-                        )
-                    }
                 }
             }
 
+            Row {
 
-            HorizontalDivider(
-                modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp, horizontal = 32.dp),
-                thickness = 1.0.dp,
-                color = MaterialTheme.colorScheme.primary
-            )
+                wizui.wizBlinkingText(
+                    "settings",
+                    normalColor = Color(255, 255, 255),
+                    blinkColor = MaterialTheme.colorScheme.primary,
+                    fontSize = 22.sp,
+                    modifier = Modifier.padding(start = 12.dp),
+                    onClick = {
+                        openedSettingsTab.value = 0
+                    }
+                )
 
-            AnimatedContent(
-                modifier = Modifier.padding(start = 32.dp, end = 32.dp),
-                targetState = openedSettingsTab.value,
-                transitionSpec = {
-                    val direction =
-                        if (targetState > initialState)
-                            AnimatedContentTransitionScope.SlideDirection.Left
-                        else
-                            AnimatedContentTransitionScope.SlideDirection.Right
+                (openedSettingsTab.value != 0).wizAnimateIf {
 
-                    slideIntoContainer(
-                        towards = direction,
-                        animationSpec = tween(250, easing = FastOutSlowInEasing)
-                    ) + fadeIn() togetherWith
-                            slideOutOfContainer(
-                                towards = direction,
-                                animationSpec = tween(250, easing = FastOutSlowInEasing)
-                            ) + fadeOut()
-                },
-                label = "settingsTransition"
-            ) { tab ->
+                    var listoftabs = listOf("", "folders", "interface", "audio")
+                    var tab = listoftabs[openedSettingsTab.value]
+                    Text(" / $tab ",
+                        color = Color(255, 255, 255, 150),
+                        fontSize = 22.sp,
+                    )
+                }
+            }
+        }
 
-                when (tab) {
-                    0 -> {
 
-                        Column {
-                            wizui.wizButton(
-                                delayedClick = true,
-                                delayedClickDurationMs = 300,
-                                shape = RectangleShape,
-                                modifier = Modifier.fillMaxWidth(),
-                                contentColor = Color(255, 255, 255),
-                                backgroundColor = Color(35, 35, 35),
-                                onClick = {
-                                    openedSettingsTab.value = 1
-                                }
-                            )
-                            {
-                                Row(
-                                    horizontalArrangement = Arrangement.SpaceBetween
-                                )
-                                {
-                                    Text("folders")
-                                    Spacer(modifier = Modifier.weight(1f))
-                                    Icon(Icons.AutoMirrored.Sharp.ArrowRight, "")
-                                }
+        HorizontalDivider(
+            modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp, horizontal = 32.dp),
+            thickness = 1.0.dp,
+            color = MaterialTheme.colorScheme.primary
+        )
+
+        AnimatedContent(
+            modifier = Modifier.padding(start = 32.dp, end = 32.dp),
+            targetState = openedSettingsTab.value,
+            transitionSpec = {
+                val direction =
+                    if (targetState > initialState)
+                        AnimatedContentTransitionScope.SlideDirection.Left
+                    else
+                        AnimatedContentTransitionScope.SlideDirection.Right
+
+                slideIntoContainer(
+                    towards = direction,
+                    animationSpec = tween(250, easing = FastOutSlowInEasing)
+                ) + fadeIn() togetherWith
+                        slideOutOfContainer(
+                            towards = direction,
+                            animationSpec = tween(250, easing = FastOutSlowInEasing)
+                        ) + fadeOut()
+            },
+            label = "settingsTransition"
+        ) { tab ->
+
+            when (tab) {
+                0 -> {
+
+                    Column {
+                        wizui.wizButton(
+                            delayedClick = true,
+                            delayedClickDurationMs = 300,
+                            shape = RectangleShape,
+                            modifier = Modifier.fillMaxWidth(),
+                            contentColor = Color(255, 255, 255),
+                            backgroundColor = Color(35, 35, 35),
+                            onClick = {
+                                openedSettingsTab.value = 1
                             }
-
-                            wizui.wizButton(
-                                delayedClick = true,
-                                delayedClickDurationMs = 300,
-                                shape = RectangleShape,
-                                modifier = Modifier.fillMaxWidth(),
-                                contentColor = Color(255, 255, 255),
-                                backgroundColor = Color(35, 35, 35),
-                                onClick = {
-                                    openedSettingsTab.value = 2
-                                }
+                        )
+                        {
+                            Row(
+                                horizontalArrangement = Arrangement.SpaceBetween
                             )
                             {
-                                Row(
-                                    horizontalArrangement = Arrangement.SpaceBetween
-                                )
-                                {
-                                    Text("interface")
-                                    Spacer(modifier = Modifier.weight(1f))
-                                    Icon(Icons.AutoMirrored.Sharp.ArrowRight, "")
-                                }
-                            }
-
-                            wizui.wizButton(
-                                delayedClick = true,
-                                delayedClickDurationMs = 300,
-                                shape = RectangleShape,
-                                modifier = Modifier.fillMaxWidth(),
-                                contentColor = Color(255, 255, 255),
-                                backgroundColor = Color(35, 35, 35),
-                                onClick = {
-                                    openedSettingsTab.value = 3
-                                }
-                            )
-                            {
-                                Row(
-                                    horizontalArrangement = Arrangement.SpaceBetween
-                                )
-                                {
-                                    Text("audio")
-                                    Spacer(modifier = Modifier.weight(1f))
-                                    Icon(Icons.AutoMirrored.Sharp.ArrowRight, "")
-                                }
+                                Text("folders")
+                                Spacer(modifier = Modifier.weight(1f))
+                                Icon(Icons.AutoMirrored.Sharp.ArrowRight, "")
                             }
                         }
 
+                        wizui.wizButton(
+                            delayedClick = true,
+                            delayedClickDurationMs = 300,
+                            shape = RectangleShape,
+                            modifier = Modifier.fillMaxWidth(),
+                            contentColor = Color(255, 255, 255),
+                            backgroundColor = Color(35, 35, 35),
+                            onClick = {
+                                openedSettingsTab.value = 2
+                            }
+                        )
+                        {
+                            Row(
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            )
+                            {
+                                Text("interface")
+                                Spacer(modifier = Modifier.weight(1f))
+                                Icon(Icons.AutoMirrored.Sharp.ArrowRight, "")
+                            }
+                        }
+
+                        wizui.wizButton(
+                            delayedClick = true,
+                            delayedClickDurationMs = 300,
+                            shape = RectangleShape,
+                            modifier = Modifier.fillMaxWidth(),
+                            contentColor = Color(255, 255, 255),
+                            backgroundColor = Color(35, 35, 35),
+                            onClick = {
+                                openedSettingsTab.value = 3
+                            }
+                        )
+                        {
+                            Row(
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            )
+                            {
+                                Text("audio")
+                                Spacer(modifier = Modifier.weight(1f))
+                                Icon(Icons.AutoMirrored.Sharp.ArrowRight, "")
+                            }
+                        }
                     }
 
-                    1 -> {
+                }
 
-                        Column {
+                1 -> {
 
-                            val shouldUpdateOnStart = remember {
-                                mutableStateOf(AppPrefs.getBool("shouldUpdate", false))
+                    Column {
+
+                        val shouldUpdateOnStart = remember {
+                            mutableStateOf(AppPrefs.getBool("shouldUpdate", false))
+                        }
+
+                        wizui.wizCheckBox(
+                            text = "update folders on application open",
+                            checked = shouldUpdateOnStart.value,
+                            onCheckedChange = { checked ->
+                                shouldUpdateOnStart.value = checked
+                                AppPrefs.setBool("shouldUpdate", checked)
                             }
+                        )
 
-                            wizui.wizCheckBox(
-                                text = "update folders on application open",
-                                checked = shouldUpdateOnStart.value,
-                                onCheckedChange = { checked ->
-                                    shouldUpdateOnStart.value = checked
-                                    AppPrefs.setBool("shouldUpdate", checked)
-                                }
+                        Spacer(Modifier.height(16.dp))
+
+
+                        Row {
+                            Text(
+                                "select folders to scan",
+                                fontSize = 12.sp,
+                                color = Color(255, 255, 255, 100)
                             )
+                        }
 
-                            Spacer(Modifier.height(16.dp))
+                        Spacer(Modifier.height(8.dp))
 
+                        val folders by folderScanController.folders.collectAsState()
 
-                            Row {
+                        if (folders.isEmpty()) {
+                            Box(
+                                Modifier
+                                    .fillMaxWidth()
+                                    .height(260.dp)
+                                    .background(Color(30, 30, 30)),
+                                contentAlignment = Alignment.Center
+                            )
+                            {
                                 Text(
-                                    "select folders to scan",
+                                    "folders empty..",
                                     fontSize = 12.sp,
-                                    color = Color(255, 255, 255, 100)
+                                    color = Color(255, 255, 255)
                                 )
                             }
-
-                            Spacer(Modifier.height(8.dp))
-
-                            val folders by folderScanController.folders.collectAsState()
-
-                            if (folders.isEmpty()) {
-                                Box(
-                                    Modifier
-                                        .fillMaxWidth()
-                                        .height(260.dp)
-                                        .background(Color(30, 30, 30)),
-                                    contentAlignment = Alignment.Center
-                                )
-                                {
-                                    Text(
-                                        "folders empty..",
-                                        fontSize = 12.sp,
-                                        color = Color(255, 255, 255)
-                                    )
-                                }
-                            }
-
-                            folderScanContent(
-                                folderScanController,
-                                folders = folders,
-                                onAddFolder = { folderScanController.addFolder(it) },
-                                onRemoveFolder = { folderScanController.removeFolder(it) }
-                            )
-
-
                         }
+
+                        folderScanContent(
+                            folderScanController,
+                            folders = folders,
+                            onAddFolder = { folderScanController.addFolder(it) },
+                            onRemoveFolder = { folderScanController.removeFolder(it) }
+                        )
+
+
                     }
+                }
 
-                    2 -> {
+                2 -> {
 
-                        val scrollState = rememberScrollState()
-                        Column(Modifier.verticalScroll(scrollState)) {
+                    val scrollState = rememberScrollState()
+                    Column(Modifier.verticalScroll(scrollState)) {
 
-                            Spacer(Modifier.height(2.dp))
+                        Spacer(Modifier.height(2.dp))
+
+                        Text(
+                            "dpi scale",
+                            color = Color(255, 255, 255, 255)
+                        )
+
+                        Spacer(Modifier.height(26.dp))
+
+                        val sliderColors = SliderDefaults.colors(
+                            thumbColor = Color.White,
+                            activeTrackColor = MaterialTheme.colorScheme.primary,
+                            activeTickColor = Color(28, 28, 28),
+                            inactiveTickColor = MaterialTheme.colorScheme.primary,
+                            inactiveTrackColor = Color(28, 28, 28)
+                        )
+
+                        wizui.wizSlider(
+                            value = loaderConfig.dpiScale.value,
+                            onValueChange = {
+                                loaderConfig.dpiScale.value = it
+                            },
+                            valueRange = 1f..1.5f,
+                            steps = 10,
+                            sliderColors = sliderColors,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+
+                        Spacer(Modifier.height(24.dp))
+
+                        HorizontalDivider(
+                            modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp),
+                            thickness = 1.0.dp,
+                            color = Color(60, 60, 60)
+                        )
+
+
+                        Column {
 
                             Text(
-                                "dpi scale",
+                                "display-mode",
                                 color = Color(255, 255, 255, 255)
                             )
 
-                            Spacer(Modifier.height(26.dp))
 
-                            val sliderColors = SliderDefaults.colors(
-                                thumbColor = Color.White,
-                                activeTrackColor = MaterialTheme.colorScheme.primary,
-                                activeTickColor = Color(28, 28, 28),
-                                inactiveTickColor = MaterialTheme.colorScheme.primary,
-                                inactiveTrackColor = Color(28, 28, 28)
-                            )
+                            Spacer(Modifier.height(12.dp))
 
-                            wizui.wizSlider(
-                                value = loaderConfig.dpiScale.value,
-                                onValueChange = {
-                                    loaderConfig.dpiScale.value = it
-                                },
-                                valueRange = 1f..1.5f,
-                                steps = 10,
-                                sliderColors = sliderColors,
-                                modifier = Modifier.fillMaxWidth()
-                            )
+                            Column(Modifier.padding(start = 16.dp)) {
+                                wizui.wizRadioButton(
+                                    "floating window",
+                                    selected = !fullscreen.isFullscreen,
+                                    backgroundColor = Color(70, 70, 70, 255),
+                                    onSelect = {
+                                        fullscreen.exitFullscreen()
+                                    }
+                                )
 
-                            Spacer(Modifier.height(24.dp))
+                                wizui.wizRadioButton(
+                                    "fullscreen",
+                                    selected = fullscreen.isFullscreen,
+                                    backgroundColor = Color(70, 70, 70, 255),
+                                    onSelect = {
+                                        fullscreen.enterFullscreen()
+                                    }
+                                )
+                            }
 
                             HorizontalDivider(
                                 modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp),
                                 thickness = 1.0.dp,
                                 color = Color(60, 60, 60)
                             )
+                        }
 
 
-                            Column {
-
-                                Text(
-                                    "display-mode",
-                                    color = Color(255, 255, 255, 255)
-                                )
-
-
-                                Spacer(Modifier.height(12.dp))
-
-                                Column(Modifier.padding(start = 16.dp)) {
-                                    wizui.wizRadioButton(
-                                        "floating window",
-                                        selected = !fullscreen.isFullscreen,
-                                        backgroundColor = Color(70, 70, 70, 255),
-                                        onSelect = {
-                                            fullscreen.exitFullscreen()
-                                        }
-                                    )
-
-                                    wizui.wizRadioButton(
-                                        "fullscreen",
-                                        selected = fullscreen.isFullscreen,
-                                        backgroundColor = Color(70, 70, 70, 255),
-                                        onSelect = {
-                                            fullscreen.enterFullscreen()
-                                        }
-                                    )
-                                }
-
-                                HorizontalDivider(
-                                    modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp),
-                                    thickness = 1.0.dp,
-                                    color = Color(60, 60, 60)
-                                )
+                        wizui.wizCheckBox(
+                            text = "allow resizable layout",
+                            checked = allowResize.value,
+                            onCheckedChange = { checked ->
+                                allowResize.value = checked
+                                AppPrefs.setBool("allowResize", checked)
                             }
+                        )
+                        Text("grab layout on it's edge to change size",
+                            modifier = Modifier.padding(top = 4.dp),
+                            color = Color(255, 255, 255, 100),
+                            fontSize = 11.sp
+                        )
 
+                        HorizontalDivider(
+                            modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp),
+                            thickness = 1.0.dp,
+                            color = Color(60, 60, 60)
+                        )
 
-                            wizui.wizCheckBox(
-                                text = "allow resizable layout",
-                                checked = allowResize.value,
-                                onCheckedChange = { checked ->
-                                    allowResize.value = checked
-                                    AppPrefs.setBool("allowResize", checked)
-                                }
-                            )
-                            Text("grab layout on it's edge to change size",
+                        Text(
+                            "albums/playlists grid size",
+                            color = Color(255, 255, 255, 255)
+                        )
+
+                        Spacer(Modifier.height(26.dp))
+
+                        wizui.wizSlider(
+                            value = gridMultiplier.value,
+                            onValueChange = {
+                                gridMultiplier.value = it
+                                AppPrefs.setFloat("gridMultiplier", it)
+                            },
+                            valueRange = 0f..6f,
+                            steps = 6,
+                            sliderColors = sliderColors,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+
+                        Spacer(Modifier.height(26.dp))
+
+                        Box(Modifier.fillMaxWidth().offset(y = 40.dp), contentAlignment = Alignment.Center) {
+
+                            Text("preview",
                                 modifier = Modifier.padding(top = 4.dp),
-                                color = Color(255, 255, 255, 100),
+                                color = Color(255, 255, 255, 255),
                                 fontSize = 11.sp
                             )
 
-                            HorizontalDivider(
-                                modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp),
-                                thickness = 1.0.dp,
-                                color = Color(60, 60, 60)
+                        }
+
+                        Spacer(Modifier.height(8.dp))
+
+                        Box(Modifier.scale(0.5f)) {
+
+
+                            wizui.wizVerticalGrid(
+                                columns = gridMultiplier.value.roundToInt(),
+                                dynamicColumnsCount = gridMultiplier.value.roundToInt() == 0,
+                                modifier = Modifier.height(200.dp).padding(top = 16.dp),
+                                userScrollEnabled = false,
+                                dynamicMinSizeForElement = 160.dp,
+                                horizontalArrangement = Arrangement.spacedBy(
+                                    space = 16.dp,
+                                    alignment = Alignment.Start
+                                ),
+                                verticalArrangement = Arrangement.spacedBy(16.dp),
+                                items = listOf(
+                                    "", "1", "2", "3", "4", "5", "6", "7",
+                                    "8", "9", "10", "11", "12", "13", "14",
+                                    "15", "16", "17", "18", "19", "20", "21",
+                                    "22", "23", "24", "25", "26", "27", "28",
+                                ),
                             )
+                            { item ->
 
-                            Text(
-                                "albums/playlists grid size",
-                                color = Color(255, 255, 255, 255)
-                            )
-
-                            Spacer(Modifier.height(26.dp))
-
-                            wizui.wizSlider(
-                                value = gridMultiplier.value,
-                                onValueChange = {
-                                    gridMultiplier.value = it
-                                    AppPrefs.setFloat("gridMultiplier", it)
-                                },
-                                valueRange = 0f..6f,
-                                steps = 6,
-                                sliderColors = sliderColors,
-                                modifier = Modifier.fillMaxWidth()
-                            )
-
-                            Spacer(Modifier.height(26.dp))
-
-                            Box(Modifier.fillMaxWidth().offset(y = 40.dp), contentAlignment = Alignment.Center) {
-
-                                Text("preview",
-                                    modifier = Modifier.padding(top = 4.dp),
-                                    color = Color(255, 255, 255, 255),
-                                    fontSize = 11.sp
-                                )
-
-                            }
-
-                            Spacer(Modifier.height(8.dp))
-
-                            Box(Modifier.scale(0.5f)) {
-
-
-                                wizui.wizVerticalGrid(
-                                    columns = gridMultiplier.value.roundToInt(),
-                                    dynamicColumnsCount = gridMultiplier.value.roundToInt() == 0,
-                                    modifier = Modifier.height(200.dp).padding(top = 16.dp),
-                                    userScrollEnabled = false,
-                                    dynamicMinSizeForElement = 160.dp,
-                                    horizontalArrangement = Arrangement.spacedBy(
-                                        space = 16.dp,
-                                        alignment = Alignment.Start
-                                    ),
-                                    verticalArrangement = Arrangement.spacedBy(16.dp),
-                                    items = listOf(
-                                        "", "1", "2", "3", "4", "5", "6", "7",
-                                        "8", "9", "10", "11", "12", "13", "14",
-                                        "15", "16", "17", "18", "19", "20", "21",
-                                        "22", "23", "24", "25", "26", "27", "28",
-                                    ),
-                                )
-                                { item ->
-
-                                    Column(Modifier.fillMaxWidth())
-                                    {
-                                        Box(modifier = Modifier.fillMaxWidth().aspectRatio(1f).background(Color(45, 45, 45))) {
-                                            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                                                Icon(Icons.Sharp.Album, "",
-                                                    modifier = Modifier.fillMaxSize(0.7f),
-                                                    tint = Color(255, 255, 255, 60)
-                                                )
-                                            }
+                                Column(Modifier.fillMaxWidth())
+                                {
+                                    Box(modifier = Modifier.fillMaxWidth().aspectRatio(1f).background(Color(45, 45, 45))) {
+                                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                            Icon(Icons.Sharp.Album, "",
+                                                modifier = Modifier.fillMaxSize(0.7f),
+                                                tint = Color(255, 255, 255, 60)
+                                            )
                                         }
+                                    }
 
-                                        Column(modifier = Modifier.padding(top = 9.dp)) {
+                                    Column(modifier = Modifier.padding(top = 9.dp)) {
 
-                                            Text("Pretty Hate Machine",
-                                                fontSize = 16.sp,
-                                                maxLines = 1,
-                                                overflow = TextOverflow.Ellipsis,
-                                                color = Color(255, 255, 255))
+                                        Text("Pretty Hate Machine",
+                                            fontSize = 16.sp,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis,
+                                            color = Color(255, 255, 255))
 
-                                            Spacer(Modifier.height(4.dp))
+                                        Spacer(Modifier.height(4.dp))
 
-                                            Text("Nine Inch Nails",
-                                                fontSize = 12.sp,
-                                                color = Color(255, 255, 255, 100))
-                                        }
+                                        Text("Nine Inch Nails",
+                                            fontSize = 12.sp,
+                                            color = Color(255, 255, 255, 100))
                                     }
                                 }
                             }
+                        }
 
-                            HorizontalDivider(
-                                modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp),
-                                thickness = 1.0.dp,
-                                color = Color(60, 60, 60)
-                            )
+                        HorizontalDivider(
+                            modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp),
+                            thickness = 1.0.dp,
+                            color = Color(60, 60, 60)
+                        )
 
-                            Text(
-                                "primary color",
-                                color = Color(255, 255, 255, 255)
-                            )
+                        Text(
+                            "primary color",
+                            color = Color(255, 255, 255, 255)
+                        )
 
-                            Spacer(Modifier.height(16.dp))
+                        Spacer(Modifier.height(16.dp))
 
-                            wizui.wizColorPicker(
-                                initialColor = loaderConfig.themeColor.value,
-                                onColorChanged = { loaderConfig.themeColor.value = it },
-                                height = 200.dp
-                            )
+                        wizui.wizColorPicker(
+                            initialColor = loaderConfig.themeColor.value,
+                            onColorChanged = { loaderConfig.themeColor.value = it },
+                            height = 200.dp
+                        )
 
-                            Row(Modifier.padding(top = 12.dp)) {
+                        Row(Modifier.padding(top = 12.dp)) {
 
-                                (loaderConfig.themeColor.value != Color(0xFF4CAF50)).
-                                wizAnimateIf(wizui.WizAnimationType.ExpandHorizontally) {
-                                    wizui.wizButton(
-                                        shape = RectangleShape,
-                                        contentColor = Color(255, 255, 255),
-                                        backgroundColor = Color(35, 35, 35),
-                                        modifier = Modifier.weight(1f).padding(end = 12.dp),
-                                        onClick = {
-                                            loaderConfig.themeColor.value = Color(0xFF4CAF50)
-                                        }
-                                    ){
-                                        Text("reset", fontSize = 14.sp)
-                                    }
-                                }
-
+                            (loaderConfig.themeColor.value != Color(0xFF4CAF50)).
+                            wizAnimateIf(wizui.WizAnimationType.ExpandHorizontally) {
                                 wizui.wizButton(
                                     shape = RectangleShape,
                                     contentColor = Color(255, 255, 255),
-                                    modifier = Modifier.fillMaxSize(),
-                                    onClick = {}
+                                    backgroundColor = Color(35, 35, 35),
+                                    modifier = Modifier.weight(1f).padding(end = 12.dp),
+                                    onClick = {
+                                        loaderConfig.themeColor.value = Color(0xFF4CAF50)
+                                    }
                                 ){
-                                    Text(loaderConfig.themeColor.value.toHexString(),  fontSize = 14.sp)
+                                    Text("reset", fontSize = 14.sp)
                                 }
                             }
 
-                            HorizontalDivider(
-                                modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp),
-                                thickness = 1.0.dp,
-                                color = Color(60, 60, 60)
-                            )
-
-
-
+                            wizui.wizButton(
+                                shape = RectangleShape,
+                                contentColor = Color(255, 255, 255),
+                                modifier = Modifier.fillMaxSize(),
+                                onClick = {}
+                            ){
+                                Text(loaderConfig.themeColor.value.toHexString(),  fontSize = 14.sp)
+                            }
                         }
 
-                    }
-                }
+                        HorizontalDivider(
+                            modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp),
+                            thickness = 1.0.dp,
+                            color = Color(60, 60, 60)
+                        )
 
+
+
+                    }
+
+                }
             }
 
-
-
         }
+
+
+
     }
+
 }

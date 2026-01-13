@@ -1,14 +1,23 @@
 package ui.screens.leftPager
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.sharp.Settings
 import androidx.compose.material3.HorizontalDivider
@@ -16,7 +25,9 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
@@ -147,19 +158,43 @@ fun leftPagerContent(
             }
         }
 
-
-        //render of setting tab.    OPENED TAB = 1
-        settingTab(allowResize,
-            openedTab,
-            openedSettingsTab,
-            fullscreen,
-            audioFolderController,
-            gridMultiplier,
-            folderScanController
+        val pagerState = rememberPagerState(
+            initialPage = openedTab.value - 1,
+            pageCount = { 2 }
         )
 
-        //render of album tab.      OPENED TAB = 2
-        albumTab(audioFolderController, openedTab, gridMultiplier, openedAudioSource)
+        LaunchedEffect(openedTab.value) {
+            pagerState.animateScrollToPage(openedTab.value - 1)
+        }
+
+        HorizontalPager(
+            state = pagerState,
+            userScrollEnabled = false,
+            beyondViewportPageCount = 0,
+            modifier = Modifier.fillMaxSize()
+        ) { page ->
+
+            when (page) {
+                0 -> settingTab(
+                    allowResize,
+                    openedTab,
+                    openedSettingsTab,
+                    fullscreen,
+                    audioFolderController,
+                    gridMultiplier,
+                    folderScanController
+                )
+
+                1 -> albumTab(
+                    audioFolderController,
+                    openedTab,
+                    gridMultiplier,
+                    openedAudioSource
+                )
+            }
+        }
+
+
 
 
 

@@ -46,6 +46,12 @@ compose.desktop {
     application {
         mainClass = "org.example.MainKt"
 
+        buildTypes.release {
+            proguard {
+                isEnabled = false
+            }
+        }
+
         jvmArgs += listOf(
 
             "-XX:+UnlockExperimentalVMOptions",

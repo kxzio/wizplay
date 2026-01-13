@@ -822,7 +822,6 @@ object wizui {
 
     }
 
-
     @Composable
     fun WizAnimatedLazyItem(
         index: Int,
@@ -861,7 +860,6 @@ object wizui {
         }
     }
 
-
     @Composable
     fun <T> wizVerticalList(
         modifier: Modifier = Modifier,
@@ -891,7 +889,6 @@ object wizui {
             }
         }
     }
-
 
     @Composable
     fun <T> wizVerticalGrid(
@@ -1008,6 +1005,7 @@ object wizui {
         }
     }
 
+
     @OptIn(ExperimentalMaterial3Api::class)
     @Composable
     fun wizSlider(
@@ -1055,9 +1053,6 @@ object wizui {
             )
         }
     }
-
-
-
 
 
     @Composable
@@ -1189,7 +1184,6 @@ object wizui {
             }
         }
     }
-
 
 
     @Composable

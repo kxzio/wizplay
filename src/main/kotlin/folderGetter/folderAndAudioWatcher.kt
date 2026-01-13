@@ -143,28 +143,46 @@ class AudioFolderController {
         val root = norm(rootPath)
         if (!roots.contains(root)) return
 
-        val current = _audioMap.value.toMutableMap()
-
-        val files = Files.walk(root).use { stream ->
+        // 🔹 1. Файлы на диске
+        val fsFiles: Set<Path> = Files.walk(root).use { stream ->
             stream
                 .filter { it.isRegularFile() }
                 .filter { isAudio(it) }
                 .map(::norm)
                 .toList()
+                .toSet()
         }
 
-        val total = files.size
+        // 🔹 2. Файлы в БД
+        val dbFiles: Set<Path> = db.pathsByRoot(root)
+
+        // 🔹 3. DIFF
+        val added = fsFiles - dbFiles
+        val removed = dbFiles - fsFiles
+
+        val current = _audioMap.value.toMutableMap()
+
+        // 🔹 4. Удалённые
+        for (path in removed) {
+            db.deleteByPath(path)
+
+            // если удалён albumCreator — нужно выбрать нового
+            val albumKey = db.albumKeyByPath(path) ?: continue
+            if (!db.hasAlbumCreator(albumKey)) {
+                db.findAnyTrackInAlbum(albumKey)?.let {
+                    current[albumKey] = it.copy(albumCreator = true)
+                }
+            }
+        }
+
+        // 🔹 5. Новые
         var index = 0
-
-        for (file in files) {
+        for (path in added) {
             index++
-            onProgress(index, total)
+            onProgress(index, added.size)
 
-            readTagsAndArtwork(file)?.let { audio ->
+            readTagsAndArtwork(path)?.let { audio ->
                 db.upsertAudio(audio)
-
-                //update full songs in bd, but dont update all of them in UI
-
                 if (audio.albumCreator) {
                     current[audio.albumKey] = audio
                 }
@@ -175,6 +193,7 @@ class AudioFolderController {
 
         _audioMap.value = current
     }
+
 
     /* ================= TAGS + ARTWORK ================= */
 

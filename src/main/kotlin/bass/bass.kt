@@ -48,13 +48,40 @@ interface Bass : Library {
         user: Pointer? = null
     ): Int
 
+    fun BASS_StreamCreate(
+        freq: Int,
+        chans: Int,
+        flags: Int,
+        proc: Pointer,
+        user: Pointer?
+    ): Int
+
+    fun BASS_ChannelGetData(
+        handle: Int,
+        buffer: Pointer,
+        length: Int
+    ): Int
+
+    fun BASS_StreamPutData(
+        handle: Int,
+        buffer: Pointer,
+        length: Int
+    ): Int
+
     companion object {
         val INSTANCE: Bass = Native.load("bass", Bass::class.java)
-
+        const val BASS_DATA_FLOAT = 0x40000000
         const val BASS_SAMPLE_FLOAT = 0x100
+        const val STREAMPROC_PUSH = -1
+
+        const val BASS_SYNC_MIXTIME = 0x40000000
+        const val BASS_STREAM_AUTOFREE = 0x40000
+
         const val BASS_STREAM_DECODE = 0x200000
         const val BASS_STREAM_PRESCAN = 0x20000
         const val BASS_POS_BYTE = 0
+        const val BASS_MIXER_END = 0x10000
+
         const val BASS_ATTRIB_VOL = 2
 
         const val BASS_SYNC_END = 2
@@ -76,6 +103,12 @@ interface BassMix : Library {
     ): Boolean
 
     fun BASS_Mixer_ChannelRemove(channel: Int): Boolean
+
+    fun BASS_Mixer_ChannelSetPosition(
+        channel: Int,
+        pos: Long,
+        mode: Int
+    ): Boolean
 
     companion object {
         val INSTANCE: BassMix =

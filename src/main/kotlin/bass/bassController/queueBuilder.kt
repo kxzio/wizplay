@@ -33,6 +33,51 @@ class QueueController {
 
     val queue: List<QueueItem> get() = currentQueue
 
+    fun currentItem(): QueueItem? =
+        currentQueue.getOrNull(posInQueue)
+
+    fun currentTrack(): ScannedAudio? =
+        currentQueue.getOrNull(posInQueue)?.track
+
+    fun isPlaying(track: ScannedAudio): Boolean =
+        currentQueue.getOrNull(posInQueue)?.track == track
+
+
+    // Привязанный плеер. Если установлен — мы будем автоматически вызывать syncPlayer(player)
+    private var player: PlayerController? = null
+
+    fun attachPlayer(player: PlayerController) {
+        this.player = player
+
+        player.requestNextItem = {
+            if (posInQueue + 1 >= currentQueue.size) null
+            else {
+                posInQueue++
+                currentQueue[posInQueue].let {
+                    playlistItem(
+                        trackPath = it.track.path.toString(),
+                        audioSource = it.audioSource
+                    )
+                }
+            }
+        }
+
+        if (currentQueue.isNotEmpty()) {
+            playCurrent()
+        }
+    }
+
+    fun playCurrent() {
+        val item = currentQueue.getOrNull(posInQueue) ?: return
+        player?.play(
+            playlistItem(
+                trackPath = item.track.path.toString(),
+                audioSource = item.audioSource
+            )
+        )
+    }
+
+
     /* ───────────── BUILD QUEUE ───────────── */
 
     fun buildFromSource(
@@ -48,6 +93,7 @@ class QueueController {
         originalQueue.addAll(base)
 
         rebuild(startTrack)
+        playCurrent()
     }
 
     private fun rebuild(startTrack: ScannedAudio) {
@@ -75,12 +121,12 @@ class QueueController {
         if (enable == isShuffle) return
         if (currentQueue.isEmpty()) return
 
-        val current = currentQueue[posInQueue]
+        val current = currentQueue.getOrNull(posInQueue)
         isShuffle = enable
 
         if (enable) {
             val shuffled = currentQueue.shuffled().toMutableList()
-            val idx = shuffled.indexOfFirst { it.id == current.id }
+            val idx = shuffled.indexOfFirst { it.id == current?.id }
             if (idx > 0) {
                 val elem = shuffled.removeAt(idx)
                 shuffled.add(0, elem)
@@ -89,11 +135,12 @@ class QueueController {
             currentQueue.addAll(shuffled)
             posInQueue = 0
         } else {
-            val idx = originalQueue.indexOfFirst { it.id == current.id }
+            val idx = originalQueue.indexOfFirst { it.id == current?.id }
             currentQueue.clear()
             currentQueue.addAll(originalQueue)
             posInQueue = idx.coerceAtLeast(0)
         }
+
     }
 
     /* ───────────── ADD NEXT ───────────── */
@@ -104,12 +151,13 @@ class QueueController {
         val insertPos = posInQueue + 1 +
                 currentQueue.drop(posInQueue + 1).count { it.addedByUser }
 
-        currentQueue.add(insertPos, elem)
+        currentQueue.add(insertPos.coerceIn(0, currentQueue.size), elem)
 
         val origInsert = posInQueue + 1 +
                 originalQueue.drop(posInQueue + 1).count { it.addedByUser }
 
-        originalQueue.add(origInsert, elem)
+        originalQueue.add(origInsert.coerceIn(0, originalQueue.size), elem)
+
     }
 
     /* ───────────── REMOVE ───────────── */
@@ -124,6 +172,7 @@ class QueueController {
         if (posInQueue > index) posInQueue--
         if (posInQueue >= currentQueue.size)
             posInQueue = currentQueue.lastIndex.coerceAtLeast(0)
+
     }
 
     /* ───────────── MOVE ───────────── */
@@ -137,6 +186,7 @@ class QueueController {
 
         val origFrom = originalQueue.indexOfFirst { it.id == elem.id }
         if (origFrom != -1) {
+            // Найдём целевой индекс в originalQueue: примем приближённый вариант - положим в ту же относительную позицию
             originalQueue.removeAt(origFrom)
             originalQueue.add(to.coerceIn(0, originalQueue.size), elem)
         }
@@ -147,6 +197,7 @@ class QueueController {
             from > posInQueue && to <= posInQueue -> posInQueue + 1
             else -> posInQueue
         }
+
     }
 
     /* ───────────── NEXT / PREV ───────────── */
@@ -154,24 +205,17 @@ class QueueController {
     fun moveNext(): Boolean {
         if (posInQueue + 1 >= currentQueue.size) return false
         posInQueue++
+        playCurrent()
         return true
     }
 
     fun movePrev(): Boolean {
         if (posInQueue - 1 < 0) return false
         posInQueue--
+        playCurrent()
         return true
     }
 
     /* ───────────── SYNC WITH PLAYER ───────────── */
 
-    fun syncPlayer(player: PlayerController) {
-        if (currentQueue.isEmpty()) return
-
-        val playlist = currentQueue.map {
-            playlistItem(it.track, it.audioSource)
-        }
-
-        player.playQueue(playlist, posInQueue)
-    }
 }
