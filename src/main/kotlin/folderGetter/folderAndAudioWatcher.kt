@@ -14,6 +14,7 @@ data class ScannedAudio(
     val title: String,
     val artist: String,
     val album: String,
+    val disc : String,
     val year: String,
     val pos: String,
     val artworkPath: Path? = null,
@@ -197,8 +198,10 @@ class AudioFolderController {
 
     /* ================= TAGS + ARTWORK ================= */
 
+
     private fun readTagsAndArtwork(path: Path): ScannedAudio? =
         try {
+
             val audio = AudioFileIO.read(path.toFile())
             val tag = audio.tag ?: return null
 
@@ -207,6 +210,9 @@ class AudioFolderController {
             val year = tag.getFirst(FieldKey.YEAR)
             val title = tag.getFirst(FieldKey.TITLE)
             val pos = tag.getFirst(FieldKey.TRACK)
+            val discRaw = tag.getFirst(FieldKey.DISC_NO)
+            val discNumber = discRaw
+                .substringBefore("/")
 
             val albumKey = "$album::$year"
 
@@ -223,6 +229,7 @@ class AudioFolderController {
                 album = album,
                 year = year,
                 pos = pos,
+                disc = discNumber,
                 artworkPath = artworkPath,
                 albumCreator = !alreadyHasCreator
             )

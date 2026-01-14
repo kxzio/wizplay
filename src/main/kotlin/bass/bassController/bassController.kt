@@ -18,7 +18,8 @@ data class PlayerState(
     val isPlaying: Boolean = false,
     val positionSec: Double = 0.0,
     val durationSec: Double = 0.0,
-    val volume: Float = 1f
+    val volume: Float = 1f,
+    val audioInfo: PlayingAudioInfo? = null
 )
 
 /* ───────────── PLAYER ENGINE ───────────── */
@@ -32,7 +33,7 @@ class PlayerController {
     private var mixer = 0
 
     /** Текущий decode */
-    private var decodeCurrent = 0
+    var decodeCurrent = 0
 
     /** Флаг seek */
     private val isSeeking = AtomicBoolean(false)
@@ -50,6 +51,15 @@ class PlayerController {
 
     /* ───────────── INIT ───────────── */
 
+    private fun loadPlugin(name: String) {
+        val handle = bass.BASS_PluginLoad(name, 0)
+        if (handle == 0) {
+            println("FAILED to load $name error=${bass.BASS_ErrorGetCode()}")
+        } else {
+            println("Loaded $name")
+        }
+    }
+
     fun init() {
         if (!bass.BASS_Init(-1, 44100, 0, 0, 0)) {
             error("BASS_Init failed: ${bass.BASS_ErrorGetCode()}")
@@ -60,6 +70,10 @@ class PlayerController {
             2,
             Bass.BASS_SAMPLE_FLOAT
         )
+
+        loadPlugin("bass/bassflac.dll")
+        loadPlugin("bass/bassopus.dll")
+        loadPlugin("bass/basswv.dll")
 
         startPositionUpdater()
     }
@@ -84,17 +98,21 @@ class PlayerController {
             decode,
             Bass.BASS_STREAM_AUTOFREE or BassMix.BASS_MIXER_NORAMPIN
         )
+
         bass.BASS_ChannelSetPosition(mixer, 0, Bass.BASS_POS_BYTE)
         bass.BASS_ChannelPlay(mixer, false)
 
         decodeCurrent = decode
         updateDuration(decode)
 
+        val newAudioInfo = getPlayingAudioInfo(decodeCurrent)
+
         _state.update {
             it.copy(
                 current = item,
                 isPlaying = true,
-                positionSec = 0.0
+                positionSec = 0.0,
+                audioInfo = newAudioInfo
             )
         }
     }
@@ -145,8 +163,11 @@ class PlayerController {
                 decodeCurrent = decode
                 updateDuration(decode)
 
+                val newAudioInfo = getPlayingAudioInfo(decodeCurrent)
+
                 _state.update {
                     it.copy(
+                        audioInfo = newAudioInfo,
                         current = next,
                         isPlaying = true,
                         positionSec = 0.0

@@ -6,8 +6,10 @@ import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsDraggedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -26,6 +28,8 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.sharp.Album
+import androidx.compose.material.icons.sharp.DiscFull
 import androidx.compose.material.icons.sharp.Pause
 import androidx.compose.material.icons.sharp.PermMedia
 import androidx.compose.material.icons.sharp.PlayArrow
@@ -53,6 +57,7 @@ import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.blur
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -64,15 +69,22 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.onPointerEvent
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.layout.positionInRoot
+import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.DpOffset
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.lerp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Popup
+import androidx.compose.ui.window.PopupProperties
 import androidx.compose.ui.zIndex
 import dev.chrisbanes.haze.HazeStyle
 import dev.chrisbanes.haze.HazeTint
@@ -80,13 +92,19 @@ import dev.chrisbanes.haze.hazeEffect
 import dev.chrisbanes.haze.hazeSource
 import dev.chrisbanes.haze.rememberHazeState
 import org.example.audioindex.AudioFolderController
+import org.example.audioindex.ScannedAudio
+import org.example.bass.bassController.PlayingAudioInfo
+import org.example.bass.bassController.getPlayingAudioInfo
 import org.example.bass.bassController.playlistItem
+import org.example.bass.bassController.prettyString
 import org.example.bassAudioController
 import org.example.bassQueueController
+import org.example.toTimeString
 import org.example.ui.screens.leftPager.albums.artworkAsync
 import org.example.ui.screens.leftPager.settings.AppPrefs
 import org.example.wizui.wizui
 import org.example.wizui.wizui.FlatSliderTrack
+import kotlin.math.roundToInt
 
 fun formatTime(sec: Double): String {
     val s = sec.toInt()
@@ -113,37 +131,26 @@ fun Modifier.bottomGradient(col: Color) = this.drawWithCache {
     }
 }
 
-fun Modifier.topHalfCircleBorder(
-    color: Color,
-    strokeWidth: Dp
-) = this.drawWithCache {
-
-    val strokePx = strokeWidth.toPx()
-
-    onDrawWithContent {
-        drawContent()
-
-        drawArc(
-            color = color,
-            startAngle = 180f,      // слева
-            sweepAngle = 180f,      // верхняя половина
-            useCenter = false,
-            style = Stroke(
-                width = strokePx,
-                cap = StrokeCap.Round // красиво закругляет края
-            ),
-            size = Size(
-                size.width - strokePx,
-                size.height - strokePx
-            ),
-            topLeft = Offset(
-                strokePx / 2,
-                strokePx / 2
+@Composable
+fun TimePreviewBubble(text: String) {
+    Box(
+        modifier = Modifier
+            .background(
+                color = Color(20, 20, 20),
             )
+            .border(
+                width = 1.dp,
+                color = Color(255, 255, 255, 30),
+            )
+            .padding(horizontal = 8.dp, vertical = 4.dp)
+    ) {
+        Text(
+            text = text,
+            color = Color.White,
+            fontSize = 12.sp,
         )
     }
 }
-
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalComposeUiApi::class, ExperimentalAnimationApi::class)
 @Composable
@@ -162,7 +169,8 @@ fun renderRightPager(
 
     val listState = rememberLazyListState()
 
-    wizui.wizColumn(
+
+    Column(
         modifier = Modifier
             .fillMaxHeight()
             .fillMaxWidth()
@@ -182,13 +190,20 @@ fun renderRightPager(
 
     {
 
-        val openedAlbumTracks = audioFolderController.tracksByAlbum(openedAudioSource.value)
-            .sortedBy { (if (it.pos != "") it.pos.toInt() else 0) }
+        val openedAlbumTracks =
+            audioFolderController
+                .tracksByAlbum(openedAudioSource.value)
+                .sortedWith(
+                    compareBy<ScannedAudio>(
+                        { it.disc },
+                        { it.pos.toIntOrNull() ?: Int.MAX_VALUE }
+                    )
+                )
 
         if (openedAlbumTracks.isEmpty())
         {
             openedAudioSource.value = ""
-            return@wizColumn
+            return@Column
         }
 
         if (openedAudioSource.value.isBlank())
@@ -215,6 +230,11 @@ fun renderRightPager(
                 if (trackWithArtOrFirst == null)
                     trackWithArtOrFirst = openedAlbumTracks.first()
 
+                val hasMultipleDiscs =
+                    openedAlbumTracks
+                        .map { it.disc }
+                        .distinct()
+                        .size > 1
 
                 LazyColumn(
                     state = listState,
@@ -303,6 +323,32 @@ fun renderRightPager(
                     }
 
                     itemsIndexed(openedAlbumTracks) { num, item ->
+
+                        val isFirstTrack = num == 0
+                        val prevDisc = openedAlbumTracks.getOrNull(num - 1)?.disc
+
+                        if (hasMultipleDiscs && (isFirstTrack || item.disc != prevDisc)) {
+
+                            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(vertical = 24.dp)) {
+
+                                HorizontalDivider(color = Color(255, 255, 255,60),
+                                    modifier = Modifier.width(60.dp).padding(end = 16.dp)
+                                )
+
+                                Icon(Icons.Sharp.Album, "", tint = Color(255, 255, 255))
+
+                                Text(
+                                    text = "disc ${item.disc}",
+                                    color = Color.White,
+                                    modifier = Modifier.padding(horizontal = 16.dp)
+                                )
+
+                                HorizontalDivider(color = Color(255, 255, 255, 60),
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+                            }
+                        }
+
                         wizui.wizButton(
                             shape = RectangleShape,
                             modifier = Modifier.fillMaxWidth(),
@@ -367,6 +413,7 @@ fun renderRightPager(
 
                     if (track != null) {
 
+
                         Box {
 
                             /* ───── ПРОГРЕСС ───── */
@@ -400,8 +447,13 @@ fun renderRightPager(
                                 label = "thumbAlpha"
                             )
 
+                            val interactionSource = remember { MutableInteractionSource() }
+                            val isDragging by interactionSource.collectIsDraggedAsState()
+                            var trackWidthPx by remember { mutableStateOf(0) }
+
                             if (state.durationSec > 0)
                             Slider(
+                                interactionSource = interactionSource,
                                 value = sliderValue,
                                 onValueChange = {
                                     isSeeking = true
@@ -429,17 +481,26 @@ fun renderRightPager(
 
                                     val trackHeight = lerp(2.dp, 5.dp, hoverAnim)
                                     val inactiveAlpha = 0.1f + (0.35f - 0.1f) * hoverAnim
-                                    FlatSliderTrack(
-                                        sliderState = sliderState,
-                                        steps = 0,
-                                        height = trackHeight,
-                                        colors = SliderDefaults.colors(
-                                            inactiveTrackColor = Color(120, 120, 120).copy(alpha = inactiveAlpha),
-                                            activeTrackColor = col
-                                        )
+                                    Box(
+                                        Modifier.onGloballyPositioned { coords ->
+                                            trackWidthPx = coords.size.width
+                                        }
                                     )
+                                    {
+                                        FlatSliderTrack(
+                                            sliderState = sliderState,
+                                            steps = 0,
+                                            height = trackHeight,
+                                            colors = SliderDefaults.colors(
+                                                inactiveTrackColor = Color(120, 120, 120).copy(alpha = inactiveAlpha),
+                                                activeTrackColor = col
+                                            )
+                                        )
+                                    }
+
                                 },
-                                thumb = {
+                                thumb = { state ->
+
                                     Box(
                                         modifier = Modifier
                                             .width(4.dp)
@@ -453,8 +514,37 @@ fun renderRightPager(
                                             )
                                     )
                                 }
+
+
                             )
 
+                            val density = LocalDensity.current
+
+                            if (isDragging) {
+
+                                val fraction =
+                                    sliderValue / state.durationSec.toFloat()
+
+                                val thumbX =
+                                    (trackWidthPx * fraction).toInt()
+
+                                val offset = with(LocalDensity.current) {
+                                    IntOffset(
+                                        x = thumbX - 26,
+                                        y = -40
+                                    )
+                                }
+
+
+                                Popup(
+                                    alignment = Alignment.TopStart,
+                                    offset = offset,
+                                ) {
+                                    TimePreviewBubble(
+                                        text = sliderValue.toDouble().toTimeString()
+                                    )
+                                }
+                            }
 
                             //bottom bar
                             Column(
@@ -497,111 +587,148 @@ fun renderRightPager(
                                     .padding(32.dp)
                             )
                             {
-                                Column(Modifier.zIndex(3f).clickable {
-                                    openedAudioSource.value = track.albumKey
-                                    AppPrefs.setString("openedAudioSource", track.albumKey)
-                                }) {
+                                Row(
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.fillMaxWidth()) {
 
-                                    /* ───── ТРЕК ───── */
+                                    Column(Modifier.zIndex(3f).weight(1f).clickable {
+                                        openedAudioSource.value = track.albumKey
+                                        AppPrefs.setString("openedAudioSource", track.albumKey) }
+                                    ) {
 
+                                        /* ───── ТРЕК ───── */
+
+                                        Text(
+                                            text = track.title,
+                                            color = Color.White,
+                                            fontSize = 18.sp,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+
+                                        Spacer(Modifier.height(6.dp))
+
+                                        Text(
+                                            text = track.artist,
+                                            color = Color(255, 255, 255, 100),
+                                            fontSize = 14.sp,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+
+
+
+                                    }
+
+                                    Row(Modifier.zIndex(1f), verticalAlignment = Alignment.CenterVertically) {
+
+                                        //buttons controls
+
+                                        IconButton(
+
+                                            modifier = Modifier
+                                                .size(40.dp)
+                                            ,
+                                            colors = IconButtonDefaults.iconButtonColors(
+                                                containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.0f)
+                                            ),
+                                            onClick = {
+
+                                                bassQueueController.movePrev()
+                                            }
+                                        )
+                                        {
+                                            Icon(
+                                                modifier = Modifier.size(30.dp),
+                                                imageVector = Icons.Sharp.SkipPrevious, contentDescription = "",
+                                                tint = Color(255, 255, 255)
+                                            )
+                                        }
+
+                                        Spacer(Modifier.width(16.dp))
+
+
+                                        IconButton(
+                                            modifier = Modifier
+                                                .size(80.dp)
+                                            ,
+                                            colors = IconButtonDefaults.iconButtonColors(
+                                                containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.0f)
+                                            ),
+                                            onClick = {
+
+                                                if (state.isPlaying)
+                                                    bassAudioController.pause()
+                                                else
+                                                    bassAudioController.resume()
+
+                                            }
+                                        )
+                                        {
+                                            Icon(
+                                                modifier = Modifier.size(50.dp),
+                                                imageVector = if (state.isPlaying) Icons.Sharp.Pause else Icons.Sharp.PlayArrow, contentDescription = "",
+                                                tint = Color(255, 255, 255)
+                                            )
+                                        }
+
+                                        Spacer(Modifier.width(16.dp))
+
+                                        IconButton(
+
+                                            modifier = Modifier
+                                                .size(40.dp)
+                                            ,
+                                            colors = IconButtonDefaults.iconButtonColors(
+                                                containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.0f)
+                                            ),
+                                            onClick = {
+
+                                                bassQueueController.moveNext()
+
+                                            }
+                                        )
+                                        {
+                                            Icon(
+                                                modifier = Modifier.size(30.dp),
+                                                imageVector = Icons.Sharp.SkipNext, contentDescription = "",
+                                                tint = Color(255, 255, 255)
+                                            )
+                                        }
+                                    }
+
+                                }
+
+                            }
+
+                            Row(Modifier.align(Alignment.BottomCenter).zIndex(2f).padding(16.dp)) {
+
+                                if (state.audioInfo != null)
+                                {
                                     Text(
-                                        text = track.title,
-                                        color = Color.White,
-                                        fontSize = 18.sp,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis
-                                    )
-
-                                    Spacer(Modifier.height(6.dp))
-
-                                    Text(
-                                        text = track.artist,
+                                        text =
+                                            state.audioInfo!!.prettyString()
+                                        ,
                                         color = Color(255, 255, 255, 100),
-                                        fontSize = 14.sp,
+                                        fontSize = 9.sp,
                                         maxLines = 1,
                                         overflow = TextOverflow.Ellipsis
                                     )
-
                                 }
                             }
 
-                            Row(Modifier.align(Alignment.CenterEnd).padding(end = 24.dp).zIndex(1f),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
 
-                                //buttons controls
+                            Row(Modifier.align(Alignment.TopEnd).zIndex(2f).padding(16.dp)) {
 
-                                IconButton(
-
-                                    modifier = Modifier
-                                        .size(40.dp)
-                                    ,
-                                    colors = IconButtonDefaults.iconButtonColors(
-                                        containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.0f)
-                                    ),
-                                    onClick = {
-
-                                        bassQueueController.movePrev()
-                                    }
+                                Text(state.positionSec.toTimeString(), fontSize = 11.sp,
+                                    color = col
                                 )
-                                {
-                                    Icon(
-                                        modifier = Modifier.size(30.dp),
-                                        imageVector = Icons.Sharp.SkipPrevious, contentDescription = "",
-                                        tint = Color(255, 255, 255)
-                                    )
-                                }
 
-                                Spacer(Modifier.width(16.dp))
+                                Text("  /  ", fontSize = 11.sp, color = Color(255, 255, 255))
 
-
-                                IconButton(
-                                    modifier = Modifier
-                                        .size(80.dp)
-                                    ,
-                                    colors = IconButtonDefaults.iconButtonColors(
-                                        containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.0f)
-                                    ),
-                                    onClick = {
-
-                                        if (state.isPlaying)
-                                            bassAudioController.pause()
-                                        else
-                                            bassAudioController.resume()
-
-                                    }
-                                )
-                                {
-                                    Icon(
-                                        modifier = Modifier.size(50.dp),
-                                        imageVector = if (state.isPlaying) Icons.Sharp.Pause else Icons.Sharp.PlayArrow, contentDescription = "",
-                                        tint = Color(255, 255, 255)
-                                    )
-                                }
-
-                                Spacer(Modifier.width(16.dp))
-
-                                IconButton(
-
-                                    modifier = Modifier
-                                        .size(40.dp)
-                                    ,
-                                    colors = IconButtonDefaults.iconButtonColors(
-                                        containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.0f)
-                                    ),
-                                    onClick = {
-
-                                        bassQueueController.moveNext()
-
-                                    }
-                                )
-                                {
-                                    Icon(
-                                        modifier = Modifier.size(30.dp),
-                                        imageVector = Icons.Sharp.SkipNext, contentDescription = "",
-                                        tint = Color(255, 255, 255)
-                                    )
-                                }
+                                Text(state.durationSec.toTimeString(), fontSize = 11.sp,
+                                    color = Color(255, 255, 255))
                             }
 
                         }

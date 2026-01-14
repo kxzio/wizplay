@@ -4,17 +4,42 @@ import com.sun.jna.Library
 import com.sun.jna.Native
 import com.sun.jna.Callback
 import com.sun.jna.Pointer
+import com.sun.jna.Structure
 
 interface BASS_SYNC_PROC : Callback {
     fun callback(handle: Int, channel: Int, data: Int, user: Pointer?)
 }
 
 
+@Structure.FieldOrder(
+    "freq",
+    "chans",
+    "flags",
+    "ctype",
+    "origres",
+    "plugin",
+    "sample"
+)
+
+class BASS_CHANNELINFO : Structure() {
+    @JvmField var freq = 0        // sample rate
+    @JvmField var chans = 0       // channels count
+    @JvmField var flags = 0       // flags (FLOAT, etc)
+    @JvmField var ctype = 0       // stream type
+    @JvmField var origres = 0     // original resolution (bits)
+    @JvmField var plugin = 0      // plugin handle
+    @JvmField var sample = 0      // sample handle
+}
+
 interface Bass : Library {
+
+    fun BASS_PluginLoad(file: String, flags: Int): Int
 
     fun BASS_Init(device: Int, freq: Int, flags: Int, win: Long, clsid: Long): Boolean
     fun BASS_Free(): Boolean
     fun BASS_ErrorGetCode(): Int
+
+    fun BASS_ChannelGetInfo(handle: Int, info: BASS_CHANNELINFO): Boolean
 
     fun BASS_StreamCreateFile(
         mem: Boolean,
@@ -85,6 +110,20 @@ interface Bass : Library {
         const val BASS_ATTRIB_VOL = 2
 
         const val BASS_SYNC_END = 2
+
+        // Channel types
+        const val BASS_CTYPE_STREAM = 0x10000
+        const val BASS_CTYPE_STREAM_MP3  = 0x10000
+        const val BASS_CTYPE_STREAM_OGG  = 0x10002
+        const val BASS_CTYPE_STREAM_WAV  = 0x10004
+        const val BASS_CTYPE_STREAM_FLAC = 0x10900
+        const val BASS_CTYPE_STREAM_AAC  = 0x10B00
+
+        // Attributes
+        const val BASS_ATTRIB_BITRATE = 0x400000
+        const val BASS_ATTRIB_FREQ    = 1
+
+        const val BASS_UNICODE = 0x80000000.toInt()
     }
 }
 

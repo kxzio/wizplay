@@ -32,6 +32,22 @@ fun similarity(a: String, b: String): Float {
     return 1f - dist.toFloat() / maxOf(a.length, b.length)
 }
 
+fun Double.toTimeString(): String {
+    if (this.isNaN() || this <= 0) return "0:00"
+
+    val totalSeconds = this.toInt()
+    val seconds = totalSeconds % 60
+    val minutes = (totalSeconds / 60) % 60
+    val hours = totalSeconds / 3600
+
+    return if (hours > 0) {
+        String.format("%d:%02d:%02d", hours, minutes, seconds)
+    } else {
+        String.format("%d:%02d", minutes, seconds)
+    }
+}
+
+
 @Composable
 fun FpsCounter(): MutableState<Int> {
     val fpsState = remember { mutableStateOf(0) }

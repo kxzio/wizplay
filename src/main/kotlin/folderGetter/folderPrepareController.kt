@@ -65,6 +65,7 @@ class FolderScanController(
                 updateState(path) { FolderScanState.Ready }
 
             } catch (e: Exception) {
+                print(e.message)
                 updateState(path) {
                     FolderScanState.Error(e.message ?: "Scan error")
                 }

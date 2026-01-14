@@ -58,6 +58,7 @@ class AudioDatabase(dbPath: Path) {
                 pos TEXT,
                 artwork_path TEXT,
                 album_key TEXT,
+                disc TEXT,
                 album_creator INTEGER
             )
         """.trimIndent())
@@ -80,8 +81,8 @@ class AudioDatabase(dbPath: Path) {
     fun upsertAudio(a: ScannedAudio) {
         conn.prepareStatement("""
         INSERT INTO audio
-        (path, title, artist, album, year, pos, artwork_path, album_key, album_creator)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        (path, title, artist, album, year, pos, artwork_path, album_key, disc, album_creator)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(path) DO UPDATE SET
             title=excluded.title,
             artist=excluded.artist,
@@ -90,6 +91,7 @@ class AudioDatabase(dbPath: Path) {
             pos=excluded.pos,
             artwork_path=excluded.artwork_path,
             album_key=excluded.album_key,
+            disc=excluded.disc,
             album_creator=excluded.album_creator
     """.trimIndent()).use { ps ->
             ps.setString(1, a.path.toString())
@@ -100,7 +102,8 @@ class AudioDatabase(dbPath: Path) {
             ps.setString(6, a.pos)
             ps.setString(7, a.artworkPath?.toString())
             ps.setString(8, a.albumKey)
-            ps.setInt(9, if (a.albumCreator) 1 else 0)
+            ps.setString(9, a.disc)
+            ps.setInt(10, if (a.albumCreator) 1 else 0)
             ps.executeUpdate()
         }
     }
@@ -122,6 +125,7 @@ class AudioDatabase(dbPath: Path) {
                     year = rs.getString("year"),
                     pos = rs.getString("pos"),
                     artworkPath = rs.getString("artwork_path")?.let { Path(it) },
+                    disc = rs.getString("disc"),
                     albumCreator = true
                 )
             }
@@ -188,6 +192,7 @@ class AudioDatabase(dbPath: Path) {
                     album = rs.getString("album"),
                     year = rs.getString("year"),
                     pos = rs.getString("pos"),
+                    disc = rs.getString("disc"),
                     artworkPath = rs.getString("artwork_path")?.let { Path(it) },
                     albumCreator = true
                 )
@@ -209,6 +214,7 @@ class AudioDatabase(dbPath: Path) {
                     album = rs.getString("album"),
                     year = rs.getString("year"),
                     pos = rs.getString("pos"),
+                    disc = rs.getString("disc"),
                     artworkPath = rs.getString("artwork_path")?.let { Path(it) }
                 )
                 map[path] = audio
@@ -233,6 +239,7 @@ class AudioDatabase(dbPath: Path) {
                     album = rs.getString("album"),
                     year = rs.getString("year"),
                     pos = rs.getString("pos"),
+                    disc = rs.getString("disc"),
                     artworkPath = rs.getString("artwork_path")?.let { Path(it) }
                 )
             }
