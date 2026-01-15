@@ -17,6 +17,12 @@ data class QueueItem(
 
 /* ───────────── QUEUE CONTROLLER ───────────── */
 
+enum class repeatMods {
+    REPEAT_OFF,
+    REPEAT_ALL,
+    REPEAT_ONE
+}
+
 class QueueController {
 
     /* canonical order */
@@ -29,6 +35,9 @@ class QueueController {
         private set
 
     var isShuffle by mutableStateOf(false)
+        private set
+
+    var repeatMode by mutableStateOf(repeatMods.REPEAT_OFF)
         private set
 
     val queue: List<QueueItem> get() = currentQueue
@@ -50,7 +59,42 @@ class QueueController {
         this.player = player
 
         player.requestNextItem = {
-            if (posInQueue + 1 >= currentQueue.size) null
+
+            if (posInQueue + 1 >= currentQueue.size) {
+                if (repeatMode == repeatMods.REPEAT_OFF)
+                    null
+                else if (repeatMode == repeatMods.REPEAT_ALL) {
+                    reshuffleIfShuffleEnabled()
+                    posInQueue = 0
+                    currentQueue[posInQueue].let {
+                        playlistItem(
+                            trackPath = it.track.path.toString(),
+                            audioSource = it.audioSource
+                        )
+                    }
+                }
+                else if (repeatMode == repeatMods.REPEAT_ONE) {
+                    currentQueue[posInQueue].let {
+                        playlistItem(
+                            trackPath = it.track.path.toString(),
+                            audioSource = it.audioSource
+                        )
+                    }
+                }
+                else
+                    null
+            }
+
+            if (repeatMode == repeatMods.REPEAT_ONE)
+            {
+                currentQueue[posInQueue].let {
+                    playlistItem(
+                        trackPath = it.track.path.toString(),
+                        audioSource = it.audioSource
+                    )
+                }
+            }
+
             else {
                 posInQueue++
                 currentQueue[posInQueue].let {
@@ -60,6 +104,7 @@ class QueueController {
                     )
                 }
             }
+
         }
 
         if (currentQueue.isNotEmpty()) {
@@ -143,6 +188,39 @@ class QueueController {
 
     }
 
+    fun reshuffleIfShuffleEnabled()
+    {
+        if (isShuffle)
+        {
+            val current = currentQueue.getOrNull(posInQueue)
+            val shuffled = currentQueue.shuffled().toMutableList()
+            val idx = shuffled.indexOfFirst { it.id == current?.id }
+            if (idx > 0) {
+                val elem = shuffled.removeAt(idx)
+                shuffled.add(0, elem)
+            }
+            currentQueue.clear()
+            currentQueue.addAll(shuffled)
+            posInQueue = 0
+        }
+    }
+
+    fun toggleRepeat() {
+
+        if (repeatMode == repeatMods.REPEAT_OFF)
+        {
+            repeatMode = repeatMods.REPEAT_ALL
+        }
+        else if (repeatMode == repeatMods.REPEAT_ALL)
+        {
+            repeatMode = repeatMods.REPEAT_ONE
+        }
+        else if (repeatMode == repeatMods.REPEAT_ONE)
+        {
+            repeatMode = repeatMods.REPEAT_OFF
+        }
+    }
+
     /* ───────────── ADD NEXT ───────────── */
 
     fun addNext(track: ScannedAudio, source: String) {
@@ -202,8 +280,32 @@ class QueueController {
 
     /* ───────────── NEXT / PREV ───────────── */
 
-    fun moveNext(): Boolean {
-        if (posInQueue + 1 >= currentQueue.size) return false
+
+    fun moveNext(isAutoTransition: Boolean = false): Boolean {
+
+        if (posInQueue + 1 >= currentQueue.size) {
+            if (repeatMode == repeatMods.REPEAT_OFF)
+                return false
+            else if (repeatMode == repeatMods.REPEAT_ALL){
+                reshuffleIfShuffleEnabled()
+                posInQueue = 0
+                playCurrent()
+                return true
+            }
+            else if (repeatMode == repeatMods.REPEAT_ONE && isAutoTransition ) {
+                playCurrent()
+                return true
+            }
+            else
+                return false
+        }
+
+        if (repeatMode == repeatMods.REPEAT_ONE && isAutoTransition )
+        {
+            playCurrent()
+            return true
+        }
+
         posInQueue++
         playCurrent()
         return true

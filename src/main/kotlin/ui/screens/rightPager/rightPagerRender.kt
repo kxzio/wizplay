@@ -33,8 +33,13 @@ import androidx.compose.material.icons.sharp.DiscFull
 import androidx.compose.material.icons.sharp.Pause
 import androidx.compose.material.icons.sharp.PermMedia
 import androidx.compose.material.icons.sharp.PlayArrow
+import androidx.compose.material.icons.sharp.Repeat
+import androidx.compose.material.icons.sharp.RepeatOn
+import androidx.compose.material.icons.sharp.RepeatOne
+import androidx.compose.material.icons.sharp.Shuffle
 import androidx.compose.material.icons.sharp.SkipNext
 import androidx.compose.material.icons.sharp.SkipPrevious
+import androidx.compose.material.icons.sharp.SurroundSound
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -97,6 +102,7 @@ import org.example.bass.bassController.PlayingAudioInfo
 import org.example.bass.bassController.getPlayingAudioInfo
 import org.example.bass.bassController.playlistItem
 import org.example.bass.bassController.prettyString
+import org.example.bass.queue.repeatMods
 import org.example.bassAudioController
 import org.example.bassQueueController
 import org.example.toTimeString
@@ -592,12 +598,40 @@ fun renderRightPager(
                                     verticalAlignment = Alignment.CenterVertically,
                                     modifier = Modifier.fillMaxWidth()) {
 
+                                    IconButton(
+                                        modifier = Modifier
+                                            .size(80.dp)
+                                        ,
+                                        colors = IconButtonDefaults.iconButtonColors(
+                                            containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.0f)
+                                        ),
+                                        onClick = {
+
+                                            if (state.isPlaying)
+                                                bassAudioController.pause()
+                                            else
+                                                bassAudioController.resume()
+
+                                        }
+                                    )
+                                    {
+                                        Icon(
+                                            modifier = Modifier.size(32.dp),
+                                            imageVector = if (state.isPlaying) Icons.Sharp.Pause else Icons.Sharp.PlayArrow, contentDescription = "",
+                                            tint = Color(255, 255, 255)
+                                        )
+                                    }
+
+                                    Spacer(Modifier.width(32.dp))
+
+
                                     Column(Modifier.zIndex(3f).weight(1f).clickable {
                                         openedAudioSource.value = track.albumKey
                                         AppPrefs.setString("openedAudioSource", track.albumKey) }
                                     ) {
 
                                         /* ───── ТРЕК ───── */
+
 
                                         Text(
                                             text = track.title,
@@ -611,125 +645,188 @@ fun renderRightPager(
 
                                         Text(
                                             text = track.artist,
-                                            color = Color(255, 255, 255, 100),
+                                            color = Color(255, 255, 255, 160),
                                             fontSize = 14.sp,
                                             maxLines = 1,
                                             overflow = TextOverflow.Ellipsis
                                         )
 
+                                        if (state.audioInfo != null)
+                                        {
+                                            Spacer(Modifier.height(8.dp))
+
+                                            Row(verticalAlignment = Alignment.CenterVertically)
+                                            {
+                                                Icon(
+                                                    Icons.Sharp.SurroundSound,
+                                                    "",
+                                                    tint = Color(255, 255, 255, 100)
+                                                )
+                                                Text(
+                                                    text =
+                                                        state.audioInfo!!.prettyString()
+                                                    ,
+                                                    color = Color(255, 255, 255, 100),
+                                                    fontSize = 9.sp,
+                                                    maxLines = 1,
+                                                    overflow = TextOverflow.Ellipsis,
+                                                    modifier = Modifier.padding(start = 8.dp)
+                                                )
+                                            }
+
+                                        }
+
 
 
                                     }
 
-                                    Row(Modifier.zIndex(1f), verticalAlignment = Alignment.CenterVertically) {
+                                    Row(Modifier.zIndex(1f)) {
 
-                                        //buttons controls
-
-                                        IconButton(
-
-                                            modifier = Modifier
-                                                .size(40.dp)
-                                            ,
-                                            colors = IconButtonDefaults.iconButtonColors(
-                                                containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.0f)
-                                            ),
-                                            onClick = {
-
-                                                bassQueueController.movePrev()
-                                            }
-                                        )
+                                        Column()
                                         {
-                                            Icon(
-                                                modifier = Modifier.size(30.dp),
-                                                imageVector = Icons.Sharp.SkipPrevious, contentDescription = "",
-                                                tint = Color(255, 255, 255)
-                                            )
+
                                         }
 
-                                        Spacer(Modifier.width(16.dp))
+                                        Column(Modifier.zIndex(1f), horizontalAlignment = Alignment.CenterHorizontally) {
+
+                                            //buttons controls
+
+                                            Row(Modifier.zIndex(2f).align(Alignment.End).padding(end = 6.dp)) {
+
+                                                Text(state.positionSec.toTimeString(), fontSize = 11.sp,
+                                                    color = col
+                                                )
+
+                                                Text("  /  ", fontSize = 11.sp, color = Color(255, 255, 255))
+
+                                                Text(state.durationSec.toTimeString(), fontSize = 11.sp,
+                                                    color = Color(255, 255, 255))
+                                            }
+
+                                            Spacer(Modifier.height(16.dp))
+
+                                            Row(verticalAlignment = Alignment.CenterVertically) {
+
+                                                IconButton(
+
+                                                    modifier = Modifier
+                                                        .size(40.dp)
+                                                    ,
+                                                    colors = IconButtonDefaults.iconButtonColors(
+                                                        containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.0f)
+                                                    ),
+                                                    onClick = {
+                                                        bassQueueController.toggleShuffle(!bassQueueController.isShuffle)
+                                                    }
+                                                )
+                                                {
+                                                    Icon(
+                                                        modifier = Modifier.size(24.dp),
+                                                        imageVector = Icons.Sharp.Shuffle, contentDescription = "",
+                                                        tint =
+                                                            if (bassQueueController.isShuffle)
+                                                                col
+                                                                    else
+                                                                Color(255, 255, 255, 100)
+                                                    )
+                                                }
+
+                                                Spacer(Modifier.width(16.dp))
+
+                                                IconButton(
+
+                                                    modifier = Modifier
+                                                        .size(40.dp)
+                                                    ,
+                                                    colors = IconButtonDefaults.iconButtonColors(
+                                                        containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.0f)
+                                                    ),
+                                                    onClick = {
+                                                        bassQueueController.toggleRepeat()
+                                                    }
+                                                )
+                                                {
+                                                    Icon(
+                                                        modifier = Modifier.size(24.dp),
+                                                        imageVector =
+                                                            if (bassQueueController.repeatMode == repeatMods.REPEAT_OFF)
+                                                                Icons.Sharp.Repeat
+                                                            else if (bassQueueController.repeatMode == repeatMods.REPEAT_ALL)
+                                                                Icons.Sharp.Repeat
+                                                            else
+                                                                Icons.Sharp.RepeatOne
+                                                        ,
+                                                        contentDescription = "",
+                                                        tint =
+                                                            if (bassQueueController.repeatMode == repeatMods.REPEAT_OFF)
+                                                                Color(255, 255, 255, 100)
+                                                            else
+                                                                col
+                                                    )
+                                                }
+
+                                                Spacer(Modifier.width(16.dp))
+
+                                                IconButton(
+
+                                                    modifier = Modifier
+                                                        .size(40.dp)
+                                                    ,
+                                                    colors = IconButtonDefaults.iconButtonColors(
+                                                        containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.0f)
+                                                    ),
+                                                    onClick = {
+
+                                                        bassQueueController.movePrev()
+                                                    }
+                                                )
+                                                {
+                                                    Icon(
+                                                        modifier = Modifier.size(24.dp),
+                                                        imageVector = Icons.Sharp.SkipPrevious, contentDescription = "",
+                                                        tint = Color(255, 255, 255)
+                                                    )
+                                                }
 
 
-                                        IconButton(
-                                            modifier = Modifier
-                                                .size(80.dp)
-                                            ,
-                                            colors = IconButtonDefaults.iconButtonColors(
-                                                containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.0f)
-                                            ),
-                                            onClick = {
+                                                Spacer(Modifier.width(16.dp))
 
-                                                if (state.isPlaying)
-                                                    bassAudioController.pause()
-                                                else
-                                                    bassAudioController.resume()
+                                                IconButton(
+
+                                                    modifier = Modifier
+                                                        .size(40.dp)
+                                                    ,
+                                                    colors = IconButtonDefaults.iconButtonColors(
+                                                        containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.0f)
+                                                    ),
+                                                    onClick = {
+
+                                                        bassQueueController.moveNext()
+
+                                                    }
+                                                )
+                                                {
+                                                    Icon(
+                                                        modifier = Modifier.size(24.dp),
+                                                        imageVector = Icons.Sharp.SkipNext, contentDescription = "",
+                                                        tint = Color(255, 255, 255)
+                                                    )
+                                                }
+
+
 
                                             }
-                                        )
-                                        {
-                                            Icon(
-                                                modifier = Modifier.size(50.dp),
-                                                imageVector = if (state.isPlaying) Icons.Sharp.Pause else Icons.Sharp.PlayArrow, contentDescription = "",
-                                                tint = Color(255, 255, 255)
-                                            )
-                                        }
 
-                                        Spacer(Modifier.width(16.dp))
-
-                                        IconButton(
-
-                                            modifier = Modifier
-                                                .size(40.dp)
-                                            ,
-                                            colors = IconButtonDefaults.iconButtonColors(
-                                                containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.0f)
-                                            ),
-                                            onClick = {
-
-                                                bassQueueController.moveNext()
-
-                                            }
-                                        )
-                                        {
-                                            Icon(
-                                                modifier = Modifier.size(30.dp),
-                                                imageVector = Icons.Sharp.SkipNext, contentDescription = "",
-                                                tint = Color(255, 255, 255)
-                                            )
                                         }
                                     }
+
 
                                 }
 
                             }
 
-                            Row(Modifier.align(Alignment.BottomCenter).zIndex(2f).padding(16.dp)) {
-
-                                if (state.audioInfo != null)
-                                {
-                                    Text(
-                                        text =
-                                            state.audioInfo!!.prettyString()
-                                        ,
-                                        color = Color(255, 255, 255, 100),
-                                        fontSize = 9.sp,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis
-                                    )
-                                }
-                            }
 
 
-                            Row(Modifier.align(Alignment.TopEnd).zIndex(2f).padding(16.dp)) {
-
-                                Text(state.positionSec.toTimeString(), fontSize = 11.sp,
-                                    color = col
-                                )
-
-                                Text("  /  ", fontSize = 11.sp, color = Color(255, 255, 255))
-
-                                Text(state.durationSec.toTimeString(), fontSize = 11.sp,
-                                    color = Color(255, 255, 255))
-                            }
 
                         }
 
