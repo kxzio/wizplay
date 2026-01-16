@@ -5,8 +5,7 @@ import org.example.audioindex.ScannedAudio
 import org.example.bass.bassController.PlayerController
 import org.example.bass.bassController.playlistItem
 import java.util.UUID
-
-/* ───────────── QUEUE ITEM ───────────── */
+import kotlin.random.Random
 
 data class QueueItem(
     val track: ScannedAudio,
@@ -14,8 +13,6 @@ data class QueueItem(
     val addedByUser: Boolean = false,
     val id: String = UUID.randomUUID().toString()
 )
-
-/* ───────────── QUEUE CONTROLLER ───────────── */
 
 enum class repeatMods {
     REPEAT_OFF,
@@ -25,12 +22,20 @@ enum class repeatMods {
 
 class QueueController {
 
-    /* canonical order */
-    private val originalQueue = mutableStateListOf<QueueItem>()
+    // ───────────── INTERNAL STRUCTURES ─────────────
+    // canonical list (original order for the source). Not a Compose list -> avoid massive recompositions.
+    private val canonical = ArrayList<QueueItem>()
 
-    /* visible / shuffled order */
-    private val currentQueue = mutableStateListOf<QueueItem>()
+    // visible order as indices into canonical
+    private val permList: MutableList<Int> = ArrayList()
 
+    // inverse mapping canonicalIdx -> visible pos (kept up-to-date when permList changes)
+    private var invPerm: IntArray = IntArray(0)
+
+    // cached visible snapshot for UI (only updated when order/content changes)
+    private val visibleSnapshotState = mutableStateOf<List<QueueItem>>(emptyList())
+
+    // pos in visible order
     var posInQueue by mutableStateOf(0)
         private set
 
@@ -40,268 +45,420 @@ class QueueController {
     var repeatMode by mutableStateOf(repeatMods.REPEAT_OFF)
         private set
 
-    val queue: List<QueueItem> get() = currentQueue
+    // Short alias to expose queue to old UI code. Returns cached snapshot.
+    val queue: List<QueueItem> get() = visibleSnapshotState.value
 
-    fun currentItem(): QueueItem? =
-        currentQueue.getOrNull(posInQueue)
+    // quick lookup id -> canonical index
+    private val idToCanonicalIdx = HashMap<String, Int>()
 
-    fun currentTrack(): ScannedAudio? =
-        currentQueue.getOrNull(posInQueue)?.track
+    // priority buffer for user "add next" — plays before permList continues
+    private val userQueue = ArrayDeque<QueueItem>()
 
-    fun isPlaying(track: ScannedAudio): Boolean =
-        currentQueue.getOrNull(posInQueue)?.track == track
+    // source tracking
+    private var currentSourceId: String? = null
 
-
-    // Привязанный плеер. Если установлен — мы будем автоматически вызывать syncPlayer(player)
+    // bound player
     private var player: PlayerController? = null
+
+    // --- helpers ------------------------------------------------
+
+    private fun updateVisibleSnapshot() {
+        // create a new list mapped by permList
+        val list = ArrayList<QueueItem>(permList.size)
+        for (idx in permList) {
+            // safety check (in case canonical changed unexpectedly)
+            if (idx in canonical.indices) list.add(canonical[idx])
+        }
+        visibleSnapshotState.value = list
+    }
+
+    private fun rebuildInvPerm() {
+        invPerm = IntArray(canonical.size) { -1 }
+        for (i in permList.indices) {
+            val canonIdx = permList[i]
+            if (canonIdx in invPerm.indices) invPerm[canonIdx] = i
+        }
+    }
+
+    private fun ensurePermMatchesCanonical() {
+        // Called after canonical changes in a way that requires perm to include new indices.
+        if (permList.size != canonical.size) {
+            // If perm is empty, initialize with identity
+            permList.clear()
+            for (i in canonical.indices) permList.add(i)
+            rebuildInvPerm()
+            updateVisibleSnapshot()
+        }
+    }
+
+    private fun stableIdForSource(trackPath: String, index: Int) =
+        "$trackPath::$index"
+
+    private fun findCanonicalIndexByPathAndNearest(path: String, preferIndex: Int = 0): Int {
+        // find the canonical index with same path and nearest to preferIndex (best-effort)
+        var best = -1
+        var bestDist = Int.MAX_VALUE
+        for (i in canonical.indices) {
+            if (canonical[i].track.path.toString() == path) {
+                val dist = kotlin.math.abs(i - preferIndex)
+                if (dist < bestDist) {
+                    bestDist = dist
+                    best = i
+                }
+            }
+        }
+        return best
+    }
+
+    // Fisher-Yates shuffle on permList
+    private fun fisherYatesShufflePerm(random: Random = Random.Default) {
+        val n = permList.size
+        for (i in n - 1 downTo 1) {
+            val j = random.nextInt(i + 1)
+            val tmp = permList[i]
+            permList[i] = permList[j]
+            permList[j] = tmp
+        }
+        rebuildInvPerm()
+    }
+
+    // ───────────── PLAYER ATTACH / PLAY ─────────────
 
     fun attachPlayer(player: PlayerController) {
         this.player = player
 
         player.requestNextItem = {
+            // Called by player when it needs the next track
+            // If userQueue exists -> serve from it first (we don't alter permList)
+            if (userQueue.isNotEmpty()) {
+                val it = userQueue.removeFirst()
+                playlistItem(trackPath = it.track.path.toString(), audioSource = it.audioSource)
+            } else {
+                // normal behaviour
+                if (posInQueue + 1 >= permList.size) {
+                    when (repeatMode) {
+                        repeatMods.REPEAT_OFF -> null
+                        repeatMods.REPEAT_ALL -> {
+                            // reshuffle and restart
+                            reshuffleIfShuffleEnabled()
+                            posInQueue = 0
+                            val canonIdx = permList.getOrNull(posInQueue) ?: null
 
-            if (posInQueue + 1 >= currentQueue.size) {
-                if (repeatMode == repeatMods.REPEAT_OFF)
-                    null
-                else if (repeatMode == repeatMods.REPEAT_ALL) {
-                    reshuffleIfShuffleEnabled()
-                    posInQueue = 0
-                    currentQueue[posInQueue].let {
-                        playlistItem(
-                            trackPath = it.track.path.toString(),
-                            audioSource = it.audioSource
-                        )
+                            if (canonIdx == null)
+                                null
+
+                            canonical[canonIdx!!].let {
+                                playlistItem(trackPath = it.track.path.toString(), audioSource = it.audioSource)
+                            }
+                        }
+                        repeatMods.REPEAT_ONE -> {
+                            val canonIdx = permList.getOrNull(posInQueue) ?: null
+
+                            if (canonIdx == null)
+                                null
+
+                            canonical[canonIdx!!].let {
+                                playlistItem(trackPath = it.track.path.toString(), audioSource = it.audioSource)
+                            }
+                        }
+                    }
+                } else {
+                    if (repeatMode == repeatMods.REPEAT_ONE) {
+                        val canonIdx = permList.getOrNull(posInQueue) ?: null
+
+                        if (canonIdx == null)
+                            null
+
+                        canonical[canonIdx!!].let {
+                            playlistItem(trackPath = it.track.path.toString(), audioSource = it.audioSource)
+                        }
+                    } else {
+                        posInQueue++
+                        val canonIdx = permList.getOrNull(posInQueue) ?: null
+
+                        if (canonIdx == null)
+                            null
+
+                        canonical[canonIdx!!].let {
+                            playlistItem(trackPath = it.track.path.toString(), audioSource = it.audioSource)
+                        }
                     }
                 }
-                else if (repeatMode == repeatMods.REPEAT_ONE) {
-                    currentQueue[posInQueue].let {
-                        playlistItem(
-                            trackPath = it.track.path.toString(),
-                            audioSource = it.audioSource
-                        )
-                    }
-                }
-                else
-                    null
             }
-
-            if (repeatMode == repeatMods.REPEAT_ONE)
-            {
-                currentQueue[posInQueue].let {
-                    playlistItem(
-                        trackPath = it.track.path.toString(),
-                        audioSource = it.audioSource
-                    )
-                }
-            }
-
-            else {
-                posInQueue++
-                currentQueue[posInQueue].let {
-                    playlistItem(
-                        trackPath = it.track.path.toString(),
-                        audioSource = it.audioSource
-                    )
-                }
-            }
-
         }
 
-        if (currentQueue.isNotEmpty()) {
+        if (permList.isNotEmpty()) {
             playCurrent()
         }
     }
 
     fun playCurrent() {
-        val item = currentQueue.getOrNull(posInQueue) ?: return
-        player?.play(
-            playlistItem(
-                trackPath = item.track.path.toString(),
-                audioSource = item.audioSource
-            )
-        )
+        // userQueue takes priority for immediate playback
+        if (userQueue.isNotEmpty()) {
+            val item = userQueue.first()
+            player?.play(playlistItem(trackPath = item.track.path.toString(), audioSource = item.audioSource))
+            return
+        }
+
+        val canonIdx = permList.getOrNull(posInQueue) ?: return
+        val item = canonical.getOrNull(canonIdx) ?: return
+        player?.play(playlistItem(trackPath = item.track.path.toString(), audioSource = item.audioSource))
     }
 
+    // ───────────── BUILD / REBUILD ─────────────
 
-    /* ───────────── BUILD QUEUE ───────────── */
-
+    /**
+     * Build the queue from a source. If same source and startTrack is already in visible order,
+     * simply jump to it (O(1)). Otherwise do a full rebuild (O(n)).
+     *
+     * audioSourceId - stable id for the source (album/playlist/folder)
+     */
     fun buildFromSource(
         tracks: List<ScannedAudio>,
         audioSource: String,
         startTrack: ScannedAudio
     ) {
-        val base = tracks.map {
-            QueueItem(track = it, audioSource = audioSource)
+        // Quick path: same source and the startTrack exists in current visible -> jump
+        if (currentSourceId == audioSource && canonical.isNotEmpty()) {
+            // try find visible position by path equality (works for duplicates because ids are stable)
+            val path = startTrack.path.toString()
+            // find nearest canonical index matching same path
+            val canonIdx = findCanonicalIndexByPathAndNearest(path, preferIndex = permList.getOrNull(posInQueue) ?: 0)
+            if (canonIdx != -1) {
+                val visible = invPerm.getOrNull(canonIdx) ?: -1
+                if (visible >= 0) {
+                    posInQueue = visible
+                    playCurrent()
+                    return
+                }
+            }
         }
 
-        originalQueue.clear()
-        originalQueue.addAll(base)
+        // Full rebuild (heavy path) — construct stable canonical items
+        canonical.clear()
+        idToCanonicalIdx.clear()
+        for ((i, t) in tracks.withIndex()) {
+            val stableId = stableIdForSource(t.path.toString(), i)
+            val qi = QueueItem(track = t, audioSource = audioSource, addedByUser = false, id = stableId)
+            canonical.add(qi)
+            idToCanonicalIdx[qi.id] = i
+        }
 
-        rebuild(startTrack)
+        // rebuild perm
+        permList.clear()
+        for (i in canonical.indices) permList.add(i)
+        // if shuffle enabled, shuffle perm now
+        if (isShuffle) fisherYatesShufflePerm()
+        else rebuildInvPerm() // invPerm set accordingly
+
+        currentSourceId = audioSource
+
+        // set posInQueue to the startTrack (match by path first, then fallback to 0)
+        val startPath = startTrack.path.toString()
+        var startCanonIdx = canonical.indexOfFirst { it.track.path.toString() == startPath }
+        if (startCanonIdx < 0) startCanonIdx = 0
+        posInQueue = invPerm.getOrNull(startCanonIdx) ?: 0
+
+        updateVisibleSnapshot()
         playCurrent()
     }
 
-    private fun rebuild(startTrack: ScannedAudio) {
-        currentQueue.clear()
-
-        if (isShuffle) {
-            val shuffled = originalQueue.shuffled().toMutableList()
-            val idx = shuffled.indexOfFirst { it.track == startTrack }
-            if (idx > 0) {
-                val elem = shuffled.removeAt(idx)
-                shuffled.add(0, elem)
-            }
-            currentQueue.addAll(shuffled)
-            posInQueue = 0
-        } else {
-            currentQueue.addAll(originalQueue)
-            posInQueue = originalQueue.indexOfFirst { it.track == startTrack }
-                .coerceAtLeast(0)
-        }
-    }
-
-    /* ───────────── SHUFFLE ───────────── */
+    // ───────────── SHUFFLE / RESHUFFLE ─────────────
 
     fun toggleShuffle(enable: Boolean) {
         if (enable == isShuffle) return
-        if (currentQueue.isEmpty()) return
+        if (permList.isEmpty()) return
 
-        val current = currentQueue.getOrNull(posInQueue)
+        val currentCanon = permList.getOrNull(posInQueue)
         isShuffle = enable
 
         if (enable) {
-            val shuffled = currentQueue.shuffled().toMutableList()
-            val idx = shuffled.indexOfFirst { it.id == current?.id }
-            if (idx > 0) {
-                val elem = shuffled.removeAt(idx)
-                shuffled.add(0, elem)
+            // shuffle permList but keep current element at position 0 to continue playback
+            fisherYatesShufflePerm()
+            // move currentCanon to front if present
+            if (currentCanon != null) {
+                val idx = permList.indexOf(currentCanon)
+                if (idx > 0) {
+                    val e = permList.removeAt(idx)
+                    permList.add(0, e)
+                }
+                posInQueue = 0
+                rebuildInvPerm()
             }
-            currentQueue.clear()
-            currentQueue.addAll(shuffled)
-            posInQueue = 0
         } else {
-            val idx = originalQueue.indexOfFirst { it.id == current?.id }
-            currentQueue.clear()
-            currentQueue.addAll(originalQueue)
-            posInQueue = idx.coerceAtLeast(0)
+            // return to canonical order: identity perm
+            permList.clear()
+            for (i in canonical.indices) permList.add(i)
+            // put current canon at its canonical position index
+            val idx = currentCanon ?: 0
+            posInQueue = idx.coerceAtMost(permList.lastIndex.coerceAtLeast(0))
+            rebuildInvPerm()
         }
 
+        updateVisibleSnapshot()
     }
 
-    fun reshuffleIfShuffleEnabled()
-    {
-        if (isShuffle)
-        {
-            val current = currentQueue.getOrNull(posInQueue)
-            val shuffled = currentQueue.shuffled().toMutableList()
-            val idx = shuffled.indexOfFirst { it.id == current?.id }
+    fun reshuffleIfShuffleEnabled() {
+        if (!isShuffle || permList.isEmpty()) return
+        val currentCanon = permList.getOrNull(posInQueue)
+        fisherYatesShufflePerm()
+        // put current canon to front
+        if (currentCanon != null) {
+            val idx = permList.indexOf(currentCanon)
             if (idx > 0) {
-                val elem = shuffled.removeAt(idx)
-                shuffled.add(0, elem)
+                val e = permList.removeAt(idx)
+                permList.add(0, e)
             }
-            currentQueue.clear()
-            currentQueue.addAll(shuffled)
             posInQueue = 0
+            rebuildInvPerm()
         }
+        updateVisibleSnapshot()
     }
 
     fun toggleRepeat() {
-
-        if (repeatMode == repeatMods.REPEAT_OFF)
-        {
-            repeatMode = repeatMods.REPEAT_ALL
-        }
-        else if (repeatMode == repeatMods.REPEAT_ALL)
-        {
-            repeatMode = repeatMods.REPEAT_ONE
-        }
-        else if (repeatMode == repeatMods.REPEAT_ONE)
-        {
-            repeatMode = repeatMods.REPEAT_OFF
+        repeatMode = when (repeatMode) {
+            repeatMods.REPEAT_OFF -> repeatMods.REPEAT_ALL
+            repeatMods.REPEAT_ALL -> repeatMods.REPEAT_ONE
+            repeatMods.REPEAT_ONE -> repeatMods.REPEAT_OFF
         }
     }
 
-    /* ───────────── ADD NEXT ───────────── */
-
+    // ───────────── ADD NEXT ─────────────
+    /**
+     * Add a track to be played next. This operation aims to be fast (amortized).
+     * We both push it to userQueue for playback priority (O(1)) and insert into the visible order
+     * so that UI shows it. Insertion into permList is O(n) (shifting) but it's a single small cost.
+     */
     fun addNext(track: ScannedAudio, source: String) {
-        val elem = QueueItem(track, source, addedByUser = true)
+        val qi = QueueItem(track = track, audioSource = source, addedByUser = true, id = UUID.randomUUID().toString())
+        // priority buffer
+        userQueue.addLast(qi)
 
-        val insertPos = posInQueue + 1 +
-                currentQueue.drop(posInQueue + 1).count { it.addedByUser }
+        // create canonical entry and insert roughly after current visible position
+        val newCanonIdx = canonical.size
+        canonical.add(qi)
+        idToCanonicalIdx[qi.id] = newCanonIdx
 
-        currentQueue.add(insertPos.coerceIn(0, currentQueue.size), elem)
+        // compute visible insertion position: after current pos, but after any other addedByUser items that follow
+        val after = posInQueue + 1
+        var insertPos = after.coerceIn(0, permList.size)
+        // walk forward to skip over elements that are addedByUser (preserve grouping)
+        while (insertPos < permList.size) {
+            val cIdx = permList[insertPos]
+            if (canonical.getOrNull(cIdx)?.addedByUser == true) insertPos++ else break
+        }
 
-        val origInsert = posInQueue + 1 +
-                originalQueue.drop(posInQueue + 1).count { it.addedByUser }
+        // insert new canonical index into permList at that visible position
+        permList.add(insertPos.coerceIn(0, permList.size), newCanonIdx)
 
-        originalQueue.add(origInsert.coerceIn(0, originalQueue.size), elem)
-
+        // rebuild invPerm & snapshot
+        rebuildInvPerm()
+        updateVisibleSnapshot()
     }
 
-    /* ───────────── REMOVE ───────────── */
+    // ───────────── REMOVE ─────────────
 
     fun removeAt(index: Int) {
-        if (index !in currentQueue.indices) return
+        if (index !in permList.indices) return
+        val canonIdx = permList[index]
+        val target = canonical.getOrNull(canonIdx) ?: return
 
-        val target = currentQueue[index]
-        currentQueue.removeAt(index)
-        originalQueue.removeAll { it.id == target.id }
+        // remove from visible perm
+        permList.removeAt(index)
 
-        if (posInQueue > index) posInQueue--
-        if (posInQueue >= currentQueue.size)
-            posInQueue = currentQueue.lastIndex.coerceAtLeast(0)
-
-    }
-
-    /* ───────────── MOVE ───────────── */
-
-    fun move(from: Int, to: Int) {
-        if (from !in currentQueue.indices) return
-        if (to !in currentQueue.indices) return
-
-        val elem = currentQueue.removeAt(from)
-        currentQueue.add(to, elem)
-
-        val origFrom = originalQueue.indexOfFirst { it.id == elem.id }
-        if (origFrom != -1) {
-            // Найдём целевой индекс в originalQueue: примем приближённый вариант - положим в ту же относительную позицию
-            originalQueue.removeAt(origFrom)
-            originalQueue.add(to.coerceIn(0, originalQueue.size), elem)
+        // remove from canonical (original) - we need to update indices in permList accordingly
+        // Find its canonical index in canonical list and remove it
+        val removedCanonIdx = canonical.indexOfFirst { it.id == target.id }
+        if (removedCanonIdx != -1) {
+            canonical.removeAt(removedCanonIdx)
+            idToCanonicalIdx.remove(target.id)
+            // decrement canonical indices in permList greater than removedCanonIdx
+            for (i in permList.indices) {
+                val v = permList[i]
+                if (v > removedCanonIdx) permList[i] = v - 1
+            }
         }
 
+        // adjust posInQueue
+        if (posInQueue > index) posInQueue--
+        if (posInQueue >= permList.size) posInQueue = permList.lastIndex.coerceAtLeast(0)
+
+        // rebuild inv perm & snapshot
+        rebuildInvPerm()
+        updateVisibleSnapshot()
+    }
+
+    // ───────────── MOVE ─────────────
+
+    fun move(from: Int, to: Int) {
+        if (from !in permList.indices) return
+        if (to !in permList.indices) return
+
+        val elemCanon = permList.removeAt(from)
+        permList.add(to, elemCanon)
+
+        // Attempt to maintain canonical order similar to original: move corresponding canonical entry
+        val origIdx = canonical.indexOfFirst { it.id == canonical.getOrNull(elemCanon)?.id }
+        if (origIdx != -1) {
+            // move canonical entry to approximately same 'to' position (clamped)
+            val targetPos = to.coerceIn(0, canonical.size - 1)
+            val item = canonical.removeAt(origIdx)
+            canonical.add(targetPos, item)
+            // fix permList indices to reflect new canonical positions (re-index)
+            // Because canonical changed, we must rebuild idToCanonicalIdx and remap permList
+            idToCanonicalIdx.clear()
+            for (i in canonical.indices) idToCanonicalIdx[canonical[i].id] = i
+            for (i in permList.indices) {
+                val id = canonical.getOrNull(permList[i])?.id
+                // map old canonical idx value to new index via id map
+                if (id != null) {
+                    permList[i] = idToCanonicalIdx[id] ?: permList[i]
+                }
+            }
+        }
+
+        // adjust posInQueue based on move
         posInQueue = when {
             posInQueue == from -> to
             from < posInQueue && to >= posInQueue -> posInQueue - 1
             from > posInQueue && to <= posInQueue -> posInQueue + 1
             else -> posInQueue
-        }
+        }.coerceIn(0, permList.lastIndex.coerceAtLeast(0))
 
+        // rebuild inv and visible snapshot
+        rebuildInvPerm()
+        updateVisibleSnapshot()
     }
 
-    /* ───────────── NEXT / PREV ───────────── */
-
+    // ───────────── NEXT / PREV ─────────────
 
     fun moveNext(isAutoTransition: Boolean = false): Boolean {
-
-        if (posInQueue + 1 >= currentQueue.size) {
-            if (repeatMode == repeatMods.REPEAT_OFF)
-                return false
-            else if (repeatMode == repeatMods.REPEAT_ALL){
-                reshuffleIfShuffleEnabled()
-                posInQueue = 0
-                playCurrent()
-                return true
-            }
-            else if (repeatMode == repeatMods.REPEAT_ONE && isAutoTransition ) {
-                playCurrent()
-                return true
-            }
-            else
-                return false
+        // userQueue first
+        if (userQueue.isNotEmpty()) {
+            val next = userQueue.removeFirst()
+            player?.play(playlistItem(trackPath = next.track.path.toString(), audioSource = next.audioSource))
+            return true
         }
 
-        if (repeatMode == repeatMods.REPEAT_ONE && isAutoTransition )
-        {
+        if (posInQueue + 1 >= permList.size) {
+            when (repeatMode) {
+                repeatMods.REPEAT_OFF -> return false
+                repeatMods.REPEAT_ALL -> {
+                    reshuffleIfShuffleEnabled()
+                    posInQueue = 0
+                    playCurrent()
+                    return true
+                }
+                repeatMods.REPEAT_ONE -> {
+                    if (isAutoTransition) {
+                        playCurrent()
+                        return true
+                    } else return false
+                }
+            }
+        }
+
+        if (repeatMode == repeatMods.REPEAT_ONE && isAutoTransition) {
             playCurrent()
             return true
         }
@@ -318,6 +475,12 @@ class QueueController {
         return true
     }
 
-    /* ───────────── SYNC WITH PLAYER ───────────── */
+    // ───────────── GETTERS / UTIL ─────────────
 
+    fun currentItem(): QueueItem? = canonical.getOrNull(permList.getOrNull(posInQueue) ?: -1)
+    fun currentTrack(): ScannedAudio? = currentItem()?.track
+    fun isPlaying(track: ScannedAudio): Boolean {
+        val cur = currentTrack() ?: return false
+        return cur.path.toString() == track.path.toString()
+    }
 }
