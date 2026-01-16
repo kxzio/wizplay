@@ -24,17 +24,16 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.sharp.Album
-import androidx.compose.material.icons.sharp.DiscFull
+import androidx.compose.material.icons.sharp.Fullscreen
 import androidx.compose.material.icons.sharp.Pause
 import androidx.compose.material.icons.sharp.PermMedia
 import androidx.compose.material.icons.sharp.PlayArrow
 import androidx.compose.material.icons.sharp.Repeat
-import androidx.compose.material.icons.sharp.RepeatOn
 import androidx.compose.material.icons.sharp.RepeatOne
 import androidx.compose.material.icons.sharp.Shuffle
 import androidx.compose.material.icons.sharp.SkipNext
@@ -56,40 +55,32 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.blur
-import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
-import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.onPointerEvent
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.onSizeChanged
-import androidx.compose.ui.layout.positionInRoot
-import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.lerp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Popup
-import androidx.compose.ui.window.PopupProperties
 import androidx.compose.ui.zIndex
 import dev.chrisbanes.haze.HazeStyle
 import dev.chrisbanes.haze.HazeTint
@@ -98,9 +89,6 @@ import dev.chrisbanes.haze.hazeSource
 import dev.chrisbanes.haze.rememberHazeState
 import org.example.audioindex.AudioFolderController
 import org.example.audioindex.ScannedAudio
-import org.example.bass.bassController.PlayingAudioInfo
-import org.example.bass.bassController.getPlayingAudioInfo
-import org.example.bass.bassController.playlistItem
 import org.example.bass.bassController.prettyString
 import org.example.bass.queue.repeatMods
 import org.example.bassAudioController
@@ -110,7 +98,6 @@ import org.example.ui.screens.leftPager.albums.artworkAsync
 import org.example.ui.screens.leftPager.settings.AppPrefs
 import org.example.wizui.wizui
 import org.example.wizui.wizui.FlatSliderTrack
-import kotlin.math.roundToInt
 
 fun formatTime(sec: Double): String {
     val s = sec.toInt()
@@ -163,18 +150,22 @@ fun TimePreviewBubble(text: String) {
 fun renderRightPager(
     audioFolderController: AudioFolderController,
     openedAudioSource: MutableState<String>,
+    overlayEnabled: MutableState<Boolean>,
 )
 {
     val hazeState = rememberHazeState()
 
     val col = MaterialTheme.colorScheme.primary
 
-    val offsetOfBottomBar = remember { mutableStateOf(0.dp) }
+    val offsetOfBottomBar = rememberSaveable { mutableStateOf(0.dp) }
 
     val state by bassAudioController.state.collectAsState()
 
-    val listState = rememberLazyListState()
-
+    val listState = rememberSaveable(
+        saver = LazyListState.Saver
+    ) {
+        LazyListState()
+    }
 
     Column(
         modifier = Modifier
@@ -225,9 +216,21 @@ fun renderRightPager(
         else
         {
 
-            LaunchedEffect(openedAudioSource.value)
-            {
-                listState.scrollToItem(index = 0)
+            var previousAlbum by rememberSaveable { mutableStateOf<String?>(null) }
+
+            LaunchedEffect(openedAudioSource.value) {
+                val current = openedAudioSource.value
+
+                if (previousAlbum == null) {
+                    previousAlbum = current
+                    return@LaunchedEffect
+                }
+
+                if (previousAlbum != current) {
+                    listState.scrollToItem(0)
+                }
+
+                previousAlbum = current
             }
 
             Box(Modifier.fillMaxSize().background(Color(16, 16, 16))) {
@@ -421,8 +424,6 @@ fun renderRightPager(
 
 
                         Box {
-
-                            /* ───── ПРОГРЕСС ───── */
 
                             var sliderValue by remember { mutableStateOf(0f) }
                             var isSeeking by remember { mutableStateOf(false) }
@@ -625,9 +626,7 @@ fun renderRightPager(
                                     Spacer(Modifier.width(32.dp))
 
 
-                                    Column(Modifier.zIndex(3f).weight(1f).clickable {
-                                        openedAudioSource.value = track.albumKey
-                                        AppPrefs.setString("openedAudioSource", track.albumKey) }
+                                    Column(Modifier.zIndex(3f).weight(1f).padding(end = 8.dp)
                                     ) {
 
                                         /* ───── ТРЕК ───── */
@@ -638,7 +637,10 @@ fun renderRightPager(
                                             color = Color.White,
                                             fontSize = 18.sp,
                                             maxLines = 1,
-                                            overflow = TextOverflow.Ellipsis
+                                            overflow = TextOverflow.Ellipsis,
+                                            modifier = Modifier.clickable {
+                                                openedAudioSource.value = track.albumKey
+                                                AppPrefs.setString("openedAudioSource", track.albumKey) }
                                         )
 
                                         Spacer(Modifier.height(6.dp))
@@ -693,6 +695,7 @@ fun renderRightPager(
 
                                             Row(Modifier.zIndex(2f).align(Alignment.End).padding(end = 6.dp)) {
 
+
                                                 Text(state.positionSec.toTimeString(), fontSize = 11.sp,
                                                     color = col
                                                 )
@@ -706,6 +709,28 @@ fun renderRightPager(
                                             Spacer(Modifier.height(16.dp))
 
                                             Row(verticalAlignment = Alignment.CenterVertically) {
+
+                                                IconButton(
+
+                                                    modifier = Modifier
+                                                        .size(40.dp)
+                                                    ,
+                                                    colors = IconButtonDefaults.iconButtonColors(
+                                                        containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.0f)
+                                                    ),
+                                                    onClick = {
+                                                        overlayEnabled.value = true
+                                                    }
+                                                )
+                                                {
+                                                    Icon(
+                                                        modifier = Modifier.size(24.dp),
+                                                        imageVector = Icons.Sharp.Fullscreen, contentDescription = "",
+                                                        tint = Color(255, 255, 255, 100)
+                                                    )
+                                                }
+
+                                                Spacer(Modifier.width(16.dp))
 
                                                 IconButton(
 

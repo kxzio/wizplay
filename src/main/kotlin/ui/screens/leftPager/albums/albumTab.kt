@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
@@ -38,6 +39,7 @@ import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
@@ -130,10 +132,16 @@ fun albumTab(
     openedAudioSource: MutableState<String>,
 )
 {
-    val gridState = rememberLazyGridState()
-    var searchQr  by remember { mutableStateOf("") }
-    var debouncedQuery by remember { mutableStateOf("") }
-    var isFocused by remember { mutableStateOf(false) }
+    val gridState = rememberSaveable(
+        saver = LazyGridState.Saver
+    ) {
+        LazyGridState()
+    }
+
+    var searchQr            by rememberSaveable { mutableStateOf("") }
+    var debouncedQuery      by rememberSaveable { mutableStateOf("") }
+    var isFocused           by rememberSaveable { mutableStateOf(false) }
+    var queryChangedByUser  by rememberSaveable { mutableStateOf(false) }
 
     Column(Modifier.padding(horizontal = 32.dp).fillMaxSize()) {
 
@@ -152,17 +160,18 @@ fun albumTab(
         val results = remember(debouncedQuery, albums) {
             albums
                 .filter { matchesQuery(searchQr, it) }
-                .map { album ->
-                    album to albumScore(searchQr, album)
-                }
+                .map { album -> album to albumScore(searchQr, album) }
                 .sortedByDescending { it.second }
                 .map { it.first }
-
         }
 
-        LaunchedEffect(results) {
+        LaunchedEffect(debouncedQuery, queryChangedByUser) {
+            if (!queryChangedByUser) return@LaunchedEffect
+
             gridState.stopScroll()
             gridState.scrollToItem(0)
+
+            queryChangedByUser = false
         }
 
         Box {
@@ -176,12 +185,12 @@ fun albumTab(
                 val BaseTitleFont = 14.sp
                 val BaseArtistFont = 10.sp
 
-                var gridWidth by remember { mutableStateOf(0.dp) }
+                var gridWidth by rememberSaveable { mutableStateOf(0.dp) }
 
-                var itemWidth by remember { mutableStateOf(0.dp) }
+                var itemWidth by rememberSaveable { mutableStateOf(0.dp) }
                 val density = LocalDensity.current
 
-                val scale by remember {
+                val scale by rememberSaveable {
                     derivedStateOf {
                         if (gridMultiplier.value.roundToInt() == 0) {
                             val adaptiveColumns =
@@ -344,7 +353,11 @@ fun albumTab(
                 BasicTextField(
                     cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
                     value = searchQr,
-                    onValueChange = { searchQr = it },
+                    onValueChange =
+                        {
+                            searchQr = it
+                            queryChangedByUser = true
+                        },
                     singleLine = true,
                     textStyle = MaterialTheme.typography.bodyMedium.copy(
                         color = MaterialTheme.colorScheme.onSurface

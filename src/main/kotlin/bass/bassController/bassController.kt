@@ -30,7 +30,7 @@ class PlayerController {
     private val mix = BassMix.INSTANCE
 
     /** Один playing stream */
-    private var mixer = 0
+    var mixer = 0
 
     /** Текущий decode */
     var decodeCurrent = 0

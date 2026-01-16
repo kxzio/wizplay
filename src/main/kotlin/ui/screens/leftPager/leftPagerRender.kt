@@ -30,6 +30,7 @@ import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
@@ -55,7 +56,7 @@ fun renderLeftPager(
 )
 {
 
-    val allowResize = remember {
+    val allowResize = rememberSaveable {
         mutableStateOf(AppPrefs.getBool("allowResize", false))
     }
 
@@ -99,10 +100,10 @@ fun leftPagerContent(
     folderScanController: FolderScanController
 )
 {
-    val openedTab = remember { mutableStateOf(1) }
-    var openedSettingsTab = remember { mutableStateOf(0) }
+    val openedTab = rememberSaveable { mutableStateOf(1) }
+    var openedSettingsTab = rememberSaveable { mutableStateOf(0) }
 
-    val gridMultiplier = remember {
+    val gridMultiplier = rememberSaveable {
         mutableStateOf(AppPrefs.getFloat("gridMultiplier", 0f))
     }
 
@@ -170,11 +171,12 @@ fun leftPagerContent(
         HorizontalPager(
             state = pagerState,
             userScrollEnabled = false,
-            beyondViewportPageCount = 0,
+            beyondViewportPageCount = 1,
             modifier = Modifier.fillMaxSize()
         ) { page ->
 
             when (page) {
+
                 0 -> settingTab(
                     allowResize,
                     openedTab,

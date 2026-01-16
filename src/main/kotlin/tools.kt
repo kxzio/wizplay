@@ -6,6 +6,12 @@ import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.withFrameNanos
+import java.awt.Image
+import java.awt.image.BufferedImage
+import java.io.File
+import javax.imageio.ImageIO
+import kotlin.math.max
+import kotlin.math.min
 
 fun levenshtein(a: String, b: String): Int {
     val dp = Array(a.length + 1) { IntArray(b.length + 1) }
@@ -74,3 +80,196 @@ fun FpsCounter(): MutableState<Int> {
 
     return fpsState
 }
+
+
+fun dominantColorFromPathStable(
+    path: String,
+    targetSize: Int = 64,
+    clustersCount: Int = 5
+): Int {
+
+    /* ---------- helpers ---------- */
+
+    data class P(val r: Float, val g: Float, val b: Float)
+
+    fun clampSaturation(
+        c: P,
+        minSaturation: Float = 0.35f
+    ): P {
+        val max = maxOf(c.r, c.g, c.b)
+        val min = minOf(c.r, c.g, c.b)
+        val currentSat = if (max == 0f) 0f else (max - min) / max
+
+        if (currentSat >= minSaturation) return c
+
+        val avg = (c.r + c.g + c.b) / 3f
+        val boost = minSaturation / max(currentSat, 0.001f)
+
+        return P(
+            (avg + (c.r - avg) * boost).coerceIn(0f, 255f),
+            (avg + (c.g - avg) * boost).coerceIn(0f, 255f),
+            (avg + (c.b - avg) * boost).coerceIn(0f, 255f)
+        )
+    }
+
+    fun saturation(p: P): Float {
+        val max = max(p.r, max(p.g, p.b))
+        val min = min(p.r, min(p.g, p.b))
+        return if (max == 0f) 0f else (max - min) / max
+    }
+
+    fun brightness(p: P): Float =
+        max(p.r, max(p.g, p.b)) / 255f
+
+    fun clampColor(p: P): P {
+        val minBrightness = 0.25f
+        val minSaturation = 0.25f
+
+        var r = p.r
+        var g = p.g
+        var b = p.b
+
+        val br = brightness(p)
+        if (br < minBrightness) {
+            val factor = minBrightness / max(br, 0.001f)
+            r *= factor
+            g *= factor
+            b *= factor
+        }
+
+        val sat = saturation(P(r, g, b))
+        if (sat < minSaturation) {
+            val avg = (r + g + b) / 3f
+            r = avg + (r - avg) * 1.3f
+            g = avg + (g - avg) * 1.3f
+            b = avg + (b - avg) * 1.3f
+        }
+
+        return P(
+            r.coerceIn(0f, 255f),
+            g.coerceIn(0f, 255f),
+            b.coerceIn(0f, 255f)
+        )
+    }
+
+    fun toColorInt(p: P): Int =
+        (0xFF shl 24) or
+                (p.r.toInt() shl 16) or
+                (p.g.toInt() shl 8) or
+                p.b.toInt()
+
+    /* ---------- load & scale ---------- */
+
+    val original = ImageIO.read(File(path))
+    val scaled = original.getScaledInstance(targetSize, targetSize, Image.SCALE_FAST)
+
+    val img = BufferedImage(targetSize, targetSize, BufferedImage.TYPE_INT_RGB)
+    img.createGraphics().apply {
+        drawImage(scaled, 0, 0, null)
+        dispose()
+    }
+
+    /* ---------- collect points ---------- */
+
+    val points = ArrayList<P>(targetSize * targetSize / 4)
+
+    for (x in 0 until targetSize step 2) {
+        for (y in 0 until targetSize step 2) {
+            val rgb = img.getRGB(x, y)
+            val r = ((rgb shr 16) and 0xFF).toFloat()
+            val g = ((rgb shr 8) and 0xFF).toFloat()
+            val b = (rgb and 0xFF).toFloat()
+
+            val p = P(r, g, b)
+
+            // фильтрация мусора
+            if (brightness(p) < 0.1f) continue
+            if (saturation(p) < 0.1f) continue
+
+            points += p
+        }
+    }
+
+    if (points.isEmpty()) return 0xFF444444.toInt()
+
+    /* ---------- deterministic k-means ---------- */
+
+    val centers = points
+        .groupBy { ((it.r + it.g + it.b) / 3f / 256f * clustersCount).toInt() }
+        .values
+        .take(clustersCount)
+        .map { cluster ->
+            val r = cluster.sumOf { it.r.toDouble() } / cluster.size
+            val g = cluster.sumOf { it.g.toDouble() } / cluster.size
+            val b = cluster.sumOf { it.b.toDouble() } / cluster.size
+            P(r.toFloat(), g.toFloat(), b.toFloat())
+        }
+        .toMutableList()
+
+    val buckets = Array(centers.size) { mutableListOf<P>() }
+
+    repeat(8) {
+        buckets.forEach { it.clear() }
+
+        for (p in points) {
+            val idx = centers.indices.minBy { i ->
+                val c = centers[i]
+                val dr = p.r - c.r
+                val dg = p.g - c.g
+                val db = p.b - c.b
+                dr * dr + dg * dg + db * db
+            }
+            buckets[idx].add(p)
+        }
+
+        for (i in centers.indices) {
+            val bucket = buckets[i]
+            if (bucket.isEmpty()) continue
+
+            val r = bucket.sumOf { it.r.toDouble() } / bucket.size
+            val g = bucket.sumOf { it.g.toDouble() } / bucket.size
+            val b = bucket.sumOf { it.b.toDouble() } / bucket.size
+            centers[i] = P(r.toFloat(), g.toFloat(), b.toFloat())
+        }
+    }
+
+    /* ---------- select dominant ---------- */
+
+    fun clampBrightness(
+        c: P,
+        minBrightness: Float = 0.35f
+    ): P {
+        val max = maxOf(c.r, c.g, c.b)
+        if (max <= 0f) return c
+
+        val target = minBrightness * 255f
+
+        if (max >= target) return c
+
+        val scale = target / max
+
+        return P(
+            (c.r * scale).coerceIn(0f, 255f),
+            (c.g * scale).coerceIn(0f, 255f),
+            (c.b * scale).coerceIn(0f, 255f)
+        )
+    }
+
+
+    val dominant = centers.indices
+        .maxBy { i ->
+            val c = centers[i]
+            buckets[i].size *
+                    saturation(c) *
+                    brightness(c)
+        }
+        .let { centers[it] }
+
+    val bright = clampBrightness(dominant, minBrightness = 0.85f)
+    val vivid  = clampSaturation(bright, minSaturation = 0.35f)
+    return toColorInt(vivid)
+
+}
+
+
+

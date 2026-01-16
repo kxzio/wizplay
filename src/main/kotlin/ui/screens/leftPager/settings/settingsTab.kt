@@ -8,6 +8,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -39,6 +40,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
@@ -285,7 +287,12 @@ fun settingTab(
 
                 2 -> {
 
-                    val scrollState = rememberScrollState()
+                    val scrollState = rememberSaveable(
+                        saver = ScrollState.Saver
+                    ) {
+                        ScrollState(0)
+                    }
+
                     Column(Modifier.verticalScroll(scrollState)) {
 
                         Spacer(Modifier.height(2.dp))

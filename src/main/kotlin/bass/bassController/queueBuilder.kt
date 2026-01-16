@@ -60,6 +60,8 @@ class QueueController {
     // bound player
     private var player: PlayerController? = null
 
+    private val _currentTrackState = mutableStateOf<ScannedAudio?>(null)
+
     // --- helpers ------------------------------------------------
 
     private fun updateVisibleSnapshot() {
@@ -193,16 +195,30 @@ class QueueController {
     }
 
     fun playCurrent() {
-        // userQueue takes priority for immediate playback
+        // userQueue priority
         if (userQueue.isNotEmpty()) {
             val item = userQueue.first()
-            player?.play(playlistItem(trackPath = item.track.path.toString(), audioSource = item.audioSource))
+            _currentTrackState.value = item.track
+            player?.play(
+                playlistItem(
+                    trackPath = item.track.path.toString(),
+                    audioSource = item.audioSource
+                )
+            )
             return
         }
 
         val canonIdx = permList.getOrNull(posInQueue) ?: return
         val item = canonical.getOrNull(canonIdx) ?: return
-        player?.play(playlistItem(trackPath = item.track.path.toString(), audioSource = item.audioSource))
+
+        _currentTrackState.value = item.track
+
+        player?.play(
+            playlistItem(
+                trackPath = item.track.path.toString(),
+                audioSource = item.audioSource
+            )
+        )
     }
 
     // ───────────── BUILD / REBUILD ─────────────
@@ -478,7 +494,7 @@ class QueueController {
     // ───────────── GETTERS / UTIL ─────────────
 
     fun currentItem(): QueueItem? = canonical.getOrNull(permList.getOrNull(posInQueue) ?: -1)
-    fun currentTrack(): ScannedAudio? = currentItem()?.track
+    fun currentTrack(): ScannedAudio? = _currentTrackState.value
     fun isPlaying(track: ScannedAudio): Boolean {
         val cur = currentTrack() ?: return false
         return cur.path.toString() == track.path.toString()

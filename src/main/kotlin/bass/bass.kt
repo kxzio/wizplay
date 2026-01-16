@@ -10,6 +10,18 @@ interface BASS_SYNC_PROC : Callback {
     fun callback(handle: Int, channel: Int, data: Int, user: Pointer?)
 }
 
+fun floatWaveToBytes(wave: FloatArray): ByteArray {
+    val out = ByteArray(wave.size)
+    for (i in wave.indices) {
+        // BASS обычно даёт -1..1
+        val v = (wave[i] * 127f)
+            .toInt()
+            .coerceIn(-128, 127)
+        out[i] = v.toByte()
+    }
+    return out
+}
+
 
 @Structure.FieldOrder(
     "freq",
@@ -30,6 +42,23 @@ class BASS_CHANNELINFO : Structure() {
     @JvmField var plugin = 0      // plugin handle
     @JvmField var sample = 0      // sample handle
 }
+
+class BassFloatBuffer(size: Int) {
+    val memory = com.sun.jna.Memory(size.toLong() * 4)
+    val array = FloatArray(size)
+}
+
+fun Bass.getData(
+    handle: Int,
+    buf: BassFloatBuffer,
+    length: Int
+): Int {
+    val read = this.BASS_ChannelGetData(handle, buf.memory, length)
+    buf.memory.read(0, buf.array, 0, buf.array.size)
+    return read
+}
+
+
 
 interface Bass : Library {
 
@@ -93,6 +122,7 @@ interface Bass : Library {
         length: Int
     ): Int
 
+
     companion object {
         val INSTANCE: Bass = Native.load("bass", Bass::class.java)
         const val BASS_DATA_FLOAT = 0x40000000
@@ -124,6 +154,13 @@ interface Bass : Library {
         const val BASS_ATTRIB_FREQ    = 1
 
         const val BASS_UNICODE = 0x80000000.toInt()
+
+        const val BASS_DATA_FFT2048 = 0x80000003.toInt()
+
+        const val BASS_DATA_FFT256   = 0x80000000.toInt() or 256
+        const val BASS_DATA_FFT512   = 0x80000000.toInt() or 512
+        const val BASS_DATA_FFT1024  = 0x80000000.toInt() or 1024
+        const val BASS_DATA_FFT4096  = 0x80000000.toInt() or 4096
     }
 }
 
