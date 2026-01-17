@@ -13,6 +13,7 @@ import androidx.compose.foundation.interaction.collectIsDraggedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -26,6 +27,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.sharp.Album
@@ -82,6 +85,7 @@ import androidx.compose.ui.unit.lerp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Popup
 import androidx.compose.ui.zIndex
+import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.HazeStyle
 import dev.chrisbanes.haze.HazeTint
 import dev.chrisbanes.haze.hazeEffect
@@ -95,6 +99,7 @@ import org.example.bassAudioController
 import org.example.bassQueueController
 import org.example.toTimeString
 import org.example.ui.screens.leftPager.albums.artworkAsync
+import org.example.ui.screens.leftPager.queue.drawQueue
 import org.example.ui.screens.leftPager.settings.AppPrefs
 import org.example.wizui.wizui
 import org.example.wizui.wizui.FlatSliderTrack
@@ -145,16 +150,141 @@ fun TimePreviewBubble(text: String) {
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalComposeUiApi::class, ExperimentalAnimationApi::class)
+
 @Composable
 fun renderRightPager(
     audioFolderController: AudioFolderController,
     openedAudioSource: MutableState<String>,
-    overlayEnabled: MutableState<Boolean>,
+    overlayEnabled: MutableState<Boolean>
 )
 {
+    val openedTab = rememberSaveable { mutableStateOf(1) }
+
     val hazeState = rememberHazeState()
 
+
+    Box(Modifier.padding()            .drawWithCache {
+        onDrawBehind {
+
+            drawLine(
+                color = Color(255, 255, 255, 30),
+                start = Offset(0f, 0f),
+                end = Offset(0f, size.height),
+                strokeWidth = 2f
+            )
+        }
+    }) {
+
+        val pagerState = rememberPagerState(
+            initialPage = openedTab.value - 1,
+            pageCount = { 2 }
+        )
+
+        LaunchedEffect(openedTab.value) {
+            pagerState.animateScrollToPage(openedTab.value - 1)
+        }
+
+        HorizontalPager(
+            state = pagerState,
+            userScrollEnabled = false,
+            beyondViewportPageCount = 2,
+            modifier = Modifier.fillMaxSize()
+        ) { page ->
+
+            when (page) {
+
+                0 -> drawAlbum(
+                    audioFolderController,
+                    openedAudioSource,
+                    overlayEnabled,
+                    hazeState
+                )
+
+                1 -> drawQueue()
+
+
+            }
+        }
+
+        Row(Modifier.fillMaxWidth().padding(start =32.dp, end = 32.dp,top = 32.dp, bottom = 32.dp))
+        {
+
+            wizui.wizButton(
+                contentColor = Color(255, 255, 255, 100),
+                contentColorToggled =  Color(255, 255, 255, 255),
+                backgroundColor = Color(255, 255, 255, 0),
+                turnOffToggleIndication = true,
+                modifier = Modifier.weight(1f)
+                    .height(50.dp)
+                    .hazeEffect(
+                        hazeState,
+                        style = HazeStyle(
+                            backgroundColor = Color(20, 20, 20, 255),
+                            blurRadius = 25.dp,
+                            tint = (HazeTint(
+                                color = Color(100, 100, 100, 20)
+                            )),
+                            noiseFactor = 0.15f
+                        )
+                    )
+                    .border(1.dp, Color(255, 255, 255, 30)),
+                shape = RectangleShape,
+                onClick = {
+                    openedTab.value = 1
+                },
+                toggleVariable = openedTab.value == 1
+            ) {
+                Text("source", fontSize = 16.sp,)
+            }
+
+            wizui.wizButton(
+                contentColor = Color(255, 255, 255, 100),
+                contentColorToggled =  Color(255, 255, 255, 255),
+                backgroundColor = Color(255, 255, 255, 0),
+                turnOffToggleIndication = true,
+                modifier = Modifier.weight(1f).height(50.dp)
+                    .hazeEffect(
+                        hazeState,
+                        style = HazeStyle(
+                            backgroundColor = Color(20, 20, 20, 255),
+                            blurRadius = 25.dp,
+                            tint = (HazeTint(
+                                color = Color(100, 100, 100, 20)
+                            )),
+                            noiseFactor = 0.15f
+                        )
+                    )
+                    .border(1.dp, Color(255, 255, 255, 30)),
+                shape = RectangleShape,
+                onClick = {
+                    openedTab.value = 3
+                },
+                toggleVariable = openedTab.value == 3
+            )
+            {
+                Text("queue", fontSize = 16.sp,)
+            }
+
+        }
+
+
+
+
+
+
+
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalComposeUiApi::class, ExperimentalAnimationApi::class)
+@Composable
+fun drawAlbum(
+    audioFolderController: AudioFolderController,
+    openedAudioSource: MutableState<String>,
+    overlayEnabled: MutableState<Boolean>,
+    hazeState: HazeState,
+)
+{
     val col = MaterialTheme.colorScheme.primary
 
     val offsetOfBottomBar = rememberSaveable { mutableStateOf(0.dp) }
@@ -172,17 +302,7 @@ fun renderRightPager(
             .fillMaxHeight()
             .fillMaxWidth()
             .background(Color(16, 16, 16))
-            .drawWithCache {
-                onDrawBehind {
 
-                    drawLine(
-                        color = Color(255, 255, 255, 30),
-                        start = Offset(0f, 0f),
-                        end = Offset(0f, size.height),
-                        strokeWidth = 2f
-                    )
-                }
-            }
     )
 
     {
@@ -250,8 +370,10 @@ fun renderRightPager(
                     modifier = Modifier
                     .padding(0.dp)
                     .background(Color(16, 16, 16))
-                    .hazeSource(hazeState)
+                    .hazeSource(hazeState),
+                    contentPadding = PaddingValues()
                 ) {
+
 
                     item {
 
@@ -264,15 +386,20 @@ fun renderRightPager(
                                 ) { artworkPath ->
                                     artworkAsync(
                                         artworkPath,
-                                        Modifier.fillMaxWidth().blur(60.dp).height(314.dp).alpha(0.3f)
+                                        Modifier.fillMaxWidth().blur(60.dp).height(414.dp - 30.dp).alpha(0.3f)
                                     )
                                 }
                             }
 
-                            Column(modifier = Modifier.padding())
+                            Column(modifier = Modifier.padding(top = 76.dp))
                             {
                                 Row(horizontalArrangement = Arrangement.spacedBy(16.dp),
-                                    modifier = Modifier.padding(32.dp)) {
+                                    modifier = Modifier.padding(
+                                        top = 32.dp,
+                                        start = 32.dp,
+                                        end = 32.dp,
+                                        bottom = 26.dp
+                                    )) {
 
                                     Box(Modifier.size(250.dp)) {
 
@@ -316,7 +443,6 @@ fun renderRightPager(
                                     }
 
                                 }
-
 
                                 HorizontalDivider(
                                     modifier = Modifier.padding().fillMaxWidth(),
@@ -393,7 +519,7 @@ fun renderRightPager(
                                 ) {
 
                                     Text(item.title, fontSize = 16.sp,
-                                        color = if (bassQueueController.isPlaying(item))
+                                        color = if (bassQueueController.isPlaying(item, item.albumKey))
                                             MaterialTheme.colorScheme.primary else Color.White)
 
                                     Spacer(Modifier.height(4.dp))

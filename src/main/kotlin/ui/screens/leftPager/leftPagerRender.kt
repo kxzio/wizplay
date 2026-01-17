@@ -40,6 +40,7 @@ import androidx.compose.ui.unit.sp
 import org.example.folderGetter.FolderScanController
 import org.example.FullscreenController
 import org.example.audioindex.AudioFolderController
+import org.example.ui.screens.leftPager.queue.drawQueue
 import org.example.ui.screens.leftPager.settings.AppPrefs
 import org.example.wizui.wizui
 import ui.screens.leftPager.albums.albumTab
@@ -113,7 +114,7 @@ fun leftPagerContent(
         {
             wizui.wizButton(
                 contentColor = Color(255, 255, 255, 100),
-                contentColorToggled = MaterialTheme.colorScheme.primary,
+                contentColorToggled = Color(255, 255, 255, 255),
                 backgroundColor = Color(255, 255, 255, 5),
                 turnOffToggleIndication = true,
                 modifier = Modifier.height(50.dp).border(1.dp, Color(255, 255, 255, 30)),
@@ -129,7 +130,7 @@ fun leftPagerContent(
 
             wizui.wizButton(
                 contentColor = Color(255, 255, 255, 100),
-                contentColorToggled = MaterialTheme.colorScheme.primary,
+                contentColorToggled = Color(255, 255, 255, 255),
                 backgroundColor = Color(255, 255, 255, 5),
                 turnOffToggleIndication = true,
                 modifier = Modifier.weight(1f).height(50.dp).border(1.dp, Color(255, 255, 255, 30)),
@@ -144,8 +145,8 @@ fun leftPagerContent(
 
             wizui.wizButton(
                 contentColor = Color(255, 255, 255, 100),
-                contentColorToggled = MaterialTheme.colorScheme.primary,
-                backgroundColor = Color(255, 255, 255, 10),
+                contentColorToggled = Color(255, 255, 255, 255),
+                backgroundColor = Color(255, 255, 255, 5),
                 turnOffToggleIndication = true,
                 modifier = Modifier.weight(1f).height(50.dp).border(1.dp, Color(255, 255, 255, 30)),
                 shape = RectangleShape,
@@ -157,11 +158,12 @@ fun leftPagerContent(
             {
                 Text("playlists", fontSize = 16.sp,)
             }
+
         }
 
         val pagerState = rememberPagerState(
             initialPage = openedTab.value - 1,
-            pageCount = { 2 }
+            pageCount = { 3 }
         )
 
         LaunchedEffect(openedTab.value) {
@@ -171,7 +173,7 @@ fun leftPagerContent(
         HorizontalPager(
             state = pagerState,
             userScrollEnabled = false,
-            beyondViewportPageCount = 1,
+            beyondViewportPageCount = 2,
             modifier = Modifier.fillMaxSize()
         ) { page ->
 
@@ -193,6 +195,11 @@ fun leftPagerContent(
                     gridMultiplier,
                     openedAudioSource
                 )
+
+                2 -> {
+
+                }
+
             }
         }
 
