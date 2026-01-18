@@ -128,7 +128,7 @@ class QueueController {
                     playlistItem(trackPath = it.track.path.toString(), audioSource = it.audioSource)
                 } else {
                     posInQueue++
-                    val canonIdx = permList.getOrNull(posInQueue) ?:  null
+                    val canonIdx = permList.getOrNull(posInQueue) ?: null
                     val it = canonical[canonIdx!!]
                     _currentTrackState.value = it.track
                     playlistItem(trackPath = it.track.path.toString(), audioSource = it.audioSource)
@@ -199,15 +199,26 @@ class QueueController {
         // rebuild perm
         permList.clear()
         for (i in canonical.indices) permList.add(i)
-        // if shuffle enabled, shuffle perm now
-        if (isShuffle) fisherYatesShufflePerm()
-        else rebuildInvPerm() // invPerm set accordingly
-        currentSourceId = audioSource
-        // set posInQueue to the startTrack (match by path first, then fallback to 0)
+        // find startTrack canonical index
         val startPath = startTrack.path.toString()
         var startCanonIdx = canonical.indexOfFirst { it.track.path.toString() == startPath }
         if (startCanonIdx < 0) startCanonIdx = 0
-        posInQueue = invPerm.getOrNull(startCanonIdx) ?: 0
+        // if shuffle enabled, shuffle perm now and move startTrack to front
+        if (isShuffle) {
+            fisherYatesShufflePerm()
+            // Move startCanonIdx to the beginning of permList (if not already)
+            val idxInPerm = permList.indexOf(startCanonIdx)
+            if (idxInPerm > 0) {
+                permList.removeAt(idxInPerm)
+                permList.add(0, startCanonIdx)
+                rebuildInvPerm() // Update invPerm after move
+            }
+            posInQueue = 0
+        } else {
+            rebuildInvPerm()
+            posInQueue = invPerm.getOrNull(startCanonIdx) ?: 0
+        }
+        currentSourceId = audioSource
         updateVisibleSnapshot()
         playCurrent()
     }
@@ -383,6 +394,18 @@ class QueueController {
         playCurrent()
         return true
     }
+
+    fun moveToNewPosInQueueById(idOfElement : String): Boolean {
+        val newPosInQueue = queue.indexOfFirst { it.id == idOfElement }
+        if (newPosInQueue != -1) {
+            posInQueue = newPosInQueue
+            playCurrent()
+            return true
+        }
+        return false
+    }
+
+
     // ───────────── GETTERS / UTIL ─────────────
     fun currentItem(): QueueItem? = canonical.getOrNull(permList.getOrNull(posInQueue) ?: -1)
     fun currentTrack(): ScannedAudio? = _currentTrackState.value
