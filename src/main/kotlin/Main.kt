@@ -234,13 +234,13 @@ fun preDraw() {
 
             draw(fullscreen, audioFolderController, folderScanController )
 
-//            val fps by FpsCounter()
-//
-//            Text(
-//                text = "FPS: $fps",
-//                color = Color.Green,
-//                modifier = Modifier.padding(8.dp)
-//            )
+            val fps by FpsCounter()
+
+            Text(
+                text = "FPS: $fps",
+                color = Color.Green,
+                modifier = Modifier.padding(8.dp)
+            )
 
         }
 

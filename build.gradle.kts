@@ -1,3 +1,5 @@
+import org.jetbrains.kotlin.compose.compiler.gradle.ComposeFeatureFlag
+
 plugins {
     kotlin("jvm") version "2.2.0"
     kotlin("plugin.serialization") version "2.2.0"
@@ -54,6 +56,16 @@ compose.desktop {
 
         jvmArgs += listOf(
 
+            // 🔥 Compose runtime tracing
+            "-Dcompose.runtime.trace=all",
+
+            // 🔥 Java Flight Recorder
+            "-XX:StartFlightRecording=filename=compose.jfr,settings=profile",
+
+            // полезно для stack trace
+            "-XX:+UnlockDiagnosticVMOptions",
+            "-XX:+DebugNonSafepoints",
+
             "-XX:+UnlockExperimentalVMOptions",
 
             "-Dskiko.renderApi=direct3d",
@@ -82,8 +94,8 @@ compose.desktop {
 
             "-Dskiko.direct3d.flushOnPresent=false",
 
-            "-Dskiko.debug=false",
-            "-Dskiko.trace.enabled=false",
+            //"-Dskiko.debug=false",// на релизе можно, на дебаг нет
+            //"-Dskiko.trace.enabled=false", // на релизе можно, на дебаг нет
 
             "-XX:+TieredCompilation",
 

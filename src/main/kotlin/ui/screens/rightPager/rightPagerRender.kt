@@ -223,7 +223,7 @@ fun renderRightPager(
             state = pagerState,
             userScrollEnabled = false,
             beyondViewportPageCount = 2,
-            modifier = Modifier.fillMaxSize()
+            modifier = Modifier.fillMaxSize().background(Color(16, 16, 16))
         ) { page ->
 
             when (page) {

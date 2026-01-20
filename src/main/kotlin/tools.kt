@@ -1,5 +1,17 @@
 package org.example
 
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.AnimationState
+import androidx.compose.animation.core.CubicBezierEasing
+import androidx.compose.animation.core.DecayAnimationSpec
+import androidx.compose.animation.core.LinearOutSlowInEasing
+import androidx.compose.animation.core.animateDecay
+import androidx.compose.animation.core.exponentialDecay
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.rememberSplineBasedDecay
+import androidx.compose.foundation.gestures.AnchoredDraggableDefaults.DecayAnimationSpec
+import androidx.compose.foundation.gestures.FlingBehavior
+import androidx.compose.foundation.gestures.ScrollScope
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
@@ -10,6 +22,7 @@ import java.awt.Image
 import java.awt.image.BufferedImage
 import java.io.File
 import javax.imageio.ImageIO
+import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
 
@@ -80,6 +93,7 @@ fun FpsCounter(): MutableState<Int> {
 
     return fpsState
 }
+
 
 
 fun dominantColorFromPathStable(
@@ -271,5 +285,48 @@ fun dominantColorFromPathStable(
 
 }
 
+
+class CustomFlingBehavior(
+    private val decaySpec: DecayAnimationSpec<Float> = exponentialDecay(
+        frictionMultiplier = 5.0f  // Легкое замедление под конец
+    )
+) : FlingBehavior {
+
+    override suspend fun ScrollScope.performFling(initialVelocity: Float): Float {
+        if (abs(initialVelocity) < 1f) return 0f  // Игнор мелких движений
+
+        // Ramp-up: Плавный набор скорости со временем (интерполяция в начале)
+        var currentVelocity = initialVelocity * 0.3f  // Начинаем с низкой (30% от исходной)
+        val rampUpSpec = tween<Float>(
+            durationMillis = 300,  // Время набора (дольше для заметного "разгона")
+            easing = CubicBezierEasing(0.25f, 0.1f, 0.25f, 1f)  // Ease-in-out: Плавный набор и сбавление
+        )
+
+        val rampUpAnimation = Animatable(currentVelocity)
+        rampUpAnimation.animateTo(
+            targetValue = initialVelocity * 1.5f,  // Переходим к повышенной скорости для динамики
+            animationSpec = rampUpSpec
+        ) {
+            val delta = (this.value - currentVelocity) * 0.1f  // Мягкий шаг
+            scrollBy(delta)  // Применяем постепенно
+            currentVelocity = this.value
+        }
+
+        // Decay: Плавное сбавление (интерполяция в конце)
+        var lastValue = 0f
+        val decayState = AnimationState(
+            initialValue = 0f,
+            initialVelocity = currentVelocity
+        )
+        decayState.animateDecay(decaySpec) {
+            val delta = value - lastValue
+            val consumed = scrollBy(delta)
+            lastValue = value
+            if (abs(velocity) < 1f || consumed == 0f) cancelAnimation()  // Полная остановка
+        }
+
+        return 0f  // Возвращаем 0, чтобы дефолт не добавлял свой fling
+    }
+}
 
 

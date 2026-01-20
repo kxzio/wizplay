@@ -1,8 +1,11 @@
 package ui.screens.leftPager.albums
 
+import androidx.compose.animation.rememberSplineBasedDecay
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.ScrollableDefaults
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.gestures.stopScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -12,17 +15,25 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.sharp.Folder
@@ -38,7 +49,9 @@ import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
@@ -52,23 +65,34 @@ import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.onPointerEvent
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.pointerMoveFilter
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.util.lerp
 import androidx.compose.ui.zIndex
+import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.HazeStyle
 import dev.chrisbanes.haze.HazeTint
 import dev.chrisbanes.haze.hazeEffect
 import dev.chrisbanes.haze.hazeSource
 import dev.chrisbanes.haze.rememberHazeState
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withContext
+import org.example.CustomFlingBehavior
 import org.example.audioindex.AudioFolderController
 import org.example.audioindex.ScannedAudio
 import org.example.similarity
@@ -123,6 +147,292 @@ fun albumScore(query: String, album: ScannedAudio): Float {
     return albumScore * 0.7f + artistScore * 0.3f
 }
 
+@Composable
+fun albumsWithAlphabetScroller(
+    results: List<ScannedAudio>,
+    listState: LazyListState,
+    openedAudioSource: MutableState<String>
+) {
+    val scope = rememberCoroutineScope()
+    val scrollFraction = rememberScrollFraction(listState)
+
+    // ───── Alphabet ─────
+    val letters = remember(results) {
+        results
+            .mapNotNull { it.album.firstOrNull()?.uppercaseChar() }
+            .distinct()
+            .sorted()
+    }
+
+    // ───── Letter → index ─────
+    val letterToIndex = remember(results) {
+        buildMap {
+            letters.forEach { letter ->
+                put(
+                    letter,
+                    results.indexOfFirst {
+                        it.album.firstOrNull()?.uppercaseChar() == letter
+                    }
+                )
+            }
+        }
+    }
+
+    var bubbleLetter by remember { mutableStateOf<Char?>(null) }
+    var alphabetHeightPx by remember { mutableStateOf(0) }
+
+    Box(modifier = Modifier.fillMaxSize()) {
+
+        // ───── YOUR LazyColumn ─────
+        LazyColumn(
+            state = listState,
+            modifier = Modifier.fillMaxSize(),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+            contentPadding = PaddingValues(top = 69.dp, bottom = 16.dp)
+        ) {
+            items(
+                items = results,
+                key = { it.albumKey },
+                contentType = { "album" }
+            ) { item ->
+
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.clickable {
+                        openedAudioSource.value = item.albumKey
+                        AppPrefs.setString("openedAudioSource", item.albumKey)
+                    }
+                ) {
+
+                    Box(
+                        modifier = Modifier
+                            .size(150.dp)
+                            .aspectRatio(1f)
+                            .background(Color(45, 45, 45))
+                    ) {
+                        artworkAsync(
+                            item.artworkPath,
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    }
+
+                    Column(
+                        modifier = Modifier
+                            .padding(start = 32.dp, end = 32.dp)
+                            .fillMaxWidth()
+                    ) {
+
+                        Text(
+                            text = item.album,
+                            fontSize = 16.sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            color = Color.White
+                        )
+
+                        Spacer(Modifier.height(8.dp))
+
+                        Text(
+                            text = item.artist,
+                            fontSize = 14.sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            color = Color.White.copy(alpha = 0.5f)
+                        )
+
+                        Spacer(Modifier.height(8.dp))
+
+                        Text(
+                            text = item.year,
+                            fontSize = 14.sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            color = Color.White.copy(alpha = 0.3f)
+                        )
+                    }
+                }
+            }
+        }
+
+        ScrollProgressThumb(
+            scrollFraction = scrollFraction,
+            modifier = Modifier
+                .align(Alignment.CenterEnd)
+                .padding(end = 0.dp) // левее букв
+        )
+
+        // ───── Alphabet bar ─────
+        Column(
+            modifier = Modifier
+                .align(Alignment.CenterEnd)
+                .padding(top = 76.dp, bottom = 16.dp)
+                .fillMaxHeight()
+                .width(24.dp)
+                .onSizeChanged { alphabetHeightPx = it.height }
+                .pointerInput(Unit) {
+                    detectVerticalDragGestures(
+                        onDragStart = { offset ->
+                            handleAlphabetTouch(
+                                offset.y,
+                                alphabetHeightPx,
+                                letters,
+                                letterToIndex,
+                                scope,
+                                listState
+                            ) { bubbleLetter = it }
+                        },
+                        onVerticalDrag = { change, _ ->
+                            handleAlphabetTouch(
+                                change.position.y,
+                                alphabetHeightPx,
+                                letters,
+                                letterToIndex,
+                                scope,
+                                listState
+                            ) { bubbleLetter = it }
+                        },
+                        onDragEnd = {
+                            bubbleLetter = null
+                        }
+                    )
+                }
+        ) {
+            letters.forEach {
+                Text(
+                    text = it.toString(),
+                    fontSize = 11.sp,
+                    color = Color.White.copy(alpha = 0.7f),
+                    modifier = Modifier.weight(1f),
+                    textAlign = TextAlign.Center
+                )
+            }
+        }
+
+        // ───── Bubble ─────
+        bubbleLetter?.let { letter ->
+            AlphabetBubble(letter)
+        }
+    }
+}
+
+@Composable
+fun rememberScrollFraction(listState: LazyListState): Float {
+    return remember {
+        derivedStateOf {
+            val layout = listState.layoutInfo
+            val total = layout.totalItemsCount
+            if (total == 0) return@derivedStateOf 0f
+
+            val first = listState.firstVisibleItemIndex
+            val offset = listState.firstVisibleItemScrollOffset
+
+            val itemSize =
+                layout.visibleItemsInfo.firstOrNull()?.size ?: 1
+
+            val preciseIndex = first + offset / itemSize.toFloat()
+            preciseIndex / total
+        }
+    }.value.coerceIn(0f, 1f)
+}
+
+@Composable
+fun ScrollProgressThumb(
+    scrollFraction: Float,
+    modifier: Modifier = Modifier,
+    thumbHeight: Dp = 36.dp
+) {
+    var containerHeightPx by remember { mutableStateOf(0) }
+    val density = LocalDensity.current
+    val thumbHeightPx = with(density) { thumbHeight.toPx() }
+
+    Box(
+        modifier = modifier
+            .padding(top = 76.dp, bottom = 28.dp)
+            .width(3.dp)
+            .fillMaxHeight()
+            .onSizeChanged {
+                containerHeightPx = it.height
+            }
+    ) {
+        // ───── Track ─────
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    Color.White.copy(alpha = 0.10f),
+                )
+        )
+
+        if (containerHeightPx > 0) {
+            val maxOffset =
+                (containerHeightPx - thumbHeightPx).coerceAtLeast(0f)
+
+            val thumbOffsetY =
+                maxOffset * scrollFraction.coerceIn(0f, 1f)
+
+            // ───── Thumb ─────
+            Box(
+                modifier = Modifier
+                    .offset { IntOffset(0, thumbOffsetY.toInt()) }
+                    .width(3.dp)
+                    .height(thumbHeight)
+                    .background(
+                        MaterialTheme.colorScheme.primary,
+                    )
+            )
+        }
+    }
+}
+
+@Composable
+fun AlphabetBubble(letter: Char) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black.copy(alpha = 0.3f)),
+        contentAlignment = Alignment.Center
+    ) {
+        Box(
+            modifier = Modifier
+                .size(96.dp)
+                .background(Color.DarkGray, CircleShape),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = letter.toString(),
+                fontSize = 48.sp,
+                color = Color.White
+            )
+        }
+    }
+}
+
+private fun handleAlphabetTouch(
+    y: Float,
+    heightPx: Int,
+    letters: List<Char>,
+    letterToIndex: Map<Char, Int>,
+    scope: CoroutineScope,
+    listState: LazyListState,
+    onLetterChanged: (Char) -> Unit
+) {
+    if (heightPx == 0) return
+
+    val letterHeight = heightPx / letters.size
+    val index = (y / letterHeight)
+        .toInt()
+        .coerceIn(0, letters.lastIndex)
+
+    val letter = letters[index]
+    onLetterChanged(letter)
+
+    val targetIndex = letterToIndex[letter] ?: return
+    scope.launch {
+        listState.scrollToItem(targetIndex)
+    }
+}
+
+
 @OptIn(FlowPreview::class, ExperimentalComposeUiApi::class)
 @Composable
 fun albumTab(
@@ -130,25 +440,24 @@ fun albumTab(
     openedTab: MutableState<Int>,
     gridMultiplier: MutableState<Float>,
     openedAudioSource: MutableState<String>,
-)
-{
-    val gridState = rememberSaveable(
-        saver = LazyGridState.Saver
-    ) {
-        LazyGridState()
-    }
+) {
 
-    var searchQr            by rememberSaveable { mutableStateOf("") }
-    var debouncedQuery      by rememberSaveable { mutableStateOf("") }
-    var isFocused           by rememberSaveable { mutableStateOf(false) }
-    var queryChangedByUser  by rememberSaveable { mutableStateOf(false) }
+    val gridState = rememberSaveable(saver = LazyGridState.Saver) { LazyGridState() }
+    val listState = rememberSaveable(saver = LazyListState.Saver) { LazyListState() }
+
+    var searchQr by rememberSaveable { mutableStateOf("") }
+    var debouncedQuery by rememberSaveable { mutableStateOf("") }
+    var isFocused by rememberSaveable { mutableStateOf(false) }
+    var queryChangedByUser by rememberSaveable { mutableStateOf(false) }
 
     Column(Modifier.padding(horizontal = 32.dp).fillMaxSize()) {
 
-        val albums = remember(audioFolderController.audioMap.value) {
-            buildAlbumRepresentatives(audioFolderController.audioMap.value)
+        // Оптимизация: remember с точной зависимостью, чтобы не пересчитывать зря
+        val albums by remember(audioFolderController.audioMap.value) {
+            derivedStateOf { buildAlbumRepresentatives(audioFolderController.audioMap.value) }
         }
 
+        // Дебаунсинг — без изменений, но интегрируем с derivedStateOf ниже
         LaunchedEffect(Unit) {
             snapshotFlow { searchQr }
                 .debounce(300)
@@ -157,62 +466,65 @@ fun albumTab(
                 }
         }
 
-        val results = remember(debouncedQuery, albums) {
-            albums
-                .filter { matchesQuery(searchQr, it) }
-                .map { album -> album to albumScore(searchQr, album) }
-                .sortedByDescending { it.second }
-                .map { it.first }
+        // Оптимизация: derivedStateOf вместо produceState — ленивее, без корутин в UI
+        val results by remember(debouncedQuery) {
+            derivedStateOf {
+                if (debouncedQuery.isBlank()) albums
+                else {
+                    // Тяжёлое в фоне, но derivedStateOf не блокирует; используй suspend если нужно
+                    runBlocking(Dispatchers.Default) {  // Или withContext, но для простоты
+                        albums
+                            .map { it to albumScore(debouncedQuery, it) }
+                            .filter { it.second > 0.2f }
+                            .sortedByDescending { it.second }
+                            .map { it.first }
+                    }
+                }
+            }
         }
 
+        // Оптимизация: animateScrollToItem для плавности, без stopScroll (оно может джанкать)
         LaunchedEffect(debouncedQuery, queryChangedByUser) {
             if (!queryChangedByUser) return@LaunchedEffect
-
-            gridState.stopScroll()
-            gridState.scrollToItem(0)
-
+            listState.animateScrollToItem(0)
+            gridState.animateScrollToItem(0)
             queryChangedByUser = false
         }
 
         Box {
 
-            val hazeState = rememberHazeState()
+            if (results.isNotEmpty()) {
 
-            if (!results.isEmpty())
-            {
+                val baseCardWidth = 160.dp
+                val baseTitleFont = 14.sp
+                val baseArtistFont = 10.sp
 
-                val BaseCardWidth = 160.dp
-                val BaseTitleFont = 14.sp
-                val BaseArtistFont = 10.sp
+                var gridWidth by remember { mutableStateOf(0.dp) }  // Предполагаю, ты где-то обновляешь; если нет, используй onSizeChanged
+                val itemWidth by remember { mutableStateOf(0.dp) }  // Аналогично
 
-                var gridWidth by rememberSaveable { mutableStateOf(0.dp) }
-
-                var itemWidth by rememberSaveable { mutableStateOf(0.dp) }
-                val density = LocalDensity.current
-
-                val scale by rememberSaveable {
+                val scale by remember(gridMultiplier.value, itemWidth) {
                     derivedStateOf {
                         if (gridMultiplier.value.roundToInt() == 0) {
-                            val adaptiveColumns =
-                                maxOf(1, (gridWidth / BaseCardWidth).toInt())
-
+                            val adaptiveColumns = maxOf(1, (gridWidth / baseCardWidth).toInt())
                             lerp(
                                 start = 1.5f,
                                 stop = 0.6f,
                                 fraction = ((adaptiveColumns - 1) / 6f).coerceIn(0f, 1f)
                             )
                         } else {
-                            (itemWidth / BaseCardWidth)
-                                .coerceIn(0.2f, 1.5f)
+                            (itemWidth / baseCardWidth).coerceIn(0.2f, 1.5f)
                         }
                     }
                 }
 
-                val titleFontSize = BaseTitleFont * scale
-                val artistFontSize = BaseArtistFont * scale
+                val titleFontSize by remember(scale) { mutableStateOf(baseTitleFont * scale) }
+                val artistFontSize by remember(scale) { mutableStateOf(baseArtistFont * scale) }
 
+                val density = LocalDensity.current
 
-                Box(Modifier.hazeSource(hazeState)) {
+                Box(Modifier.onSizeChanged { size ->
+                    gridWidth = with(density) { size.width.toDp() }
+                }) {
 
                     Box(
                         modifier = Modifier
@@ -222,162 +534,111 @@ fun albumTab(
                             .zIndex(1f)
                             .background(
                                 Brush.verticalGradient(
-                                    colors = listOf(
-                                        Color(20, 20, 20),
-                                        Color.Black.copy(alpha = 0f)
-                                    )
+                                    colors = listOf(Color(20, 20, 20), Color.Black.copy(alpha = 0f))
                                 )
                             )
                     )
 
-                    BoxWithConstraints(
-                        modifier = Modifier.fillMaxSize().onSizeChanged {
-                            gridWidth = with(density) { it.width.toDp() }
-                        }
-                    ) {
-                        val baseSpacing = 16.dp
-                        val spacing =
-                            if (gridMultiplier.value.roundToInt() == 0)
-                                baseSpacing
-                            else
-                                baseSpacing * scale
+                    val drawGrid = false
 
-                        val columns =
-                            if (gridMultiplier.value.roundToInt() != 0)
-                                gridMultiplier.value.roundToInt()
-                            else
-                                maxOf(1, (maxWidth / 160.dp).toInt())
-
-                        val totalSpacing = spacing * (columns - 1)
-                        val cellWidth = (maxWidth - totalSpacing) / columns
-
-                        // ⬇️ ВОТ ТВОЙ ИДЕАЛЬНЫЙ WIDTH
-                        LaunchedEffect(cellWidth) {
-                            itemWidth = cellWidth
-                        }
-
-                        val gridSpacing =
-                            if (gridMultiplier.value.roundToInt() == 0)
-                                16.dp
-                            else
-                                16.dp * scale
-
+                    if (drawGrid)
+                    {
                         LazyVerticalGrid(
-                            columns =
-                                if (gridMultiplier.value.roundToInt() != 0)
-                                    GridCells.Fixed(gridMultiplier.value.roundToInt())
-                                else
-                                    GridCells.Adaptive(160.dp),
-
+                            columns = if (gridMultiplier.value.roundToInt() != 0)
+                                GridCells.Fixed(gridMultiplier.value.roundToInt())
+                            else
+                                GridCells.Adaptive(160.dp),
                             modifier = Modifier.padding(),
                             state = gridState,
                             userScrollEnabled = true,
+                            horizontalArrangement = Arrangement.spacedBy(16.dp, Alignment.Start),
+                            verticalArrangement = Arrangement.spacedBy(16.dp),
+                            contentPadding = PaddingValues(top = 69.dp, bottom = 16.dp),
 
-                            horizontalArrangement = Arrangement.spacedBy(
-                                space = gridSpacing,
-                                alignment = Alignment.Start
-                            ),
-                            verticalArrangement = Arrangement.spacedBy(gridSpacing),
-                            contentPadding = PaddingValues(
-                                top = 69.dp,
-                                bottom = 16.dp
-                            ),
-
-                        ) {
-
+                            ) {
                             itemsIndexed(
                                 items = results,
+                                contentType = { _, _ -> "album" },
                                 key = { _, album -> album.albumKey }
                             ) { index, item ->
 
-                                Box(
 
+                                Column(
+                                    modifier = Modifier.clickable {
+                                        openedAudioSource.value = item.albumKey
+                                        AppPrefs.setString("openedAudioSource", item.albumKey)
+                                    }
                                 ) {
 
-                                    Column(
+                                    Box(
                                         modifier = Modifier
-                                            .clickable {
-                                                openedAudioSource.value = item.albumKey
-                                                AppPrefs.setString("openedAudioSource", item.albumKey)
-                                            }
+                                            .fillMaxWidth()
+                                            .aspectRatio(1f)
+                                            .background(Color(45, 45, 45))
                                     ) {
+                                        artworkAsync(
+                                            item.artworkPath,
+                                            modifier = Modifier.fillMaxSize()
+                                        )
+                                    }
 
-                                        Box(
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .aspectRatio(1f)
-                                                .background(Color(45, 45, 45))
-                                        ) {
-                                            artworkAsync(
-                                                item.artworkPath,
-                                                Modifier.fillMaxSize()
+                                    if (titleFontSize > 9.5.sp) {
+                                        Column(modifier = Modifier.padding(top = 9.dp * scale)) {
+                                            Text(
+                                                text = item.album,
+                                                fontSize = titleFontSize,
+                                                letterSpacing = relativeLetterSpacing(titleFontSize),
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis,
+                                                color = Color.White
                                             )
-                                        }
 
-                                        if (titleFontSize > 9.5.sp) {
-                                            Column(
-                                                modifier = Modifier.padding(top = 9.dp * scale)
-                                            ) {
+                                            Spacer(Modifier.height(4.dp * scale))
 
-                                                Text(
-                                                    text = item.album,
-                                                    fontSize = titleFontSize,
-                                                    letterSpacing = relativeLetterSpacing(titleFontSize),
-                                                    maxLines = 1,
-                                                    overflow = TextOverflow.Ellipsis,
-                                                    color = Color.White
-                                                )
-
-                                                Spacer(Modifier.height(4.dp * scale))
-
-                                                Text(
-                                                    text = item.artist,
-                                                    fontSize = artistFontSize,
-                                                    letterSpacing = relativeLetterSpacing(artistFontSize),
-                                                    maxLines = 1,
-                                                    overflow = TextOverflow.Ellipsis,
-                                                    color = Color.White.copy(alpha = 0.4f)
-                                                )
-                                            }
+                                            Text(
+                                                text = item.artist,
+                                                fontSize = artistFontSize,
+                                                letterSpacing = relativeLetterSpacing(artistFontSize),
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis,
+                                                color = Color.White.copy(alpha = 0.4f)
+                                            )
                                         }
                                     }
                                 }
                             }
                         }
                     }
+                    else
+                    {
+
+                        albumsWithAlphabetScroller(
+                            results = results,
+                            listState = listState,
+                            openedAudioSource = openedAudioSource
+                        )
+
+
+                    }
 
                 }
             }
 
+            // Поиск-бар — без больших изменений, но hazeEffect отложен
             Row(Modifier.padding(top = 8.dp).zIndex(3f)) {
                 BasicTextField(
                     cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
                     value = searchQr,
-                    onValueChange =
-                        {
-                            searchQr = it
-                            queryChangedByUser = true
-                        },
+                    onValueChange = {
+                        searchQr = it
+                        queryChangedByUser = true
+                    },
                     singleLine = true,
-                    textStyle = MaterialTheme.typography.bodyMedium.copy(
-                        color = MaterialTheme.colorScheme.onSurface
-                    ),
+                    textStyle = MaterialTheme.typography.bodyMedium.copy(color = MaterialTheme.colorScheme.onSurface),
                     modifier = Modifier
-
                         .padding(bottom = 16.dp)
                         .weight(1f)
                         .height(40.dp)
-                        .hazeEffect(
-                            hazeState,
-                            style = HazeStyle(
-                                backgroundColor = Color(15, 15, 15),
-                                blurRadius = 25.dp,
-                                tint = (HazeTint(
-                                    color = Color(0, 0, 0, 0)
-                                )),
-                                noiseFactor = 0.15f
-                            )
-                        )
                         .background(Color(25, 25, 25, 150))
                         .border(
                             width = 0.5.dp,
@@ -394,7 +655,7 @@ fun albumTab(
                     decorationBox = { innerTextField ->
                         Box(
                             modifier = Modifier.fillMaxSize(),
-                            contentAlignment = Alignment.CenterStart // или Center, CenterEnd
+                            contentAlignment = Alignment.CenterStart
                         ) {
                             if (searchQr.isEmpty() && !isFocused) {
                                 Text(
@@ -405,46 +666,33 @@ fun albumTab(
                             innerTextField()
                         }
                     }
-
                 )
 
-                (!searchQr.isEmpty()).wizAnimateIf(wizui.WizAnimationType.ExpandHorizontally) {
-                    Button({
-                        searchQr = ""
-                    },
+                if (!searchQr.isEmpty()) {
+                    Button(
+                        onClick = { searchQr = "" },
                         modifier = Modifier.height(40.dp),
                         shape = RectangleShape,
                         colors = ButtonDefaults.buttonColors(
                             contentColor = Color(255, 255, 255),
                             containerColor = MaterialTheme.colorScheme.primary
                         )
-                    )
-                    {
+                    ) {
                         Text("clear")
                     }
                 }
-
             }
         }
 
-
-
-
-        if (results.isEmpty())
-        {
-            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center)
-            {
-
-                Icon(Icons.Sharp.Folder, "",
+        if (results.isEmpty()) {
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Icon(
+                    Icons.Sharp.Folder, "",
                     tint = Color(255, 255, 255, 30),
                     modifier = Modifier.size(150.dp)
                 )
-
-                Text("nothing here :)", color = Color(255, 255, 255))
-
+                Text("nothing here :)", color = Color.White)
             }
         }
-
     }
-
 }

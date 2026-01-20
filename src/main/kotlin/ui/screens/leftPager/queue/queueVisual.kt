@@ -1,5 +1,6 @@
 package org.example.ui.screens.leftPager.queue
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -44,6 +45,7 @@ import org.example.wizui.wizui
 
 @Composable
 fun drawQueue(offsetOfBottomBar: MutableState<Dp>) {
+
 
     Column(Modifier.fillMaxSize().padding(top = 98.dp)) {
 
@@ -128,7 +130,7 @@ fun drawQueue(offsetOfBottomBar: MutableState<Dp>) {
                 .padding(horizontal = 16.dp)
                 .reorderable(state)
         ) {
-            itemsIndexed(visualQueue, key = { _, item -> item.id }) { index, item ->
+            itemsIndexed(visualQueue, key = { _, item -> item.id }, contentType = { _, _ -> "track" }) { index, item ->
 
                 ReorderableItem(state, key = item.id) { isDragging ->
 

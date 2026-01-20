@@ -1,5 +1,6 @@
 package org.example.audioindex
 
+import androidx.compose.runtime.Stable
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -9,6 +10,7 @@ import org.jaudiotagger.tag.FieldKey
 import java.nio.file.*
 import kotlin.io.path.*
 
+@Stable
 data class ScannedAudio(
     val path: Path,
     val title: String,
