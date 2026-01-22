@@ -1,5 +1,6 @@
 package org.example.ui.screens.leftPager.albums
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -45,7 +46,7 @@ fun artworkAsync(
     placeholderSize: Float = 0.7f  // Опционально для настройки
 ) {
     if (path == null) {
-        Box(modifier, contentAlignment = Alignment.Center) {
+        Box(modifier.fillMaxSize() , contentAlignment = Alignment.Center) {
             Icon(
                 Icons.Sharp.Album,
                 contentDescription = null,
@@ -57,23 +58,23 @@ fun artworkAsync(
     }
 
     val context = LocalPlatformContext.current
-    // Оптимизация: rememberAsyncImagePainter с кэшем и низким качеством
+
     val painter: AsyncImagePainter = rememberAsyncImagePainter(
         model = remember(path) {
             ImageRequest.Builder(context)
                 .data(path.toString())
-                .size(Size.ORIGINAL)  // Или фиксированный размер, если thumbnails: Size(160, 160)
-                .memoryCacheKey(path.toString())  // Кэш в памяти
-                .diskCacheKey(path.toString())    // Кэш на диске для повторных загрузок
-                .crossfade(durationMillis = 200)  // Плавный fade-in
+                .size(Size(512, 512))
+                .memoryCacheKey(path.toString())
+                .diskCacheKey(path.toString())
+                .crossfade(durationMillis = 200)
                 .build()
         },
-        filterQuality = FilterQuality.Low,  // Низкое качество для скорости (меньше CPU)
+        filterQuality = FilterQuality.Low,
         contentScale = ContentScale.Crop,
     )
 
-    Box(modifier.background(Color(45, 45, 45))) {  // Фон сразу, чтобы не мигало
-        androidx.compose.foundation.Image(
+    Box(modifier.background(Color(45, 45, 45))) {
+        Image(
             painter = painter,
             contentDescription = null,
             modifier = Modifier.fillMaxSize()

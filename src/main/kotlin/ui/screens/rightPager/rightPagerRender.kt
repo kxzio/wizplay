@@ -800,7 +800,6 @@ fun drawAlbum(
         if (openedAlbumTracks.isEmpty())
         {
             openedAudioSource.value = ""
-            return@Column
         }
 
         if (openedAudioSource.value.isBlank())
@@ -842,17 +841,26 @@ fun drawAlbum(
 
                         Box {
 
-                            Box {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(414.dp - 30.dp)
+                            ) {
                                 Crossfade(
                                     targetState = trackWithArtOrFirst.artworkPath,
-                                    animationSpec = tween(180)
+                                    animationSpec = tween(180),
+                                    modifier = Modifier.fillMaxSize()
                                 ) { artworkPath ->
                                     artworkAsync(
                                         artworkPath,
-                                        Modifier.fillMaxWidth().blur(60.dp).height(414.dp - 30.dp).alpha(0.3f)
+                                        Modifier
+                                            .fillMaxSize()
+                                            .blur(60.dp)
+                                            .alpha(0.3f)
                                     )
                                 }
                             }
+
 
                             Column(modifier = Modifier.padding(top = 76.dp))
                             {

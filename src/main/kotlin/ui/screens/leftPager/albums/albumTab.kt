@@ -1,6 +1,10 @@
 package ui.screens.leftPager.albums
 
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.rememberSplineBasedDecay
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -36,7 +40,11 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.LastPage
+import androidx.compose.material.icons.rounded.Start
+import androidx.compose.material.icons.sharp.ExpandCircleDown
 import androidx.compose.material.icons.sharp.Folder
+import androidx.compose.material.icons.sharp.LastPage
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.HorizontalDivider
@@ -46,6 +54,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -58,6 +67,7 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -137,14 +147,11 @@ fun matchesQuery(query: String, album: ScannedAudio): Boolean {
 }
 
 fun albumScore(query: String, album: ScannedAudio): Float {
-    if (query.isBlank()) return 1f
-
     val q = query.lowercase()
-
-    val albumScore  = similarity(q, album.album)
-    val artistScore = similarity(q, album.artist)
-
-    return albumScore * 0.7f + artistScore * 0.3f
+    return maxOf(
+        similarity(q, album.album.lowercase()),
+        similarity(q, album.artist.lowercase())
+    )
 }
 
 @Composable
@@ -196,61 +203,91 @@ fun albumsWithAlphabetScroller(
                 contentType = { "album" }
             ) { item ->
 
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.clickable {
-                        openedAudioSource.value = item.albumKey
-                        AppPrefs.setString("openedAudioSource", item.albumKey)
-                    }
-                ) {
+                HorizontalDivider(Modifier.fillMaxWidth()
+                    .padding(vertical = 0.dp, horizontal = 64.dp), thickness = 1.dp,
+                    color = Color(255, 255, 255, 10))
 
-                    Box(
-                        modifier = Modifier
-                            .size(150.dp)
-                            .aspectRatio(1f)
-                            .background(Color(45, 45, 45))
-                    ) {
-                        artworkAsync(
-                            item.artworkPath,
-                            modifier = Modifier.fillMaxSize()
-                        )
-                    }
+                Box {
 
-                    Column(
+
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier
-                            .padding(start = 32.dp, end = 32.dp)
-                            .fillMaxWidth()
+                            .clickable {
+                                openedAudioSource.value = item.albumKey
+                                AppPrefs.setString("openedAudioSource", item.albumKey)
+                            }
                     ) {
 
-                        Text(
-                            text = item.album,
-                            fontSize = 16.sp,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            color = Color.White
+                        val sizeAnimated = animateFloatAsState(
+                            targetValue = if (openedAudioSource.value != item.albumKey) 1f else 1.6f
                         )
 
-                        Spacer(Modifier.height(8.dp))
+                        Box(
+                            modifier = Modifier
+                                .size(100.dp * sizeAnimated.value)
+                                .aspectRatio(1f)
+                                .background(Color(45, 45, 45))
 
-                        Text(
-                            text = item.artist,
-                            fontSize = 14.sp,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            color = Color.White.copy(alpha = 0.5f)
-                        )
+                        ) {
+                            artworkAsync(
+                                item.artworkPath,
+                                modifier = Modifier.fillMaxSize()
+                            )
 
-                        Spacer(Modifier.height(8.dp))
+                            if (openedAudioSource.value == item.albumKey)
+                            {
+                                Box(Modifier.fillMaxSize().background(Color(0, 0, 0, 150)).border(BorderStroke(
+                                    1.dp, Color(80, 80, 80)
+                                )))
+                                {
+                                    Icon(Icons.Sharp.LastPage, "", modifier = Modifier.align(Alignment.Center).size(100.dp), tint = Color(255, 255, 255))
+                                }
+                            }
 
-                        Text(
-                            text = item.year,
-                            fontSize = 14.sp,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            color = Color.White.copy(alpha = 0.3f)
-                        )
+                        }
+
+                        Column(
+                            modifier = Modifier
+                                .padding(start = 24.dp, end = 24.dp)
+                                .fillMaxWidth()
+                        ) {
+
+                            Text(
+                                text = item.album,
+                                fontSize = 16.sp,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                color = Color.White
+                            )
+
+                            Spacer(Modifier.height(8.dp))
+
+                            Text(
+                                text = item.artist,
+                                fontSize = 14.sp,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                color = Color.White.copy(alpha = 0.5f)
+                            )
+
+                            Spacer(Modifier.height(8.dp))
+
+                            Text(
+                                text = item.year,
+                                fontSize = 14.sp,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                color = Color.White.copy(alpha = 0.3f)
+                            )
+                        }
                     }
                 }
+
+                HorizontalDivider(Modifier.fillMaxWidth()
+                    .padding(vertical = 0.dp, horizontal = 64.dp), thickness = 1.dp,
+                    color = Color(255, 255, 255, 10))
+
             }
         }
 
@@ -348,7 +385,7 @@ fun ScrollProgressThumb(
     Box(
         modifier = modifier
             .padding(top = 76.dp, bottom = 28.dp)
-            .width(3.dp)
+            .width(1.dp)
             .fillMaxHeight()
             .onSizeChanged {
                 containerHeightPx = it.height
@@ -452,9 +489,12 @@ fun albumTab(
 
     Column(Modifier.padding(horizontal = 32.dp).fillMaxSize()) {
 
-        // Оптимизация: remember с точной зависимостью, чтобы не пересчитывать зря
-        val albums by remember(audioFolderController.audioMap.value) {
-            derivedStateOf { buildAlbumRepresentatives(audioFolderController.audioMap.value) }
+        val audioMap by audioFolderController.audioMap.collectAsState()
+
+        val albums by remember {
+            derivedStateOf {
+                buildAlbumRepresentatives(audioMap)
+            }
         }
 
         // Дебаунсинг — без изменений, но интегрируем с derivedStateOf ниже
@@ -467,21 +507,20 @@ fun albumTab(
         }
 
         // Оптимизация: derivedStateOf вместо produceState — ленивее, без корутин в UI
-        val results by remember(debouncedQuery) {
-            derivedStateOf {
+        val results by produceState(
+            initialValue = albums,
+            albums,
+            debouncedQuery
+        ) {
+            value =
                 if (debouncedQuery.isBlank()) albums
-                else {
-                    // Тяжёлое в фоне, но derivedStateOf не блокирует; используй suspend если нужно
-                    runBlocking(Dispatchers.Default) {  // Или withContext, но для простоты
-                        albums
-                            .map { it to albumScore(debouncedQuery, it) }
-                            .filter { it.second > 0.2f }
-                            .sortedByDescending { it.second }
-                            .map { it.first }
-                    }
+                else withContext(Dispatchers.Default) {
+                    albums
+                        .filter { matchesQuery(debouncedQuery, it) }
+                        .sortedByDescending { albumScore(debouncedQuery, it) }
                 }
-            }
         }
+
 
         // Оптимизация: animateScrollToItem для плавности, без stopScroll (оно может джанкать)
         LaunchedEffect(debouncedQuery, queryChangedByUser) {
@@ -529,7 +568,7 @@ fun albumTab(
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(110.dp)
+                            .height(70.dp)
                             .align(Alignment.TopCenter)
                             .zIndex(1f)
                             .background(

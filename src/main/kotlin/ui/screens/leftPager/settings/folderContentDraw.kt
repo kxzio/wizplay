@@ -1,6 +1,8 @@
 package org.example.ui.screens.leftPager.settings
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -45,7 +47,7 @@ fun folderScanContent(
         modifier = Modifier
             .fillMaxWidth()
             .height(260.dp)
-            .background(Color(30, 30, 30)),
+            .background(Color(25, 25, 25)),
         items = folders,
     ) { item ->
 
@@ -155,7 +157,9 @@ fun folderScanContent(
     Spacer(Modifier.height(12.dp))
 
     wizui.wizButton(
-        modifier = Modifier.fillMaxWidth(),
+        backgroundColor = Color(20, 20, 20),
+        modifier = Modifier.fillMaxWidth().border(
+            BorderStroke(1.dp, Color(255, 255, 255, 100))),
         contentColor = Color.White,
         shape = RectangleShape,
         onClick = {
