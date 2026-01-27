@@ -1,5 +1,6 @@
 package ui.screens.leftPager.albums
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
@@ -11,6 +12,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.ScrollableDefaults
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.gestures.stopScroll
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsHoveredAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -47,9 +50,13 @@ import androidx.compose.material.icons.sharp.Folder
 import androidx.compose.material.icons.sharp.LastPage
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.ButtonElevation
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -113,6 +120,9 @@ import org.example.wizui.wizui.wizAnimateIf
 import ui.uiHelpers.relativeLetterSpacing
 import java.nio.file.Path
 import kotlin.math.roundToInt
+import androidx.compose.material3.OutlinedIconButton
+import org.example.TraceCompose
+import org.example.ui.uiHelpers.wizuiUIMove
 
 private fun albumKey(a: ScannedAudio): String =
     "${a.album}::${a.year}"
@@ -189,6 +199,8 @@ fun albumsWithAlphabetScroller(
     var alphabetHeightPx by remember { mutableStateOf(0) }
 
     Box(modifier = Modifier.fillMaxSize()) {
+
+        val isOpenedAlbumVisible = listState.layoutInfo.visibleItemsInfo.map { it.key }.contains(openedAudioSource.value)
 
         // ───── YOUR LazyColumn ─────
         LazyColumn(
@@ -290,6 +302,48 @@ fun albumsWithAlphabetScroller(
 
             }
         }
+
+        val cour = rememberCoroutineScope()
+
+        AnimatedVisibility(visible = !isOpenedAlbumVisible, Modifier.align(Alignment.BottomStart)) {
+
+            val interactionSource = remember { MutableInteractionSource() }
+            OutlinedButton({
+                cour.launch {
+                    listState.animateScrollToItem(results.indexOfFirst { it.albumKey == openedAudioSource.value})
+                }
+            }, modifier = Modifier.align(Alignment.BottomStart).padding(16.dp).animateContentSize(
+
+            ),
+                elevation = ButtonDefaults.elevatedButtonElevation(),
+                interactionSource = interactionSource,
+                border = BorderStroke(0.75.dp, Color(255, 255, 255, 100)),
+                colors = ButtonDefaults.outlinedButtonColors(
+                    containerColor = Color(20, 20, 20)
+                )
+            )
+            {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+
+                    Icon(Icons.Sharp.LastPage, "",
+                        tint = Color(255, 255, 255),
+                        modifier = Modifier.size(40.dp)
+                    )
+
+                   if (interactionSource.collectIsHoveredAsState().value) {
+                        Text("go to opened!",
+                            color = Color(255, 255, 255),
+                            modifier = Modifier.padding(horizontal = 16.dp))
+                    }
+
+
+
+                }
+
+            }
+        }
+
+
 
         ScrollProgressThumb(
             scrollFraction = scrollFraction,
@@ -519,6 +573,12 @@ fun albumTab(
                         .filter { matchesQuery(debouncedQuery, it) }
                         .sortedByDescending { albumScore(debouncedQuery, it) }
                 }
+        }
+
+        LaunchedEffect(wizuiUIMove.albumListMoveToAlbumKey)
+        {
+            listState.animateScrollToItem(results.indexOfFirst { it.albumKey == openedAudioSource.value})
+            wizuiUIMove.albumListMoveToAlbumKey = ""
         }
 
 

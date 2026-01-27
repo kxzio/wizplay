@@ -41,6 +41,7 @@ dependencies {
 
     implementation("org.xerial:sqlite-jdbc:3.51.1.0")
 
+
 }
 
 
@@ -94,6 +95,7 @@ compose.desktop {
 
             "-Dskiko.direct3d.flushOnPresent=false",
 
+            "-Dskiko.fps.enabled=false",
             //"-Dskiko.debug=false",// на релизе можно, на дебаг нет
             //"-Dskiko.trace.enabled=false", // на релизе можно, на дебаг нет
 

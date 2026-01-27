@@ -43,7 +43,7 @@ private fun dpToPx(dp: Dp): Int {
 fun artworkAsync(
     path: Path?,
     modifier: Modifier = Modifier,
-    placeholderSize: Float = 0.7f  // Опционально для настройки
+    placeholderSize: Float = 0.7f
 ) {
     if (path == null) {
         Box(modifier.fillMaxSize() , contentAlignment = Alignment.Center) {

@@ -15,6 +15,8 @@ import androidx.compose.foundation.gestures.ScrollScope
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.withFrameNanos
@@ -327,6 +329,21 @@ class CustomFlingBehavior(
 
         return 0f  // Возвращаем 0, чтобы дефолт не добавлял свой fling
     }
+}
+
+@Composable
+inline fun TraceCompose(
+    tag: String,
+    content: @Composable () -> Unit
+) {
+    val recompositions = remember { mutableIntStateOf(0) }
+
+    SideEffect {
+        recompositions.intValue++
+        println("RECOMPOSE [$tag] -> ${recompositions.intValue}")
+    }
+
+    content()
 }
 
 

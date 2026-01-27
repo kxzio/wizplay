@@ -102,6 +102,8 @@ import org.example.toTimeString
 import org.example.ui.screens.leftPager.albums.artworkAsync
 import org.example.ui.screens.leftPager.queue.drawQueue
 import org.example.ui.screens.leftPager.settings.AppPrefs
+import org.example.ui.uiHelpers.globalUIMovers
+import org.example.ui.uiHelpers.wizuiUIMove
 import org.example.wizui.wizui
 import org.example.wizui.wizui.FlatSliderTrack
 
@@ -157,7 +159,7 @@ fun TimePreviewBubble(text: String) {
 fun renderRightPager(
     audioFolderController: AudioFolderController,
     openedAudioSource: MutableState<String>,
-    overlayEnabled: MutableState<Boolean>
+    overlayEnabled: MutableState<Boolean>,
 )
 {
     val openedTab = rememberSaveable { mutableStateOf(1) }
@@ -534,6 +536,7 @@ fun renderRightPager(
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis,
                                     modifier = Modifier.clickable {
+                                        wizuiUIMove.albumListMoveToAlbumKey = track.albumKey
                                         openedAudioSource.value = track.albumKey
                                         AppPrefs.setString("openedAudioSource", track.albumKey) }
                                 )

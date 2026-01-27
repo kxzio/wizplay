@@ -43,6 +43,13 @@ class BASS_CHANNELINFO : Structure() {
     @JvmField var sample = 0      // sample handle
 }
 
+@Structure.FieldOrder("name", "driver", "flags")
+class BASS_DEVICEINFO : Structure() {
+    @JvmField var name: String? = null
+    @JvmField var driver: String? = null
+    @JvmField var flags: Int = 0
+}
+
 class BassFloatBuffer(size: Int) {
     val memory = com.sun.jna.Memory(size.toLong() * 4)
     val array = FloatArray(size)
@@ -61,6 +68,10 @@ fun Bass.getData(
 
 
 interface Bass : Library {
+
+    fun BASS_GetDeviceInfo(device: Int, info: BASS_DEVICEINFO): Boolean
+    fun BASS_SetDevice(device: Int): Boolean
+    fun BASS_GetDevice(): Int
 
     fun BASS_PluginLoad(file: String, flags: Int): Int
 
@@ -157,6 +168,9 @@ interface Bass : Library {
 
         const val BASS_DATA_FFT2048 = 0x80000003.toInt()
 
+        const val BASS_DEVICE_ENABLED = 1
+        const val BASS_DEVICE_DEFAULT = 2
+        
         const val BASS_DATA_FFT256   = 0x80000000.toInt() or 256
         const val BASS_DATA_FFT512   = 0x80000000.toInt() or 512
         const val BASS_DATA_FFT1024  = 0x80000000.toInt() or 1024
