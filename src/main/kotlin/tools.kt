@@ -9,7 +9,6 @@ import androidx.compose.animation.core.animateDecay
 import androidx.compose.animation.core.exponentialDecay
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.rememberSplineBasedDecay
-import androidx.compose.foundation.gestures.AnchoredDraggableDefaults.DecayAnimationSpec
 import androidx.compose.foundation.gestures.FlingBehavior
 import androidx.compose.foundation.gestures.ScrollScope
 import androidx.compose.runtime.Composable
@@ -20,10 +19,14 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.withFrameNanos
+import java.awt.FileDialog
+import java.awt.Frame
 import java.awt.Image
 import java.awt.image.BufferedImage
 import java.io.File
 import javax.imageio.ImageIO
+import javax.swing.JFileChooser
+import javax.swing.UIManager
 import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
@@ -346,4 +349,71 @@ inline fun TraceCompose(
     content()
 }
 
+fun pickFolderKDialog(): File? {
+    return try {
+        val process = ProcessBuilder(
+            "kdialog",
+            "--getexistingdirectory"
+        ).start()
+
+        val result = process.inputStream
+            .bufferedReader()
+            .readText()
+            .trim()
+
+        if (result.isNotEmpty()) File(result) else null
+    } catch (e: Exception) {
+        null
+    }
+}
+
+fun pickFolderZenity(): File? {
+    return try {
+        val process = ProcessBuilder(
+            "zenity",
+            "--file-selection",
+            "--directory"
+        ).start()
+
+        val result = process.inputStream
+            .bufferedReader()
+            .readText()
+            .trim()
+
+        if (result.isNotEmpty()) File(result) else null
+    } catch (e: Exception) {
+        null
+    }
+}
+
+fun pickFolderNative(): File? {
+    val dialog = FileDialog(Frame(), "Выберите папку")
+    dialog.isVisible = true
+
+    val dir = dialog.directory ?: return null
+    return File(dir)
+}
+
+fun pickFolderLinuxNative(): File? {
+    return pickFolderKDialog()
+        ?: pickFolderZenity()
+        ?: pickFolderNative()
+}
+
+object OS {
+
+    val os = System.getProperty("os.name").lowercase()
+
+    val isWindows = os.contains("win")
+    val isLinux   = os.contains("linux")
+
+    val arch = System.getProperty("os.arch")
+
+    fun libExt(): String = when {
+        isWindows -> ".dll"
+        isLinux -> ".so"
+        else -> error("Unsupported OS")
+    }
+
+}
 

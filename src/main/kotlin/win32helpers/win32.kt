@@ -8,6 +8,41 @@ import java.awt.Frame
 import java.awt.GraphicsEnvironment
 import java.awt.Rectangle
 
+object CrossPlatformFullscreen {
+
+    private var prevBounds: Rectangle? = null
+
+    fun enter(frame: Frame) {
+        val device = GraphicsEnvironment
+            .getLocalGraphicsEnvironment()
+            .defaultScreenDevice
+
+        prevBounds = frame.bounds
+        frame.dispose()
+
+        frame.isUndecorated = true
+        frame.isResizable = false
+
+        device.fullScreenWindow = frame
+        frame.isVisible = true
+    }
+
+    fun exit(frame: Frame) {
+        val device = GraphicsEnvironment
+            .getLocalGraphicsEnvironment()
+            .defaultScreenDevice
+
+        device.fullScreenWindow = null
+
+        frame.dispose()
+        frame.isUndecorated = false
+        frame.isResizable = true
+
+        prevBounds?.let { frame.bounds = it }
+        frame.isVisible = true
+    }
+}
+
 object WinFullscreen {
 
     // Константы из WinUser (JNA уже их определяет, но на всякий случай явно)

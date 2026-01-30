@@ -27,9 +27,11 @@ import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import org.example.OS
 import org.example.folderGetter.FolderScanController
 import org.example.folderGetter.FolderScanState
 import org.example.folderGetter.ScannedFolder
+import org.example.pickFolderLinuxNative
 import org.example.pickFolderWindowsNative
 import org.example.wizui.wizui
 import java.nio.file.Path
@@ -163,10 +165,21 @@ fun folderScanContent(
         contentColor = Color.White,
         shape = RectangleShape,
         onClick = {
-            val folder = pickFolderWindowsNative()
-            folder?.let {
-                onAddFolder(it.toPath())
+
+            if (OS.isWindows)
+            {
+                val folder = pickFolderWindowsNative()
+                folder?.let {
+                    onAddFolder(it.toPath())
+                }
             }
+            else {
+                val folder = pickFolderLinuxNative()
+                folder?.let {
+                    onAddFolder(it.toPath())
+                }
+            }
+
         }
     ) {
         Text("add folders")

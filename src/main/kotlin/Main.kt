@@ -46,6 +46,7 @@ import org.example.bass.queue.QueueController
 import org.example.folderGetter.FolderScanController
 import org.example.ui.screens.leftPager.settings.AppPrefs
 import ui.draw
+import win32helpers.CrossPlatformFullscreen
 import win32helpers.WinFullscreen
 import java.awt.EventQueue
 import java.awt.Rectangle
@@ -120,13 +121,25 @@ fun main() {
         fun enterFullscreen() {
             previousBounds = frame.bounds
             frame.isVisible = true
-            WinFullscreen.enter(frame)
+
+            if (OS.isWindows) {
+                WinFullscreen.enter(frame)
+            } else {
+                CrossPlatformFullscreen.enter(frame)
+            }
+
             prefs.putBoolean(PREF_FULLSCREEN, true)
         }
 
         fun exitFullscreen() {
             val restoreBounds = previousBounds ?: savedBounds
-            WinFullscreen.exit(frame, restoreBounds)
+
+            if (OS.isWindows) {
+                WinFullscreen.exit(frame, restoreBounds)
+            } else {
+                CrossPlatformFullscreen.exit(frame)
+            }
+
             frame.isVisible = true
             saveWindowBounds(frame.bounds)
 

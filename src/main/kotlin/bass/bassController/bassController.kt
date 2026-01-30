@@ -3,6 +3,7 @@ package org.example.bass.bassController
 import com.sun.jna.Pointer
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
+import org.example.OS
 import org.example.bass.*
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -52,11 +53,15 @@ class PlayerController {
     /* ───────────── INIT ───────────── */
 
     private fun loadPlugin(name: String) {
-        val handle = bass.BASS_PluginLoad(name, 0)
+
+        val file = if (OS.isLinux) "bass/linux/lib$name${OS.libExt()}" else "bass/microslop/$name${OS.libExt()}"
+
+        val handle = bass.BASS_PluginLoad(file, 0)
+
         if (handle == 0) {
-            println("FAILED to load $name error=${bass.BASS_ErrorGetCode()}")
+            println("FAILED to load $file error=${bass.BASS_ErrorGetCode()}")
         } else {
-            println("Loaded $name")
+            println("Loaded $file")
         }
     }
 
@@ -71,9 +76,9 @@ class PlayerController {
             Bass.BASS_SAMPLE_FLOAT
         )
 
-        loadPlugin("bass/bassflac.dll")
-        loadPlugin("bass/bassopus.dll")
-        loadPlugin("bass/basswv.dll")
+        loadPlugin("bassflac")
+        loadPlugin("bassopus")
+        loadPlugin("basswv")
 
         startPositionUpdater()
     }

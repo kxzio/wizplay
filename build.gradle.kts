@@ -1,10 +1,10 @@
-import org.jetbrains.kotlin.compose.compiler.gradle.ComposeFeatureFlag
+import org.jetbrains.compose.desktop.application.dsl.TargetFormat
 
 plugins {
-    kotlin("jvm") version "2.2.0"
-    kotlin("plugin.serialization") version "2.2.0"
-    id("org.jetbrains.compose") version "1.8.0"
-    id("org.jetbrains.kotlin.plugin.compose") version "2.2.0"
+    kotlin("jvm") version "2.1.0"
+    kotlin("plugin.serialization") version "2.1.0"
+    id("org.jetbrains.compose") version "1.7.3"
+    id("org.jetbrains.kotlin.plugin.compose") version "2.1.0"
 }
 
 group = "org.example"
@@ -13,37 +13,50 @@ version = "1.0-SNAPSHOT"
 repositories {
     google()
     mavenCentral()
-    maven (url = "https://jitpack.io")
+    maven(url = "https://jitpack.io")
+    // Добавляем репозиторий JetBrains для Skiko, если его нет в Maven Central
+    maven(url = "https://maven.pkg.jetbrains.space/public/p/compose/dev")
 }
 
 dependencies {
-
     implementation(compose.desktop.currentOs)
-
     implementation(compose.material3)
     implementation(compose.materialIconsExtended)
-    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.3")
 
+    // JSON Serialization
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
+
+    // Media & Metadata
     implementation("org.apache.tika:tika-core:2.9.1")
-
     implementation("com.drewnoakes:metadata-extractor:2.19.0")
-
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.1")
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-swing:1.8.1")
-    implementation("net.java.dev.jna:jna:5.18.0")
-    implementation("net.java.dev.jna:jna-platform:5.18.0")
     implementation("net.jthink:jaudiotagger:3.0.1")
-    implementation("io.coil-kt.coil3:coil-compose:3.3.0")
-    implementation("io.coil-kt.coil3:coil-network-okhttp:3.3.0")
 
-    implementation("dev.chrisbanes.haze:haze:1.7.1")
-    implementation("dev.chrisbanes.haze:haze-materials:1.7.1")
+    // Coroutines
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.9.0")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-swing:1.9.0")
 
-    implementation("org.xerial:sqlite-jdbc:3.51.1.0")
+    // JNA (BASS)
+    implementation("net.java.dev.jna:jna:5.15.0")
+    implementation("net.java.dev.jna:jna-platform:5.15.0")
 
+    // Image Loading
+    implementation("io.coil-kt.coil3:coil-compose:3.0.0-rc01")
+    implementation("io.coil-kt.coil3:coil-network-okhttp:3.0.0-rc01")
 
+    // Haze 1.7.0 (требует Skiko 0.9.x)
+    implementation("dev.chrisbanes.haze:haze:1.7.0")
+    implementation("dev.chrisbanes.haze:haze-materials:1.7.0")
+
+    // Database
+    implementation("org.xerial:sqlite-jdbc:3.47.0.0")
 }
 
+val os = System.getProperty("os.name").lowercase()
+val nativeDir = when {
+    os.contains("win") -> "bass/microslop"
+    os.contains("linux") -> "bass/linux"
+    else -> "bass"
+}
 
 compose.desktop {
     application {
@@ -56,57 +69,44 @@ compose.desktop {
         }
 
         jvmArgs += listOf(
-
-            // 🔥 Compose runtime tracing
-            "-Dcompose.runtime.trace=all",
-
-            // 🔥 Java Flight Recorder
-            "-XX:StartFlightRecording=filename=compose.jfr,settings=profile",
-
-            // полезно для stack trace
-            "-XX:+UnlockDiagnosticVMOptions",
-            "-XX:+DebugNonSafepoints",
-
-            "-XX:+UnlockExperimentalVMOptions",
-
-            "-Dskiko.renderApi=direct3d",
             "-Xms512m",
             "-Xmx2048m",
-            "-XX:+UseG1GC",
-
-            "-XX:MaxGCPauseMillis=20",
 
             "-Dsun.java2d.uiScale.enabled=false",
             "-Dsun.java2d.dpiaware=true",
 
-            "-XX:+DisableExplicitGC",
-            "-XX:+AlwaysPreTouch",
-
-            "-XX:+UseG1GC" ,
-            "-XX:MaxGCPauseMillis=8",
-            "-XX:InitiatingHeapOccupancyPercent=30",
-            "-XX:G1NewSizePercent=40",
-            "-XX:G1MaxNewSizePercent=60",
-
-            "-XX:+UseStringDeduplication",
-            "-XX:+OptimizeStringConcat",
-
             "-Dskiko.vsync.enabled=true",
-
-            "-Dskiko.direct3d.flushOnPresent=false",
-
             "-Dskiko.fps.enabled=false",
-            //"-Dskiko.debug=false",// на релизе можно, на дебаг нет
-            //"-Dskiko.trace.enabled=false", // на релизе можно, на дебаг нет
-
+            "-Dcompose.interop.blending=true",
             "-XX:+TieredCompilation",
 
-            "-Djna.library.path=${projectDir}/bass"
+            "-Djna.library.path=${projectDir.absolutePath}/$nativeDir",
+            "-Dskiko.debug=true"
         )
+
+        if (os.contains("win")) {
+            jvmArgs += "-Dskiko.renderApi=direct3d"
+        } else if (os.contains("linux")) {
+            // Исправляем ошибки glFlush() и UnsatisfiedLinkError на Linux
+            jvmArgs += "-Dskiko.renderApi=OPENGL"
+            jvmArgs += "-Dskiko.linux.opengl.api=EGL"
+
+            // Включаем режим совместимости слоев (ОБЯЗАТЕЛЬНО для Skiko 0.9.x на Linux)
+            jvmArgs += "-Dcompose.layers.type=component"
+        }
     }
 }
 
-
 kotlin {
     jvmToolchain(21)
+}
+
+// Принудительно синхронизируем версии JAR и нативной библиотеки
+configurations.all {
+    resolutionStrategy {
+        // Используем версию, которую требует Compose 1.7.3 по умолчанию
+        val skikoVersion = "0.9.22.2"
+        force("org.jetbrains.skiko:skiko-awt:$skikoVersion")
+        force("org.jetbrains.skiko:skiko-awt-runtime-linux-x64:$skikoVersion")
+    }
 }

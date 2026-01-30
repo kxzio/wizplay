@@ -577,7 +577,8 @@ fun albumTab(
 
         LaunchedEffect(wizuiUIMove.albumListMoveToAlbumKey)
         {
-            listState.animateScrollToItem(results.indexOfFirst { it.albumKey == openedAudioSource.value})
+            val index = results.indexOfFirst { it.albumKey == openedAudioSource.value}
+            if (index != -1) listState.animateScrollToItem(index)
             wizuiUIMove.albumListMoveToAlbumKey = ""
         }
 

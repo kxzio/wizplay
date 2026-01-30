@@ -44,7 +44,6 @@ fun folderSettings(folderScanController : FolderScanController)
 
         Spacer(Modifier.height(16.dp))
 
-
         Row {
             Text(
                 "select folders to scan",
