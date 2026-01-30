@@ -7,39 +7,44 @@ import com.sun.jna.platform.win32.WinDef.HWND
 import java.awt.Frame
 import java.awt.GraphicsEnvironment
 import java.awt.Rectangle
+import javax.swing.JFrame
 
 object CrossPlatformFullscreen {
 
     private var prevBounds: Rectangle? = null
+    private var prevExtended: Int = Frame.NORMAL
 
-    fun enter(frame: Frame) {
-        val device = GraphicsEnvironment
-            .getLocalGraphicsEnvironment()
-            .defaultScreenDevice
+    fun enter(frame: JFrame) {
+        if (!frame.isDisplayable) {
+            frame.isVisible = true
+        }
 
         prevBounds = frame.bounds
+        prevExtended = frame.extendedState
+
         frame.dispose()
-
         frame.isUndecorated = true
-        frame.isResizable = false
-
-        device.fullScreenWindow = frame
         frame.isVisible = true
+
+        // 👇 ключевая строка
+        frame.extendedState = Frame.MAXIMIZED_BOTH
+
+        frame.toFront()
+        frame.requestFocus()
     }
 
-    fun exit(frame: Frame) {
-        val device = GraphicsEnvironment
-            .getLocalGraphicsEnvironment()
-            .defaultScreenDevice
 
-        device.fullScreenWindow = null
-
+    fun exit(frame: JFrame) {
         frame.dispose()
         frame.isUndecorated = false
-        frame.isResizable = true
+        frame.extendedState = prevExtended
 
-        prevBounds?.let { frame.bounds = it }
+        prevBounds?.let {
+            frame.bounds = it
+        }
+
         frame.isVisible = true
+        frame.toFront()
     }
 }
 
