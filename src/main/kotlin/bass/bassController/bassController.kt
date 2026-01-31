@@ -39,7 +39,7 @@ class PlayerController {
     /** Флаг seek */
     private val isSeeking = AtomicBoolean(false)
 
-    private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+    val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
     private val _state = MutableStateFlow(PlayerState())
     val state: StateFlow<PlayerState> = _state.asStateFlow()
@@ -81,6 +81,7 @@ class PlayerController {
         loadPlugin("basswv")
 
         startPositionUpdater()
+
     }
 
     /* ───────────── PLAY CONTROL ───────────── */
@@ -120,6 +121,7 @@ class PlayerController {
                 audioInfo = newAudioInfo
             )
         }
+
     }
 
     fun pause() {

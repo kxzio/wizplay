@@ -49,6 +49,16 @@ dependencies {
 
     // Database
     implementation("org.xerial:sqlite-jdbc:3.47.0.0")
+
+    //linux media controller
+    val dbusVersion = "5.2.0" // Или 5.2.0, обе стабильны
+
+    implementation("com.github.hypfvieh:dbus-java-core:$dbusVersion")
+    // Используем именно этот транспорт, как рекомендует README
+    implementation("com.github.hypfvieh:dbus-java-transport-junixsocket:$dbusVersion")
+
+    // Необходим для работы логов транспорта
+    implementation("org.slf4j:slf4j-simple:2.0.9")
 }
 
 val os = System.getProperty("os.name").lowercase()

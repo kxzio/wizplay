@@ -1,6 +1,8 @@
 package org.example.bass.queue
 
 import androidx.compose.runtime.*
+import org.example.MprisService
+import org.example.OS
 import org.example.audioindex.ScannedAudio
 import org.example.bass.bassController.PlayerController
 import org.example.bass.bassController.playlistItem
@@ -21,6 +23,10 @@ enum class repeatMods {
 }
 
 class QueueController {
+
+    //linux media controller
+    private var mpris: MprisService? = null
+
     // ───────────── INTERNAL STRUCTURES ─────────────
     // canonical list (original order for the source). Not a Compose list -> avoid massive recompositions.
     private val canonical = ArrayList<QueueItem>()
@@ -48,6 +54,7 @@ class QueueController {
     private var player: PlayerController? = null
     private val _currentTrackState = mutableStateOf<ScannedAudio?>(null)
     // --- helpers ------------------------------------------------
+
     private fun updateVisibleSnapshot() {
         // create a new list mapped by permList
         val list = ArrayList<QueueItem>(permList.size)
@@ -57,6 +64,7 @@ class QueueController {
         }
         visibleSnapshotState.value = list
     }
+
     fun setQueue(newVisible: List<QueueItem>) {
         // 1. Запоминаем текущий playing item
         val currentItemId =
@@ -76,6 +84,7 @@ class QueueController {
         rebuildInvPerm()
         updateVisibleSnapshot()
     }
+
     private fun rebuildInvPerm() {
         invPerm = IntArray(canonical.size) { -1 }
         for (i in permList.indices) {
@@ -83,9 +92,11 @@ class QueueController {
             if (canonIdx in invPerm.indices) invPerm[canonIdx] = i
         }
     }
+
     private fun stableIdForSource(trackPath: String, index: Int) =
         "$trackPath::$index"
     // Fisher-Yates shuffle on permList
+
     private fun fisherYatesShufflePerm(random: Random = Random.Default) {
         val n = permList.size
         for (i in n - 1 downTo 1) {
@@ -97,6 +108,7 @@ class QueueController {
         rebuildInvPerm()
     }
     // ───────────── PLAYER ATTACH / PLAY ─────────────
+
     fun attachPlayer(player: PlayerController) {
         this.player = player
         player.requestNextItem = {
@@ -135,10 +147,16 @@ class QueueController {
                 }
             }
         }
+
+        if (OS.isLinux) {
+            mpris = MprisService(player)
+        }
+
         if (permList.isNotEmpty()) {
             playCurrent()
         }
     }
+
     fun playCurrent() {
         val canonIdx = permList.getOrNull(posInQueue) ?: return
         val item = canonical.getOrNull(canonIdx) ?: return
@@ -149,7 +167,10 @@ class QueueController {
                 audioSource = item.audioSource
             )
         )
+
+        mpris?.updateFullMetadata()
     }
+
     private fun isIdentityPerm(): Boolean {
         if (permList.size != canonical.size) return false
         for (i in permList.indices) {
@@ -164,6 +185,7 @@ class QueueController {
      *
      * audioSourceId - stable id for the source (album/playlist/folder)
      */
+
     fun buildFromSource(
         tracks: List<ScannedAudio>,
         audioSource: String,
@@ -223,6 +245,7 @@ class QueueController {
         playCurrent()
     }
     // ───────────── SHUFFLE / RESHUFFLE ─────────────
+
     fun toggleShuffle(enable: Boolean) {
         if (enable == isShuffle) return
         if (permList.isEmpty()) return
@@ -270,6 +293,7 @@ class QueueController {
         }
         updateVisibleSnapshot()
     }
+
     fun reshuffleIfShuffleEnabled() {
         if (!isShuffle || permList.isEmpty()) return
         val currentCanon = permList.getOrNull(posInQueue)
@@ -286,6 +310,7 @@ class QueueController {
         }
         updateVisibleSnapshot()
     }
+
     fun toggleRepeat() {
         repeatMode = when (repeatMode) {
             repeatMods.REPEAT_OFF -> repeatMods.REPEAT_ALL
@@ -298,6 +323,7 @@ class QueueController {
      * Add a track to be played next. This operation aims to be fast (amortized).
      * We insert into the visible order so that UI shows it. Insertion into permList is O(n) (shifting) but it's a single small cost.
      */
+
     fun addNext(track: ScannedAudio, source: String) {
         val qi = QueueItem(track = track, audioSource = source, addedByUser = true, id = UUID.randomUUID().toString())
         // create canonical entry and insert roughly after current visible position
@@ -319,6 +345,7 @@ class QueueController {
         updateVisibleSnapshot()
     }
     // ───────────── REMOVE ─────────────
+
     fun removeAt(index: Int) {
         if (index !in permList.indices) return
         val canonIdx = permList[index]
@@ -345,6 +372,7 @@ class QueueController {
         updateVisibleSnapshot()
     }
     // ───────────── MOVE ─────────────
+
     fun move(from: Int, to: Int) {
         if (from !in permList.indices) return
         if (to !in permList.indices) return
@@ -362,6 +390,7 @@ class QueueController {
         updateVisibleSnapshot()
     }
     // ───────────── NEXT / PREV ─────────────
+
     fun moveNext(isAutoTransition: Boolean = false): Boolean {
         if (posInQueue + 1 >= permList.size) {
             when (repeatMode) {
@@ -388,6 +417,7 @@ class QueueController {
         playCurrent()
         return true
     }
+
     fun movePrev(): Boolean {
         if (posInQueue - 1 < 0) return false
         posInQueue--
