@@ -259,10 +259,9 @@ fun preDraw() {
         }
         else {
 
-
             draw(fullscreen, audioFolderController, folderScanController)
 
-            return@CompositionLocalProvider
+            //return@CompositionLocalProvider
 
             val fps by FpsCounter()
 

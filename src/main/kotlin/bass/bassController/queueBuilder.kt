@@ -123,12 +123,14 @@ class QueueController {
                         val canonIdx = permList.getOrNull(posInQueue) ?: null
                         val it = canonical[canonIdx!!]
                         _currentTrackState.value = it.track
+                        mpris?.updateAll()
                         playlistItem(trackPath = it.track.path.toString(), audioSource = it.audioSource)
                     }
                     repeatMods.REPEAT_ONE -> {
                         val canonIdx = permList.getOrNull(posInQueue) ?: null
                         val it = canonical[canonIdx!!]
                         _currentTrackState.value = it.track
+                        mpris?.updateAll()
                         playlistItem(trackPath = it.track.path.toString(), audioSource = it.audioSource)
                     }
                 }
@@ -137,19 +139,21 @@ class QueueController {
                     val canonIdx = permList.getOrNull(posInQueue) ?: null
                     val it = canonical[canonIdx!!]
                     _currentTrackState.value = it.track
+                    mpris?.updateAll()
                     playlistItem(trackPath = it.track.path.toString(), audioSource = it.audioSource)
                 } else {
                     posInQueue++
                     val canonIdx = permList.getOrNull(posInQueue) ?: null
                     val it = canonical[canonIdx!!]
                     _currentTrackState.value = it.track
+                    mpris?.updateAll()
                     playlistItem(trackPath = it.track.path.toString(), audioSource = it.audioSource)
                 }
             }
         }
 
         if (OS.isLinux) {
-            mpris = MprisService(player)
+            mpris = MprisService(this, player)
         }
 
         if (permList.isNotEmpty()) {
@@ -168,7 +172,7 @@ class QueueController {
             )
         )
 
-        mpris?.updateFullMetadata()
+        mpris?.updateAll()
     }
 
     private fun isIdentityPerm(): Boolean {

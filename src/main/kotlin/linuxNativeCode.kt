@@ -1,7 +1,7 @@
 package org.example
 
 import kotlinx.coroutines.launch
-import org.example.audioindex.ScannedAudio
+import org.example.bass.queue.QueueController
 import org.example.bass.bassController.PlayerController
 import org.freedesktop.dbus.DBusPath
 import org.freedesktop.dbus.annotations.DBusInterfaceName
@@ -11,22 +11,27 @@ import org.freedesktop.dbus.interfaces.DBusInterface
 import org.freedesktop.dbus.interfaces.Properties
 import org.freedesktop.dbus.types.Variant
 
-/* ─── ИНТЕРФЕЙСЫ MPRIS2 (Не менять, это стандарт Linux) ─── */
-
 @DBusInterfaceName("org.mpris.MediaPlayer2")
 interface MediaPlayer2 : DBusInterface {
     fun Raise() {}
     fun Quit() {}
-    val CanQuit: Boolean get() = false
-    val CanRaise: Boolean get() = false
-    val Identity: String get() = "BassPlayer"
-    val DesktopEntry: String get() = "bass-player"
-    val SupportedUriSchemes: Array<String> get() = arrayOf("file")
-    val SupportedMimeTypes: Array<String> get() = arrayOf("audio/mpeg", "audio/flac", "audio/ogg")
+
+    val CanQuit get() = false
+    val CanRaise get() = false
+    val Identity get() = "BassPlayer"
+    val DesktopEntry get() = "bass-player"
+    val SupportedUriSchemes get() = arrayOf("file")
+    val SupportedMimeTypes get() = arrayOf(
+        "audio/mpeg",
+        "audio/flac",
+        "audio/ogg",
+        "audio/wav"
+    )
 }
 
 @DBusInterfaceName("org.mpris.MediaPlayer2.Player")
 interface MediaPlayer2Player : DBusInterface {
+
     fun Next()
     fun Previous()
     fun Pause()
@@ -35,85 +40,111 @@ interface MediaPlayer2Player : DBusInterface {
     fun Play()
     fun Seek(Offset: Long)
     fun SetPosition(TrackId: DBusPath, Position: Long)
-    fun OpenUri(Uri: String) {}
 
     val PlaybackStatus: String
     val Metadata: Map<String, Variant<*>>
     val Position: Long
     var Volume: Double
+
     val CanGoNext: Boolean
     val CanGoPrevious: Boolean
     val CanPlay: Boolean
     val CanPause: Boolean
     val CanSeek: Boolean
-    val CanControl: Boolean get() = true
+    val CanControl get() = true
+
+    val Rate: Double
+    val MinimumRate: Double
+    val MaximumRate: Double
 }
 
-/* ─── РЕАЛИЗАЦИЯ СЕРВИСА ─── */
+/* ───────── SERVICE ───────── */
 
-class MprisService(private val controller: PlayerController) : MediaPlayer2, MediaPlayer2Player {
+class MprisService(
+    private val queue: QueueController,
+    private val player: PlayerController
+) : MediaPlayer2,
+    MediaPlayer2Player,
+    Properties {
 
-    private val connection: DBusConnection = DBusConnectionBuilder.forSessionBus().build()
+    override val Rate = 1.0
+    override val MinimumRate = 1.0
+    override val MaximumRate = 1.0
+
+    private val connection: DBusConnection =
+        DBusConnectionBuilder.forSessionBus().build()
+
     private val objectPath = "/org/mpris/MediaPlayer2"
-    private val interfaceName = "org.mpris.MediaPlayer2.Player"
+    private val playerIface = "org.mpris.MediaPlayer2.Player"
 
     init {
-        try {
-            // Регистрируем имя в шине D-Bus
-            connection.requestBusName("org.mpris.MediaPlayer2.BassPlayer")
-            // Экспортируем наш объект
-            connection.exportObject(objectPath, this)
-            println("MPRIS2 Service registered successfully")
-        } catch (e: Exception) {
-            System.err.println("D-Bus registration failed: ${e.message}")
+        connection.requestBusName("org.mpris.MediaPlayer2.BassPlayer")
+        connection.exportObject(objectPath, this)
+
+        player.onPauseOrResumeAction = {
+            updatePlaybackStatus()
         }
+
+        println("MPRIS registered")
     }
 
-    /* ─── СВОЙСТВА (Чтение состояния плеера системой) ─── */
+    /* ───────── STATUS ───────── */
 
     override val PlaybackStatus: String
         get() = when {
-            controller.state.value.isPlaying -> "Playing"
-            controller.state.value.current != null -> "Paused"
+            player.state.value.isPlaying -> "Playing"
+            queue.currentItem() != null -> "Paused"
             else -> "Stopped"
         }
 
+    /* ───────── METADATA ───────── */
+
     override val Metadata: Map<String, Variant<*>>
         get() {
-            val item = controller.state.value.current ?: return mapOf()
-            val audioInfo = controller.state.value.audioInfo
+            val item = queue.currentItem() ?: return emptyMap()
+            val info = player.state.value.audioInfo
 
-            val metadata = mutableMapOf<String, Variant<*>>()
+            val map = mutableMapOf<String, Variant<*>>()
 
-            // Обязательный ID (тип "o" - Object Path)
-            metadata["mpris:trackid"] = Variant(DBusPath("/org/mpris/MediaPlayer2/Track/${item.trackPath.hashCode()}"))
+            val trackId = DBusPath(
+                "/org/mpris/MediaPlayer2/Track/${item.id.hashCode().coerceAtLeast(0)}"
+            )
 
-            // Длительность в микросекундах (тип "x" - Int64)
-            metadata["mpris:length"] = Variant((controller.state.value.durationSec * 1_000_000).toLong())
+            map["mpris:trackid"] = Variant(trackId, "o")
 
-            // Заголовок (тип "s" - String)
-            metadata["xesam:title"] = Variant("dsds" ?: item.audioSource)
+            map["mpris:length"] = Variant(
+                (player.state.value.durationSec * 1_000_000).toLong(),
+                "x"
+            )
 
-            // ИСПРАВЛЕНИЕ: Артисты должны быть массивом строк (тип "as")
-            // Мы принудительно создаем типизированный массив и указываем сигнатуру "as"
-            val artists = arrayOf("dsd" ?: "Unknown Artist")
-            metadata["xesam:artist"] = Variant(artists, "as")
+            map["xesam:title"] =
+                Variant(item.track.title ?: item.track.path.toString(), "s")
 
-            // Альбом (тип "s")
-            metadata["xesam:album"] = Variant("dsds" ?: "Unknown Album")
+            val artist =
+                item.track.artist ?: "Unknown Artist"
 
-            // Обложка (тип "s" - URL)
-            // item.artworkPath?.let { metadata["mpris:artUrl"] = Variant("file://$it") }
+            map["xesam:artist"] = Variant(arrayOf(artist), "as")
 
-            return metadata
+            val album =
+                item.track.album ?: item.audioSource
+
+            map["xesam:album"] = Variant(album, "s")
+
+            item.track.artworkPath?.let {
+                map["mpris:artUrl"] = Variant(it.toUri().toString(), "s")
+            }
+
+            return map
         }
 
+    /* ───────── POSITION ───────── */
+
     override val Position: Long
-        get() = (controller.state.value.positionSec * 1_000_000).toLong()
+        get() = (player.state.value.positionSec * 1_000_000).toLong()
 
     override var Volume: Double
-        get() = controller.state.value.volume.toDouble()
-        set(value) { /* Можно внедрить изменение громкости: controller.setVolume(value.toFloat()) */ }
+        get() = player.state.value.volume.toDouble()
+        set(value) {}
 
     override val CanGoNext = true
     override val CanGoPrevious = true
@@ -121,73 +152,149 @@ class MprisService(private val controller: PlayerController) : MediaPlayer2, Med
     override val CanPause = true
     override val CanSeek = true
 
-    /* ─── МЕТОДЫ (Команды от системы к плееру) ─── */
+    /* ───────── COMMANDS ───────── */
 
     override fun Next() {
-        controller.scope.launch {
-            controller.requestNextItem?.invoke()?.let { controller.play(it) }
-        }
+        queue.moveNext(false)
+        updateAll()
     }
 
     override fun Previous() {
-        controller.seek(0.0) // Перемотка в начало или ваша логика "назад"
+        queue.movePrev()
+        updateAll()
     }
 
-    override fun Pause() = controller.pause()
+    override fun Pause() {
+        player.pause()
+        updatePlaybackStatus()
+    }
 
-    override fun Play() = controller.resume()
+    override fun Play() {
+        player.resume()
+        updatePlaybackStatus()
+    }
 
     override fun PlayPause() {
-        if (controller.state.value.isPlaying) controller.pause() else controller.resume()
+        if (player.state.value.isPlaying) Pause() else Play()
     }
 
-    override fun Stop() = controller.stop()
-
-    override fun Seek(Offset: Long) {
-        val newPos = controller.state.value.positionSec + (Offset / 1_000_000.0)
-        controller.seek(newPos)
+    override fun Stop() {
+        player.stop()
+        updatePlaybackStatus()
     }
 
-    override fun SetPosition(TrackId: DBusPath, Position: Long) {
-        controller.seek(Position / 1_000_000.0)
+    override fun Seek(offset: Long) {
+        player.seek(player.state.value.positionSec + offset / 1_000_000.0)
     }
 
-    /* ─── УВЕДОМЛЕНИЯ ОБ ИЗМЕНЕНИЯХ (Вызывать из PlayerController) ─── */
-
-    /**
-     * Вызывать в PlayerController.play()
-     */
-    fun updateFullMetadata() {
-        // Явно указываем сигнатуру "a{sv}" для метаданных
-        emitPropertyChange("Metadata", Variant(Metadata, "a{sv}"))
-        emitPropertyChange("PlaybackStatus", Variant(PlaybackStatus))
+    override fun SetPosition(trackId: DBusPath, position: Long) {
+        player.seek(position / 1_000_000.0)
     }
 
-    /**
-     * Вызывать в PlayerController.pause() / resume()
-     */
-    fun updatePlaybackStatus() {
-        emitPropertyChange("PlaybackStatus", Variant(PlaybackStatus))
-    }
+    /* ───────── GENERIC DBUS PROPERTIES (твоя версия API) ───────── */
 
-    /**
-     * Отправляет сигнал PropertiesChanged в D-Bus
-     */
-    private fun emitPropertyChange(propName: String, value: Variant<*>) {
-        try {
-            // Проверяем, что соединение живо
-            if (!connection.isConnected) return
+    override fun <A : Any?> Get(iface: String?, prop: String?): A? {
 
-            val signal = Properties.PropertiesChanged(
-                objectPath,
-                interfaceName,
-                mapOf(propName to value),
-                listOf()
-            )
-            connection.sendMessage(signal)
-        } catch (e: Exception) {
-            System.err.println("Failed to emit D-Bus signal: ${e.message}")
+        val v: Any? = when (iface) {
+
+            "org.mpris.MediaPlayer2" -> when (prop) {
+                "CanQuit" -> false
+                "CanRaise" -> false
+                "Identity" -> "BassPlayer"
+                "DesktopEntry" -> "bass-player"
+                "SupportedUriSchemes" -> arrayOf("file")
+                "SupportedMimeTypes" -> arrayOf("audio/mpeg","audio/flac","audio/ogg","audio/wav")
+                else -> null
+            }
+
+            playerIface -> when (prop) {
+                "PlaybackStatus" -> PlaybackStatus
+                "Metadata" -> Metadata
+                "Position" -> Position
+                "Volume" -> Volume
+                "Rate" -> Rate
+                "MinimumRate" -> MinimumRate
+                "MaximumRate" -> MaximumRate
+                "CanGoNext" -> true
+                "CanGoPrevious" -> true
+                "CanPlay" -> true
+                "CanPause" -> true
+                "CanSeek" -> true
+                "CanControl" -> true
+                else -> null
+            }
+
+            else -> null
         }
+
+        @Suppress("UNCHECKED_CAST")
+        return v as A?
+    }
+
+    override fun <A : Any?> Set(iface: String?, prop: String?, value: A?) {
+        if (iface != playerIface) return
+        if (prop == "Volume" && value is Double) {
+            // подключишь если добавишь setVolume
+        }
+    }
+
+    override fun GetAll(iface: String?): Map<String, Variant<*>> {
+
+        if (iface == "org.mpris.MediaPlayer2") {
+            return mapOf(
+                "CanQuit" to Variant(false),
+                "CanRaise" to Variant(false),
+                "Identity" to Variant("BassPlayer"),
+                "DesktopEntry" to Variant("bass-player"),
+                "SupportedUriSchemes" to Variant(arrayOf("file"), "as"),
+                "SupportedMimeTypes" to Variant(arrayOf("audio/mpeg","audio/flac","audio/ogg","audio/wav"), "as")
+            )
+        }
+
+        if (iface == playerIface) {
+            return mapOf(
+                "PlaybackStatus" to Variant(PlaybackStatus),
+                "Metadata" to Variant(Metadata, "a{sv}"),
+                "Position" to Variant(Position),
+                "Volume" to Variant(Volume),
+                "Rate" to Variant(Rate),
+                "MinimumRate" to Variant(MinimumRate),
+                "MaximumRate" to Variant(MaximumRate),
+                "CanGoNext" to Variant(true),
+                "CanGoPrevious" to Variant(true),
+                "CanPlay" to Variant(true),
+                "CanPause" to Variant(true),
+                "CanSeek" to Variant(true),
+                "CanControl" to Variant(true)
+            )
+        }
+
+        return emptyMap()
+    }
+
+
+    /* ───────── SIGNALS ───────── */
+
+    fun updateAll() {
+        emit("Metadata", Variant(Metadata, "a{sv}"))
+        emit("PlaybackStatus", Variant(PlaybackStatus))
+    }
+
+    fun updatePlaybackStatus() {
+        emit("PlaybackStatus", Variant(PlaybackStatus))
+    }
+
+    private fun emit(name: String, value: Variant<*>) {
+        if (!connection.isConnected) return
+
+        val signal = Properties.PropertiesChanged(
+            objectPath,          // ← твоя версия API требует path
+            playerIface,
+            mapOf(name to value),
+            listOf()
+        )
+
+        connection.sendMessage(signal)
     }
 
     override fun isRemote() = false

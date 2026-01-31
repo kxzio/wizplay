@@ -81,27 +81,24 @@ compose.desktop {
         jvmArgs += listOf(
             "-Xms512m",
             "-Xmx2048m",
-
             "-Dsun.java2d.uiScale.enabled=false",
             "-Dsun.java2d.dpiaware=true",
 
-            "-Dskiko.vsync.enabled=true",
+            // ВКЛЮЧАЕМ VSync обратно, но фиксим его
+            "-Dskiko.vsync.enabled=false",
             "-Dskiko.fps.enabled=false",
+
+            // Пытаемся задать лимит, если VSync всё равно будет врать
+            "-Dskiko.fps.limit=144",
+            "-Dskiko.render.on.request=true",
             "-Dcompose.interop.blending=true",
             "-XX:+TieredCompilation",
-
             "-Djna.library.path=${projectDir.absolutePath}/$nativeDir",
-            "-Dskiko.debug=true"
         )
 
-        if (os.contains("win")) {
-            jvmArgs += "-Dskiko.renderApi=direct3d"
-        } else if (os.contains("linux")) {
-            // Исправляем ошибки glFlush() и UnsatisfiedLinkError на Linux
+        if (os.contains("linux")) {
             jvmArgs += "-Dskiko.renderApi=OPENGL"
-            jvmArgs += "-Dskiko.linux.opengl.api=EGL"
-
-            // Включаем режим совместимости слоев (ОБЯЗАТЕЛЬНО для Skiko 0.9.x на Linux)
+            jvmArgs += "-Dskiko.linux.opengl.api=GL"
             jvmArgs += "-Dcompose.layers.type=component"
         }
     }

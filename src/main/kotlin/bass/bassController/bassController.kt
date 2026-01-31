@@ -50,6 +50,8 @@ class PlayerController {
      */
     var requestNextItem: (() -> playlistItem?)? = null
 
+    var onPauseOrResumeAction: (() -> Unit)? = null
+
     /* ───────────── INIT ───────────── */
 
     private fun loadPlugin(name: String) {
@@ -127,11 +129,13 @@ class PlayerController {
     fun pause() {
         bass.BASS_ChannelPause(mixer)
         _state.update { it.copy(isPlaying = false) }
+        onPauseOrResumeAction?.invoke()
     }
 
     fun resume() {
         bass.BASS_ChannelPlay(mixer, false)
         _state.update { it.copy(isPlaying = true) }
+        onPauseOrResumeAction?.invoke()
     }
 
     fun stop() {
