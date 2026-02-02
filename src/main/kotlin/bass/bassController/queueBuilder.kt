@@ -42,7 +42,7 @@ class QueueController {
     var isShuffle by mutableStateOf(false)
         private set
     var repeatMode by mutableStateOf(repeatMods.REPEAT_OFF)
-        private set
+
     // Short alias to expose queue to old UI code. Returns cached snapshot.
     val queue: List<QueueItem> get() = visibleSnapshotState.value
     // quick lookup id -> canonical index
@@ -54,6 +54,12 @@ class QueueController {
     private var player: PlayerController? = null
     private val _currentTrackState = mutableStateOf<ScannedAudio?>(null)
     // --- helpers ------------------------------------------------
+
+
+    //callbacks
+    var onShuffleChanged: ((Boolean) -> Unit)? = null
+    var onRepeatChanged : ((repeatMods) -> Unit)? = null
+
 
     private fun updateVisibleSnapshot() {
         // create a new list mapped by permList
@@ -296,6 +302,7 @@ class QueueController {
             rebuildInvPerm()
         }
         updateVisibleSnapshot()
+        onShuffleChanged?.invoke(isShuffle)
     }
 
     fun reshuffleIfShuffleEnabled() {
@@ -321,7 +328,10 @@ class QueueController {
             repeatMods.REPEAT_ALL -> repeatMods.REPEAT_ONE
             repeatMods.REPEAT_ONE -> repeatMods.REPEAT_OFF
         }
+        onRepeatChanged?.invoke(repeatMode)
     }
+
+
     // ───────────── ADD NEXT ─────────────
     /**
      * Add a track to be played next. This operation aims to be fast (amortized).

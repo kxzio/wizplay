@@ -3,6 +3,7 @@ package org.example
 import kotlinx.coroutines.launch
 import org.example.bass.queue.QueueController
 import org.example.bass.bassController.PlayerController
+import org.example.bass.queue.repeatMods
 import org.freedesktop.dbus.DBusPath
 import org.freedesktop.dbus.annotations.DBusInterfaceName
 import org.freedesktop.dbus.connections.impl.DBusConnection
@@ -56,6 +57,10 @@ interface MediaPlayer2Player : DBusInterface {
     val Rate: Double
     val MinimumRate: Double
     val MaximumRate: Double
+
+    var Shuffle: Boolean
+    var LoopStatus: String
+
 }
 
 /* ───────── SERVICE ───────── */
@@ -66,6 +71,29 @@ class MprisService(
 ) : MediaPlayer2,
     MediaPlayer2Player,
     Properties {
+
+    override var Shuffle: Boolean
+        get() = queue.isShuffle
+        set(value) {
+            queue.toggleShuffle(!queue.isShuffle)
+            emit("Shuffle", Variant(value))
+        }
+
+    override var LoopStatus: String
+        get() = if (queue.repeatMode == repeatMods.REPEAT_OFF) "None"     else
+                if (queue.repeatMode == repeatMods.REPEAT_ALL) "Playlist" else
+                "Track"
+
+        set(value) {
+            if (value !in listOf("None", "Track", "Playlist")) return
+            queue.repeatMode =
+                if (value == "None")        repeatMods.REPEAT_OFF         else
+                if (value == "Playlist")    repeatMods.REPEAT_ALL     else
+                    repeatMods.REPEAT_ONE
+
+
+            emit("LoopStatus", Variant(value))
+        }
 
     override val Rate = 1.0
     override val MinimumRate = 1.0
@@ -85,10 +113,19 @@ class MprisService(
             updatePlaybackStatus()
         }
 
+        queue.onShuffleChanged = {
+            emit("Shuffle", Variant(Shuffle))
+        }
+
+        queue.onRepeatChanged = {
+            emit("LoopStatus", Variant(LoopStatus))
+        }
+
         println("MPRIS registered")
     }
 
     /* ───────── STATUS ───────── */
+
 
     override val PlaybackStatus: String
         get() = when {
@@ -212,6 +249,8 @@ class MprisService(
                 "Metadata" -> Metadata
                 "Position" -> Position
                 "Volume" -> Volume
+                "Shuffle" -> Shuffle
+                "LoopStatus" -> LoopStatus
                 "Rate" -> Rate
                 "MinimumRate" -> MinimumRate
                 "MaximumRate" -> MaximumRate
@@ -233,8 +272,19 @@ class MprisService(
 
     override fun <A : Any?> Set(iface: String?, prop: String?, value: A?) {
         if (iface != playerIface) return
-        if (prop == "Volume" && value is Double) {
-            // подключишь если добавишь setVolume
+
+        when (prop) {
+            "Volume" -> if (value is Double) {
+                // setVolume
+            }
+
+            "Shuffle" -> if (value is Boolean) {
+                Shuffle = value
+            }
+
+            "LoopStatus" -> if (value is String) {
+                LoopStatus = value
+            }
         }
     }
 
@@ -256,6 +306,8 @@ class MprisService(
                 "PlaybackStatus" to Variant(PlaybackStatus),
                 "Metadata" to Variant(Metadata, "a{sv}"),
                 "Position" to Variant(Position),
+                "Shuffle" to Variant(Shuffle),
+                "LoopStatus" to Variant(LoopStatus),
                 "Volume" to Variant(Volume),
                 "Rate" to Variant(Rate),
                 "MinimumRate" to Variant(MinimumRate),
