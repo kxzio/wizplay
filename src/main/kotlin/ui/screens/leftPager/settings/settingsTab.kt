@@ -33,6 +33,7 @@ import androidx.compose.ui.unit.sp
 import org.example.folderGetter.FolderScanController
 import org.example.FullscreenController
 import org.example.audioindex.AudioFolderController
+import org.example.ui.screens.leftPager.settings.settingPages.drawSoundSettings
 import org.example.ui.screens.leftPager.settings.settingPages.folderSettings
 import org.example.ui.screens.leftPager.settings.settingPages.interfaceSettings
 import org.example.wizui.wizui
@@ -213,7 +214,7 @@ fun settingTab(
                     }
                     else if (openedSettingsTab.value == 3)
                     {
-
+                        drawSoundSettings()
                     }
                 }
 

@@ -42,6 +42,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import org.example.audioindex.AudioFolderController
 import org.example.bass.bassController.PlayerController
+import org.example.bass.bassController.deserializeAudioOutput
 import org.example.bass.queue.QueueController
 import org.example.folderGetter.FolderScanController
 import org.example.ui.screens.leftPager.settings.AppPrefs
@@ -99,7 +100,12 @@ val bassAudioController = PlayerController()
 
 fun main() {
 
-    bassAudioController.init()
+    val audioOutput: String = prefs.get(PREF_AUDIOOUTPUT, "")
+
+    bassAudioController.init(
+        deserializeAudioOutput(audioOutput)
+    )
+
     bassQueueController.attachPlayer(bassAudioController)
 
     loaderConfig.apply(readConfig("config.data"))

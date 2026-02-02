@@ -328,7 +328,6 @@ fun trackFullScreen(fullscreen: MutableState<Boolean>)
         }
     }
 
-    val haze = rememberHazeState()
 
         Box(Modifier.fillMaxSize().background(Color(20, 20, 20)).zIndex(1f)
             .focusRequester(focusRequester)
@@ -374,6 +373,7 @@ fun trackFullScreen(fullscreen: MutableState<Boolean>)
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
 
+                    Spacer(Modifier.weight(1f))
 
 
                     Box {
@@ -441,264 +441,262 @@ fun trackFullScreen(fullscreen: MutableState<Boolean>)
                         }
 
                     }
-                }
+
+                    Spacer(Modifier.weight(1f))
 
 
-            }
+                    Column {
 
-            Box(Modifier.zIndex(3f).align(Alignment.BottomStart).fillMaxWidth().padding(32.dp))
-            {
+                        Box(Modifier.fillMaxWidth()) {
 
-                Column {
+                            Row(
+                                modifier = Modifier.align(Alignment.CenterStart),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                IconButton(
 
-                    Box(Modifier.fillMaxWidth()) {
-
-                        Row(
-                            modifier = Modifier.align(Alignment.CenterStart),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            IconButton(
-
-                                modifier = Modifier
-                                    .size(40.dp)
-                                ,
-                                colors = IconButtonDefaults.iconButtonColors(
-                                    containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.0f)
-                                ),
-                                onClick = {
-                                    fullscreen.value = false
-                                }
-                            )
-                            {
-                                Icon(
-                                    modifier = Modifier.size(24.dp),
-                                    imageVector = Icons.Sharp.Fullscreen, contentDescription = "",
-                                    tint = Color(255, 255, 255, 100)
-                                )
-                            }
-                        }
-
-
-                        Row(
-                            modifier = Modifier.align(Alignment.Center),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(16.dp)
-                        ) {
-
-                            IconButton(
-
-                                modifier = Modifier
-                                    .size(40.dp)
-                                ,
-                                colors = IconButtonDefaults.iconButtonColors(
-                                    containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.0f)
-                                ),
-                                onClick = {
-
-                                    bassQueueController.movePrev()
-                                }
-                            )
-                            {
-                                Icon(
-                                    modifier = Modifier.size(24.dp),
-                                    imageVector = Icons.Sharp.SkipPrevious, contentDescription = "",
-                                    tint = Color(255, 255, 255)
-                                )
-                            }
-
-                            IconButton(
-                                modifier = Modifier
-                                    .size(80.dp)
-                                ,
-                                colors = IconButtonDefaults.iconButtonColors(
-                                    containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.0f)
-                                ),
-                                onClick = {
-
-                                    if (state.isPlaying)
-                                        bassAudioController.pause()
-                                    else
-                                        bassAudioController.resume()
-
-                                }
-                            )
-                            {
-                                Icon(
-                                    modifier = Modifier.size(32.dp),
-                                    imageVector = if (state.isPlaying) Icons.Sharp.Pause else Icons.Sharp.PlayArrow, contentDescription = "",
-                                    tint = Color(255, 255, 255)
-                                )
-                            }
-
-                            IconButton(
-
-                                modifier = Modifier
-                                    .size(40.dp)
-                                ,
-                                colors = IconButtonDefaults.iconButtonColors(
-                                    containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.0f)
-                                ),
-                                onClick = {
-
-                                    bassQueueController.moveNext()
-
-                                }
-                            )
-                            {
-                                Icon(
-                                    modifier = Modifier.size(24.dp),
-                                    imageVector = Icons.Sharp.SkipNext, contentDescription = "",
-                                    tint = Color(255, 255, 255)
-                                )
-                            }
-                        }
-
-
-                        Row(
-                            modifier = Modifier.align(Alignment.CenterEnd),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(16.dp)
-                        ) {
-
-                            IconButton(
-
-                                modifier = Modifier
-                                    .size(40.dp)
-                                ,
-                                colors = IconButtonDefaults.iconButtonColors(
-                                    containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.0f)
-                                ),
-                                onClick = {
-                                    bassQueueController.toggleShuffle(!bassQueueController.isShuffle)
-                                }
-                            )
-                            {
-                                Icon(
-                                    modifier = Modifier.size(24.dp),
-                                    imageVector = Icons.Sharp.Shuffle, contentDescription = "",
-                                    tint =
-                                        if (bassQueueController.isShuffle)
-                                            Color(color)
-                                        else
-                                            Color(255, 255, 255, 100)
-                                )
-                            }
-
-                            IconButton(
-
-                                modifier = Modifier
-                                    .size(40.dp)
-                                ,
-                                colors = IconButtonDefaults.iconButtonColors(
-                                    containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.0f)
-                                ),
-                                onClick = {
-                                    bassQueueController.toggleRepeat()
-                                }
-                            )
-                            {
-                                Icon(
-                                    modifier = Modifier.size(24.dp),
-                                    imageVector =
-                                        if (bassQueueController.repeatMode == repeatMods.REPEAT_OFF)
-                                            Icons.Sharp.Repeat
-                                        else if (bassQueueController.repeatMode == repeatMods.REPEAT_ALL)
-                                            Icons.Sharp.Repeat
-                                        else
-                                            Icons.Sharp.RepeatOne
+                                    modifier = Modifier
+                                        .size(40.dp)
                                     ,
-                                    contentDescription = "",
-                                    tint =
-                                        if (bassQueueController.repeatMode == repeatMods.REPEAT_OFF)
-                                            Color(255, 255, 255, 100)
-                                        else
-                                            Color(color)
-                                )
-                            }
-                        }
-
-                    }
-
-                    var sliderValue by remember { mutableStateOf(0f) }
-                    var isSeeking by remember { mutableStateOf(false) }
-
-                    LaunchedEffect(state.positionSec, isSeeking) {
-                        if (!isSeeking) {
-                            sliderValue = state.positionSec.toFloat()
-                        }
-                    }
-
-                    var sliderHovered by remember { mutableStateOf(false) }
-
-                    val hoverAnim by animateFloatAsState(
-                        targetValue = if (sliderHovered) 1f else 0f,
-                        label = "sliderHover"
-                    )
-
-                    val interactionSource = remember { MutableInteractionSource() }
-                    var trackWidthPx by remember { mutableStateOf(0) }
-
-                    if (state.durationSec > 0)
-                        Slider(
-                            interactionSource = interactionSource,
-                            value = sliderValue,
-                            onValueChange = {
-                                isSeeking = true
-                                sliderValue = it
-                            },
-                            onValueChangeFinished = {
-                                isSeeking = false
-                                bassAudioController.seek(sliderValue.toDouble())
-                            },
-                            valueRange = 0f..state.durationSec.toFloat(),
-                            modifier = Modifier.fillMaxWidth().zIndex(3f)
-                                .animateContentSize()
-                                .onPointerEvent(PointerEventType.Enter)
-                                {
-                                    sliderHovered = true
-                                }
-                                .onPointerEvent(PointerEventType.Exit)
-                                {
-                                    sliderHovered = false
-                                }
-                            ,
-                            track = { sliderState ->
-
-                                val trackHeight = lerp(2.dp, 5.dp, hoverAnim)
-                                val inactiveAlpha = 0.1f + (0.05f) * hoverAnim
-                                Box(
-                                    Modifier.onGloballyPositioned { coords ->
-                                        trackWidthPx = coords.size.width
+                                    colors = IconButtonDefaults.iconButtonColors(
+                                        containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.0f)
+                                    ),
+                                    onClick = {
+                                        fullscreen.value = false
                                     }
                                 )
                                 {
-                                    FlatSliderTrack(
-                                        sliderState = sliderState,
-                                        steps = 0,
-                                        height = trackHeight,
-                                        colors = SliderDefaults.colors(
-                                            inactiveTrackColor = Color(255, 255, 255).copy(alpha = inactiveAlpha),
-                                            activeTrackColor = Color(color)
-                                        )
+                                    Icon(
+                                        modifier = Modifier.size(24.dp),
+                                        imageVector = Icons.Sharp.Fullscreen, contentDescription = "",
+                                        tint = Color(255, 255, 255, 100)
                                     )
                                 }
-
-                            },
-                            thumb = { state ->
-
-                                Box(
-                                    modifier = Modifier
-                                        .width(24.dp)
-                                        .height(24.dp)
-                                        .background(
-                                            color = Color(color),
-                                            shape = CircleShape
-                                        )
-                                )
                             }
 
 
+                            Row(
+                                modifier = Modifier.align(Alignment.Center),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(16.dp)
+                            ) {
+
+                                IconButton(
+
+                                    modifier = Modifier
+                                        .size(40.dp)
+                                    ,
+                                    colors = IconButtonDefaults.iconButtonColors(
+                                        containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.0f)
+                                    ),
+                                    onClick = {
+
+                                        bassQueueController.movePrev()
+                                    }
+                                )
+                                {
+                                    Icon(
+                                        modifier = Modifier.size(24.dp),
+                                        imageVector = Icons.Sharp.SkipPrevious, contentDescription = "",
+                                        tint = Color(255, 255, 255)
+                                    )
+                                }
+
+                                IconButton(
+                                    modifier = Modifier
+                                        .size(80.dp)
+                                    ,
+                                    colors = IconButtonDefaults.iconButtonColors(
+                                        containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.0f)
+                                    ),
+                                    onClick = {
+
+                                        if (state.isPlaying)
+                                            bassAudioController.pause()
+                                        else
+                                            bassAudioController.resume()
+
+                                    }
+                                )
+                                {
+                                    Icon(
+                                        modifier = Modifier.size(32.dp),
+                                        imageVector = if (state.isPlaying) Icons.Sharp.Pause else Icons.Sharp.PlayArrow, contentDescription = "",
+                                        tint = Color(255, 255, 255)
+                                    )
+                                }
+
+                                IconButton(
+
+                                    modifier = Modifier
+                                        .size(40.dp)
+                                    ,
+                                    colors = IconButtonDefaults.iconButtonColors(
+                                        containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.0f)
+                                    ),
+                                    onClick = {
+
+                                        bassQueueController.moveNext()
+
+                                    }
+                                )
+                                {
+                                    Icon(
+                                        modifier = Modifier.size(24.dp),
+                                        imageVector = Icons.Sharp.SkipNext, contentDescription = "",
+                                        tint = Color(255, 255, 255)
+                                    )
+                                }
+                            }
+
+
+                            Row(
+                                modifier = Modifier.align(Alignment.CenterEnd),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(16.dp)
+                            ) {
+
+                                IconButton(
+
+                                    modifier = Modifier
+                                        .size(40.dp)
+                                    ,
+                                    colors = IconButtonDefaults.iconButtonColors(
+                                        containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.0f)
+                                    ),
+                                    onClick = {
+                                        bassQueueController.toggleShuffle(!bassQueueController.isShuffle)
+                                    }
+                                )
+                                {
+                                    Icon(
+                                        modifier = Modifier.size(24.dp),
+                                        imageVector = Icons.Sharp.Shuffle, contentDescription = "",
+                                        tint =
+                                            if (bassQueueController.isShuffle)
+                                                Color(color)
+                                            else
+                                                Color(255, 255, 255, 100)
+                                    )
+                                }
+
+                                IconButton(
+
+                                    modifier = Modifier
+                                        .size(40.dp)
+                                    ,
+                                    colors = IconButtonDefaults.iconButtonColors(
+                                        containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.0f)
+                                    ),
+                                    onClick = {
+                                        bassQueueController.toggleRepeat()
+                                    }
+                                )
+                                {
+                                    Icon(
+                                        modifier = Modifier.size(24.dp),
+                                        imageVector =
+                                            if (bassQueueController.repeatMode == repeatMods.REPEAT_OFF)
+                                                Icons.Sharp.Repeat
+                                            else if (bassQueueController.repeatMode == repeatMods.REPEAT_ALL)
+                                                Icons.Sharp.Repeat
+                                            else
+                                                Icons.Sharp.RepeatOne
+                                        ,
+                                        contentDescription = "",
+                                        tint =
+                                            if (bassQueueController.repeatMode == repeatMods.REPEAT_OFF)
+                                                Color(255, 255, 255, 100)
+                                            else
+                                                Color(color)
+                                    )
+                                }
+                            }
+
+                        }
+
+                        var sliderValue by remember { mutableStateOf(0f) }
+                        var isSeeking by remember { mutableStateOf(false) }
+
+                        LaunchedEffect(state.positionSec, isSeeking) {
+                            if (!isSeeking) {
+                                sliderValue = state.positionSec.toFloat()
+                            }
+                        }
+
+                        var sliderHovered by remember { mutableStateOf(false) }
+
+                        val hoverAnim by animateFloatAsState(
+                            targetValue = if (sliderHovered) 1f else 0f,
+                            label = "sliderHover"
                         )
+
+                        val interactionSource = remember { MutableInteractionSource() }
+                        var trackWidthPx by remember { mutableStateOf(0) }
+
+                        if (state.durationSec > 0)
+                            Slider(
+                                interactionSource = interactionSource,
+                                value = sliderValue,
+                                onValueChange = {
+                                    isSeeking = true
+                                    sliderValue = it
+                                },
+                                onValueChangeFinished = {
+                                    isSeeking = false
+                                    bassAudioController.seek(sliderValue.toDouble())
+                                },
+                                valueRange = 0f..state.durationSec.toFloat(),
+                                modifier = Modifier.fillMaxWidth().zIndex(3f)
+                                    .animateContentSize()
+                                    .onPointerEvent(PointerEventType.Enter)
+                                    {
+                                        sliderHovered = true
+                                    }
+                                    .onPointerEvent(PointerEventType.Exit)
+                                    {
+                                        sliderHovered = false
+                                    }
+                                ,
+                                track = { sliderState ->
+
+                                    val trackHeight = lerp(2.dp, 5.dp, hoverAnim)
+                                    val inactiveAlpha = 0.1f + (0.05f) * hoverAnim
+                                    Box(
+                                        Modifier.onGloballyPositioned { coords ->
+                                            trackWidthPx = coords.size.width
+                                        }
+                                    )
+                                    {
+                                        FlatSliderTrack(
+                                            sliderState = sliderState,
+                                            steps = 0,
+                                            height = trackHeight,
+                                            colors = SliderDefaults.colors(
+                                                inactiveTrackColor = Color(255, 255, 255).copy(alpha = inactiveAlpha),
+                                                activeTrackColor = Color(color)
+                                            )
+                                        )
+                                    }
+
+                                },
+                                thumb = { state ->
+
+                                    Box(
+                                        modifier = Modifier
+                                            .width(24.dp)
+                                            .height(24.dp)
+                                            .background(
+                                                color = Color(color),
+                                                shape = CircleShape
+                                            )
+                                    )
+                                }
+
+
+                            )
+                    }
+
                 }
 
 
@@ -706,9 +704,6 @@ fun trackFullScreen(fullscreen: MutableState<Boolean>)
 
 
         }
-
-
-
 
 
     LaunchedEffect(Unit) {

@@ -9,6 +9,37 @@ import java.util.concurrent.atomic.AtomicBoolean
 
 /* ───────────── DATA ───────────── */
 
+data class AudioDevice(
+    val id: Int,
+    val name: String,
+    val isDefault: Boolean,
+    val driver: String,
+    val isEnabled: Boolean
+)
+
+data class SavedAudioDevice(
+    val name: String,
+    val driver: String
+)
+
+fun serializeAudioOutput(device: AudioDevice): String {
+    val driver = device.driver ?: "default"
+    return "$driver|${device.name}"
+}
+
+fun deserializeAudioOutput(raw: String): SavedAudioDevice? {
+    if (raw.isBlank()) return null
+
+    val parts = raw.split("|", limit = 2)
+    if (parts.size != 2) return null
+
+    return SavedAudioDevice(
+        driver = parts[0],
+        name = parts[1]
+    )
+}
+
+
 data class playlistItem(
     val trackPath: String,
     val audioSource: String
@@ -20,6 +51,7 @@ data class PlayerState(
     val positionSec: Double = 0.0,
     val durationSec: Double = 0.0,
     val volume: Float = 1f,
+    val currentDevice: Int? = -1,
     val audioInfo: PlayingAudioInfo? = null
 )
 
@@ -52,6 +84,9 @@ class PlayerController {
 
     var onPauseOrResumeAction: (() -> Unit)? = null
 
+    private var currentDeviceId: Int = -1 // default
+
+
     /* ───────────── INIT ───────────── */
 
     private fun loadPlugin(name: String) {
@@ -67,8 +102,142 @@ class PlayerController {
         }
     }
 
-    fun init() {
-        if (!bass.BASS_Init(-1, 44100, 0, 0, 0)) {
+    fun resolveDevice(saved: SavedAudioDevice): Int {
+        val devices = getAudioDevices()
+
+        // 1. exact match
+        devices.firstOrNull {
+            it.name == saved.name && it.driver == saved.driver
+        }?.let { return it.id }
+
+        // 2. name only
+        devices.firstOrNull {
+            it.name == saved.name
+        }?.let { return it.id }
+
+        // 3. fallback
+        return -1 // system default
+    }
+
+
+    fun getAudioDevices(): List<AudioDevice> {
+        val devices = mutableListOf<AudioDevice>()
+        var i = 0
+
+        val activeDevice = bass.BASS_GetDevice()
+
+        while (true) {
+            val info = BASS_DEVICEINFO()
+            if (!bass.BASS_GetDeviceInfo(i, info)) break
+
+            val enabled = info.flags and Bass.BASS_DEVICE_ENABLED != 0
+            val isDefault = info.flags and Bass.BASS_DEVICE_DEFAULT != 0
+
+            if (enabled) {
+                devices += AudioDevice(
+                    id = i,
+                    driver = info.driver ?: "default",
+                    name = info.name ?: "Unknown",
+                    isDefault = isDefault,
+                    isEnabled = enabled
+                )
+            }
+            i++
+        }
+
+        _state.update {
+            it.copy(currentDevice = activeDevice)
+        }
+
+        return devices
+    }
+
+    fun switchAudioDevice(newDeviceId: Int) {
+        if (newDeviceId == currentDeviceId) return
+
+        val snapshot = state.value
+        val wasPlaying = snapshot.isPlaying
+        val item = snapshot.current
+        val position = snapshot.positionSec
+
+        scope.launch {
+            // 1. Останавливаем всё
+            bass.BASS_ChannelStop(mixer)
+            bass.BASS_Free()
+
+            // 2. Инициализируем новое устройство
+            if (!bass.BASS_Init(newDeviceId, 44100, 0, 0, 0)) {
+                error("BASS_Init failed: ${bass.BASS_ErrorGetCode()}")
+            }
+
+            currentDeviceId = bass.BASS_GetDevice()
+
+            // 3. Новый mixer
+            mixer = mix.BASS_Mixer_StreamCreate(
+                44100,
+                2,
+                Bass.BASS_SAMPLE_FLOAT
+            )
+
+            // 4. Если НИЧЕГО не играло — на этом всё
+            if (item == null) {
+                _state.update {
+                    it.copy(currentDevice = currentDeviceId)
+                }
+                return@launch
+            }
+
+            // 5. Иначе — восстанавливаем playback
+            val decode = createDecode(item.trackPath)
+
+            bass.BASS_ChannelSetSync(
+                decode,
+                Bass.BASS_SYNC_END or Bass.BASS_SYNC_MIXTIME,
+                0,
+                endSync,
+                null
+            )
+
+            mix.BASS_Mixer_StreamAddChannel(
+                mixer,
+                decode,
+                Bass.BASS_STREAM_AUTOFREE or BassMix.BASS_MIXER_NORAMPIN
+            )
+
+            decodeCurrent = decode
+            updateDuration(decode)
+
+            val bytes = bass.BASS_ChannelSeconds2Bytes(decode, position)
+            mix.BASS_Mixer_ChannelSetPosition(decode, bytes, Bass.BASS_POS_BYTE)
+
+            if (wasPlaying) {
+                bass.BASS_ChannelPlay(mixer, false)
+            }
+
+            _state.update {
+                it.copy(
+                    isPlaying = wasPlaying,
+                    positionSec = position,
+                    currentDevice = currentDeviceId,
+                    audioInfo = getPlayingAudioInfo(decode)
+                )
+            }
+        }
+    }
+
+
+
+    fun init(saved: SavedAudioDevice?) {
+
+        var deviceId = if (saved != null) resolveDevice(saved) else -1
+
+        currentDeviceId = deviceId
+
+        _state.update {
+            it.copy(currentDevice = currentDeviceId)
+        }
+
+        if (!bass.BASS_Init(deviceId, 44100, 0, 0, 0)) {
             error("BASS_Init failed: ${bass.BASS_ErrorGetCode()}")
         }
 
@@ -83,8 +252,8 @@ class PlayerController {
         loadPlugin("basswv")
 
         startPositionUpdater()
-
     }
+
 
     /* ───────────── PLAY CONTROL ───────────── */
 
@@ -140,7 +309,9 @@ class PlayerController {
 
     fun stop() {
         stopInternal()
-        _state.update { PlayerState() }
+        _state.update {
+            PlayerState(currentDevice = currentDeviceId)
+        }
     }
 
     /* ───────────── GAPLESS END SYNC ───────────── */
