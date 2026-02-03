@@ -1,6 +1,5 @@
 package win32helpers
 
-import com.jogamp.newt.util.applet.JOGLNewtAppletBase.setField
 import com.sun.jna.Native
 import com.sun.jna.NativeLong
 import com.sun.jna.Pointer

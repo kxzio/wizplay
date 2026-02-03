@@ -23,13 +23,18 @@ import androidx.compose.material.icons.sharp.Refresh
 import androidx.compose.material.icons.sharp.SpatialAudio
 import androidx.compose.material.icons.sharp.Stream
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.DrawModifier
@@ -42,14 +47,21 @@ import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import org.example.PREF_AUDIOOUTPUT
+import org.example.PREF_AUDIO_VOLUME
+import org.example.PREF_NORMALIZATION
+import org.example.PREF_REPLAY_GAIN
+import org.example.audioVolumeConfig
 import org.example.bass.bassController.serializeAudioOutput
 import org.example.bassAudioController
 import org.example.folderGetter.FolderScanState
+import org.example.loaderConfig
 import org.example.prefs
+import org.example.ui.screens.leftPager.settings.AppPrefs
 import org.example.wizui.wizui
+import kotlin.math.roundToInt
 
 @Composable
-fun drawSoundSettings()
+fun drawSoundOutputsSettings()
 {
     val devices = remember { bassAudioController.getAudioDevices() }
 
@@ -104,6 +116,82 @@ fun drawSoundSettings()
 
             }
         }
+    }
+
+}
+
+
+@Composable
+fun drawSoundSettings()
+{
+
+    Column(modifier = Modifier.fillMaxSize()) {
+
+        var volume by remember {
+            mutableStateOf(prefs.getFloat(PREF_AUDIO_VOLUME, 1f))
+        }
+
+        Text("basic volume ( ${(volume * 100f).roundToInt()}% ) : ", color = Color(255, 255, 255))
+
+        Spacer(Modifier.height(26.dp))
+
+        val sliderColors = SliderDefaults.colors(
+            thumbColor = Color.White,
+            activeTrackColor = MaterialTheme.colorScheme.primary,
+            activeTickColor = Color(28, 28, 28),
+            inactiveTickColor = MaterialTheme.colorScheme.primary,
+            inactiveTrackColor = Color(28, 28, 28)
+        )
+
+
+        wizui.wizSlider(
+            value = volume,
+            onValueChange = {
+                volume = it
+                prefs.putFloat(PREF_AUDIO_VOLUME, it)
+                bassAudioController.setVolume(it)
+            },
+            valueRange = 0f..1.0f,
+            steps = 9,
+            sliderColors = sliderColors,
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        Spacer(Modifier.height(24.dp))
+
+        HorizontalDivider(
+            modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp),
+            thickness = 1.0.dp,
+            color = Color(60, 60, 60)
+        )
+
+        var replayGain by remember {
+            mutableStateOf(prefs.getBoolean(PREF_REPLAY_GAIN, true))
+        }
+
+        wizui.wizCheckBox(
+            text = "static volume normalization (replay gain)",
+            checked = replayGain,
+            onCheckedChange = { checked ->
+                replayGain = checked
+                bassAudioController.setReplayGainEnabled(checked)
+                prefs.putBoolean(PREF_REPLAY_GAIN, checked)
+            }
+        )
+        Text("normalization volume between albums and different tracks, also known as replay gain",
+            modifier = Modifier.padding(top = 4.dp),
+            color = Color(255, 255, 255, 100),
+            fontSize = 11.sp
+        )
+
+        HorizontalDivider(
+            modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp),
+            thickness = 1.0.dp,
+            color = Color(60, 60, 60)
+        )
+
+
+
     }
 
 }

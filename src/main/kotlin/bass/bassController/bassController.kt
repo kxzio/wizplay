@@ -1,11 +1,17 @@
 package org.example.bass.bassController
 
 import com.sun.jna.Pointer
+import initEqualizer
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
 import org.example.OS
 import org.example.bass.*
+import org.example.bass.bassController.effects.computeReplayGain
+
+import org.example.bass.bassController.effects.readReplayGain
+import org.jaudiotagger.audio.AudioFileIO
 import java.util.concurrent.atomic.AtomicBoolean
+import kotlin.math.pow
 
 /* ───────────── DATA ───────────── */
 
@@ -40,6 +46,8 @@ fun deserializeAudioOutput(raw: String): SavedAudioDevice? {
 }
 
 
+
+//PLAYLIST
 data class playlistItem(
     val trackPath: String,
     val audioSource: String
@@ -51,6 +59,8 @@ data class PlayerState(
     val positionSec: Double = 0.0,
     val durationSec: Double = 0.0,
     val volume: Float = 1f,
+    val currentGlobalVolume : Float = 0f,
+    val replayGainEnabled: Boolean = true,
     val currentDevice: Int? = -1,
     val audioInfo: PlayingAudioInfo? = null
 )
@@ -73,7 +83,7 @@ class PlayerController {
 
     val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
-    private val _state = MutableStateFlow(PlayerState())
+    val _state = MutableStateFlow(PlayerState())
     val state: StateFlow<PlayerState> = _state.asStateFlow()
 
     /**
@@ -85,6 +95,8 @@ class PlayerController {
     var onPauseOrResumeAction: (() -> Unit)? = null
 
     private var currentDeviceId: Int = -1 // default
+
+    private var currentReplayGain = 1f
 
 
     /* ───────────── INIT ───────────── */
@@ -102,6 +114,7 @@ class PlayerController {
         }
     }
 
+
     fun resolveDevice(saved: SavedAudioDevice): Int {
         val devices = getAudioDevices()
 
@@ -117,6 +130,28 @@ class PlayerController {
 
         // 3. fallback
         return -1 // system default
+    }
+
+    private fun applyMixerVolume() {
+
+        val rg = if (_state.value.replayGainEnabled) {
+            currentReplayGain
+        } else {
+            1f
+        }
+
+        val finalVolume = (state.value.volume * rg).coerceIn(0f, 4f)
+
+        bass.BASS_ChannelSetAttribute(
+            mixer,
+            Bass.BASS_ATTRIB_VOL,
+            finalVolume
+        )
+
+        _state.update {
+            it.copy(currentGlobalVolume = finalVolume)
+        }
+
     }
 
 
@@ -223,8 +258,10 @@ class PlayerController {
                 )
             }
         }
-    }
 
+
+        applyMixerVolume()
+    }
 
 
     fun init(saved: SavedAudioDevice?) {
@@ -251,7 +288,11 @@ class PlayerController {
         loadPlugin("bassopus")
         loadPlugin("basswv")
 
+        //initEqualizer(mixer)
+
         startPositionUpdater()
+        applyMixerVolume()
+
     }
 
 
@@ -261,6 +302,11 @@ class PlayerController {
         stopInternal()
 
         val decode = createDecode(item.trackPath)
+
+        //REPLAY GAIN
+        val replayGain      = readReplayGain(item.trackPath)
+        currentReplayGain   = computeReplayGain(replayGain)
+
 
         bass.BASS_ChannelSetSync(
             decode,
@@ -278,6 +324,8 @@ class PlayerController {
 
         bass.BASS_ChannelSetPosition(mixer, 0, Bass.BASS_POS_BYTE)
         bass.BASS_ChannelPlay(mixer, false)
+
+        applyMixerVolume()
 
         decodeCurrent = decode
         updateDuration(decode)
@@ -316,6 +364,13 @@ class PlayerController {
 
     /* ───────────── GAPLESS END SYNC ───────────── */
 
+    fun setReplayGainEnabled(enabled: Boolean) {
+        _state.update {
+            it.copy(replayGainEnabled = enabled)
+        }
+        applyMixerVolume()
+    }
+
     private val endSync: BASS_SYNC_PROC = object : BASS_SYNC_PROC {
         override fun callback(handle: Int, channel: Int, data: Int, user: Pointer?) {
             scope.launch {
@@ -328,6 +383,9 @@ class PlayerController {
 
                 val decode = createDecode(next.trackPath)
 
+                val replayGain = readReplayGain(next.trackPath)
+                currentReplayGain = computeReplayGain(replayGain)
+
                 bass.BASS_ChannelSetSync(
                     decode,
                     Bass.BASS_SYNC_END or Bass.BASS_SYNC_MIXTIME,
@@ -336,11 +394,14 @@ class PlayerController {
                     null
                 )
 
+
                 mix.BASS_Mixer_StreamAddChannel(
                     mixer,
                     decode,
                     Bass.BASS_STREAM_AUTOFREE or BassMix.BASS_MIXER_NORAMPIN
                 )
+
+                applyMixerVolume()
 
                 decodeCurrent = decode
                 updateDuration(decode)
@@ -415,6 +476,16 @@ class PlayerController {
             bass.BASS_StreamFree(decodeCurrent)
             decodeCurrent = 0
         }
+    }
+
+    fun setVolume(volume: Float) {
+        val v = volume.coerceIn(0f, 1f)
+
+        _state.update {
+            it.copy(volume = v)
+        }
+
+        applyMixerVolume()
     }
 
     fun release() {

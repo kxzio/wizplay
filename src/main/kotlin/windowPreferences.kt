@@ -10,7 +10,9 @@ private const val PREF_WIDTH = "window.width"
 private const val PREF_HEIGHT = "window.height"
 const val PREF_FULLSCREEN = "window.fullscreen"
 const val PREF_AUDIOOUTPUT = "player.audioOutput"
-
+const val PREF_AUDIO_VOLUME = "player.audioVolume"
+const val PREF_REPLAY_GAIN = "player.replayGain"
+const val PREF_NORMALIZATION = "player.normalization"
 
 fun loadWindowBounds(): Rectangle {
     val x = prefs.getInt(PREF_X, -1)

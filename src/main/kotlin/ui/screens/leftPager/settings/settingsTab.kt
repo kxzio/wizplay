@@ -17,6 +17,9 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.sharp.ArrowBackIos
 import androidx.compose.material.icons.automirrored.sharp.ArrowRight
+import androidx.compose.material.icons.sharp.Audiotrack
+import androidx.compose.material.icons.sharp.Draw
+import androidx.compose.material.icons.sharp.SettingsPower
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -33,6 +36,7 @@ import androidx.compose.ui.unit.sp
 import org.example.folderGetter.FolderScanController
 import org.example.FullscreenController
 import org.example.audioindex.AudioFolderController
+import org.example.ui.screens.leftPager.settings.settingPages.drawSoundOutputsSettings
 import org.example.ui.screens.leftPager.settings.settingPages.drawSoundSettings
 import org.example.ui.screens.leftPager.settings.settingPages.folderSettings
 import org.example.ui.screens.leftPager.settings.settingPages.interfaceSettings
@@ -91,7 +95,7 @@ fun settingTab(
 
                 (openedSettingsTab.value != 0).wizAnimateIf {
 
-                    var listoftabs = listOf("", "folders", "interface", "audio")
+                    var listoftabs = listOf("", "folders", "interface", "outputs", "sound")
                     var tab = listoftabs[openedSettingsTab.value]
                     Text(" / $tab ",
                         color = Color(255, 255, 255, 150),
@@ -130,6 +134,18 @@ fun settingTab(
 
                 0 -> {
                     Column(Modifier.fillMaxSize()) {
+
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 16.dp, top = 4.dp)
+                        ) {
+
+                            Icon(Icons.Sharp.SettingsPower, "", tint = Color(255, 255, 255, 100))
+
+                            Text("configuration", color = Color(255, 255, 255, 100), fontSize = 18.sp,
+                                modifier = Modifier.padding(start = 16.dp))
+                        }
+
                         wizui.wizButton(
                             delayedClick = true,
                             delayedClickDurationMs = 300,
@@ -146,10 +162,21 @@ fun settingTab(
                                 horizontalArrangement = Arrangement.SpaceBetween
                             )
                             {
-                                Text("folders")
+                                Text("scan folders")
                                 Spacer(modifier = Modifier.weight(1f))
                                 Icon(Icons.AutoMirrored.Sharp.ArrowRight, "")
                             }
+                        }
+
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.padding(16.dp)
+                        ) {
+
+                            Icon(Icons.Sharp.Draw, "", tint = Color(255, 255, 255, 100))
+
+                            Text("ui", color = Color(255, 255, 255, 100), fontSize = 18.sp,
+                                modifier = Modifier.padding(start = 16.dp))
                         }
 
                         wizui.wizButton(
@@ -174,6 +201,39 @@ fun settingTab(
                             }
                         }
 
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.padding(16.dp)
+                        ) {
+
+                            Icon(Icons.Sharp.Audiotrack, "", tint = Color(255, 255, 255, 100))
+
+                            Text("audio", color = Color(255, 255, 255, 100), fontSize = 18.sp,
+                                modifier = Modifier.padding(start = 16.dp))
+                        }
+
+                        wizui.wizButton(
+                            delayedClick = true,
+                            delayedClickDurationMs = 300,
+                            shape = RectangleShape,
+                            modifier = Modifier.fillMaxWidth(),
+                            contentColor = Color(255, 255, 255),
+                            backgroundColor = Color(35, 35, 35),
+                            onClick = {
+                                openedSettingsTab.value = 4
+                            }
+                        )
+                        {
+                            Row(
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            )
+                            {
+                                Text("general audio settings")
+                                Spacer(modifier = Modifier.weight(1f))
+                                Icon(Icons.AutoMirrored.Sharp.ArrowRight, "")
+                            }
+                        }
+
                         wizui.wizButton(
                             delayedClick = true,
                             delayedClickDurationMs = 300,
@@ -190,11 +250,12 @@ fun settingTab(
                                 horizontalArrangement = Arrangement.SpaceBetween
                             )
                             {
-                                Text("audio")
+                                Text("audio-outputs")
                                 Spacer(modifier = Modifier.weight(1f))
                                 Icon(Icons.AutoMirrored.Sharp.ArrowRight, "")
                             }
                         }
+
                     }
                 }
 
@@ -213,6 +274,10 @@ fun settingTab(
                         )
                     }
                     else if (openedSettingsTab.value == 3)
+                    {
+                        drawSoundOutputsSettings()
+                    }
+                    else if (openedSettingsTab.value == 4)
                     {
                         drawSoundSettings()
                     }

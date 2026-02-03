@@ -66,7 +66,6 @@ fun Bass.getData(
 }
 
 
-
 interface Bass : Library {
 
     fun BASS_GetDeviceInfo(device: Int, info: BASS_DEVICEINFO): Boolean
@@ -133,6 +132,7 @@ interface Bass : Library {
         length: Int
     ): Int
 
+    fun BASS_SetConfig(option: Int, value: Int): Boolean
 
     companion object {
         val INSTANCE: Bass = Native.load("bass", Bass::class.java)
@@ -175,6 +175,7 @@ interface Bass : Library {
         const val BASS_DATA_FFT512   = 0x80000000.toInt() or 512
         const val BASS_DATA_FFT1024  = 0x80000000.toInt() or 1024
         const val BASS_DATA_FFT4096  = 0x80000000.toInt() or 4096
+        const val BASS_CONFIG_FLOATDSP = 10
     }
 }
 
@@ -200,6 +201,7 @@ interface BassMix : Library {
         mode: Int
     ): Boolean
 
+
     companion object {
         val INSTANCE: BassMix =
             Native.load("bassmix", BassMix::class.java)
@@ -210,4 +212,40 @@ interface BassMix : Library {
     }
 }
 
+// Константы эффектов из bass_fx.h
+interface BassFX : Library {
+
+    fun BASS_FXGetVersion(): Int
+
+    fun BASS_ChannelSetFX(
+        channel: Int,
+        fxType: Int,
+        priority: Int
+    ): Int
+
+    fun BASS_ChannelRemoveFX(channel: Int, fxHandle: Int): Boolean
+
+    fun BASS_FXSetParameters(fxHandle: Int, params: Pointer): Boolean
+
+    fun BASS_FXGetParameters(fxHandle: Int, params: Pointer): Boolean
+
+    companion object {
+        val INSTANCE: BassFX = Native.load("bass_fx", BassFX::class.java)
+        const val BASS_FX_BFX_PEAKEQ = 0x10001
+        const val BASS_FX_BFX_COMPRESSOR = 0x10000
+    }
+}
+
+@Structure.FieldOrder(
+    "fCenter",
+    "fBandwidth",
+    "fGain",
+    "lChannel"
+)
+class BASS_BFX_PEAKEQ(
+    @JvmField var fCenter: Float = 1000f,   // Hz
+    @JvmField var fBandwidth: Float = 2.5f, // octave
+    @JvmField var fGain: Float = 0f,         // dB
+    @JvmField var lChannel: Int = -1
+) : Structure()
 

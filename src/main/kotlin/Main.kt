@@ -39,6 +39,7 @@ import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.withContext
 import org.example.audioindex.AudioFolderController
 import org.example.bass.bassController.PlayerController
@@ -98,15 +99,30 @@ val LocalFullscreenController =
 val bassQueueController = QueueController()
 val bassAudioController = PlayerController()
 
+//loading audio preferences
+val audioOutputConfig           : String          = prefs.get(PREF_AUDIOOUTPUT, "")
+val audioVolumeConfig           : Float           = prefs.getFloat(PREF_AUDIO_VOLUME, 1f)
+val audioReplayGainConfig       : Boolean         = prefs.getBoolean(PREF_REPLAY_GAIN, true)
+val audioNormalizationConfig    : Boolean         = prefs.getBoolean(PREF_NORMALIZATION, true)
+
 fun main() {
 
-    val audioOutput: String = prefs.get(PREF_AUDIOOUTPUT, "")
-
+    //using audio outputs on loading
     bassAudioController.init(
-        deserializeAudioOutput(audioOutput)
+        deserializeAudioOutput(audioOutputConfig)
     )
 
     bassQueueController.attachPlayer(bassAudioController)
+
+    //setting the last saved volume
+    bassAudioController.setVolume(audioVolumeConfig)
+    bassAudioController.
+        _state.update {
+            //process the last saved replay gain on start
+            it.copy(
+                replayGainEnabled = audioReplayGainConfig,
+            )
+        }
 
     loaderConfig.apply(readConfig("config.data"))
 
