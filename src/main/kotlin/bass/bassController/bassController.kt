@@ -5,6 +5,7 @@ import initEqualizer
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
 import org.example.OS
+import org.example.audioindex.ScannedAudio
 import org.example.bass.*
 import org.example.bass.bassController.effects.computeReplayGain
 
@@ -434,6 +435,37 @@ class PlayerController {
         _state.update { it.copy(positionSec = seconds) }
         isSeeking.set(false)
     }
+
+    fun getAlbumDurationSec(tracks: List<ScannedAudio>): Double =
+        tracks.sumOf { getTrackDurationSec(it.path.toString()) }
+
+    fun getTrackDurationSec(path: String): Double {
+        val handle = Bass.INSTANCE.BASS_StreamCreateFile(
+            false,
+            path,
+            0,
+            0,
+            Bass.BASS_STREAM_DECODE or Bass.BASS_SAMPLE_FLOAT
+        )
+
+        if (handle == 0) {
+            return 0.0
+        }
+
+        val lengthBytes = Bass.INSTANCE.BASS_ChannelGetLength(
+            handle,
+            Bass.BASS_POS_BYTE
+        )
+
+        val seconds = Bass.INSTANCE.BASS_ChannelBytes2Seconds(
+            handle,
+            lengthBytes
+        )
+
+        Bass.INSTANCE.BASS_StreamFree(handle)
+        return seconds
+    }
+
 
     /* ───────────── POSITION UPDATER ───────────── */
 
