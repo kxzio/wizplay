@@ -45,9 +45,16 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.LastPage
 import androidx.compose.material.icons.rounded.Start
+import androidx.compose.material.icons.sharp.Album
+import androidx.compose.material.icons.sharp.Bookmark
 import androidx.compose.material.icons.sharp.ExpandCircleDown
+import androidx.compose.material.icons.sharp.FastForward
 import androidx.compose.material.icons.sharp.Folder
 import androidx.compose.material.icons.sharp.LastPage
+import androidx.compose.material.icons.sharp.PermMedia
+import androidx.compose.material.icons.sharp.SdCard
+import androidx.compose.material.icons.sharp.Search
+import androidx.compose.material.icons.sharp.Settings
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ButtonElevation
@@ -121,6 +128,13 @@ import ui.uiHelpers.relativeLetterSpacing
 import java.nio.file.Path
 import kotlin.math.roundToInt
 import androidx.compose.material3.OutlinedIconButton
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.drawscope.clipRect
+import androidx.compose.ui.graphics.drawscope.translate
+import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import org.example.TraceCompose
 import org.example.ui.uiHelpers.wizuiUIMove
 
@@ -543,6 +557,60 @@ fun albumTab(
 
     Column(Modifier.padding(horizontal = 32.dp).fillMaxSize()) {
 
+        val painter = rememberVectorPainter(Icons.Sharp.Album)
+
+        wizui.wizBlinkingText(
+            "albums",
+            normalColor = Color(255, 255, 255),
+            blinkColor = MaterialTheme.colorScheme.primary,
+            fontSize = 32.sp,
+            modifier = Modifier.padding(start = 12.dp),
+            onClick = {
+
+            }
+        )
+
+        Box(
+            modifier = Modifier
+                .padding(vertical = 16.dp)
+                .fillMaxWidth()
+                .drawBehind {
+
+                    val iconSize = 210.dp.toPx()
+                    val iconOffsetX = size.width - 40.dp.toPx() - iconSize
+                    val centerY = size.height / 2
+
+                    clipRect(
+                        left = iconOffsetX,
+                        top = centerY - iconSize / 2,
+                        right = iconOffsetX + iconSize,
+                        bottom = centerY
+                    ) {
+                        translate(
+                            left = iconOffsetX,
+                            top = centerY - iconSize / 2
+                        ) {
+                            // 🔑 ВАЖНО: painter — receiver
+                            with(painter) {
+                                draw(
+                                    size = Size(iconSize, iconSize),
+                                    colorFilter = ColorFilter.tint(
+                                        Color(255, 255, 255, 20)
+                                    )
+                                )
+                            }
+                        }
+                    }
+                }
+        ) {
+            HorizontalDivider(
+                modifier = Modifier
+                    .fillMaxWidth(),
+                thickness = 1.dp,
+                color = MaterialTheme.colorScheme.primary
+            )
+        }
+
         val audioMap by audioFolderController.audioMap.collectAsState()
 
         val albums by remember {
@@ -724,6 +792,7 @@ fun albumTab(
                 }
             }
 
+            val primary = MaterialTheme.colorScheme.primary
             // Поиск-бар — без больших изменений, но hazeEffect отложен
             Row(Modifier.padding(top = 8.dp).zIndex(3f)) {
                 BasicTextField(
@@ -740,14 +809,17 @@ fun albumTab(
                         .weight(1f)
                         .height(40.dp)
                         .background(Color(25, 25, 25, 150))
-                        .border(
-                            width = 0.5.dp,
-                            color = if (searchQr.isNotEmpty() || isFocused)
-                                MaterialTheme.colorScheme.primary
-                            else
-                                MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f),
-                            shape = RectangleShape
-                        )
+                        .drawBehind {
+
+                            val y = size.height
+
+                            drawLine(
+                                if (isFocused) primary  else Color(255, 255, 255, 100),
+                                Offset(0f, y),
+                                Offset(size.width, y),
+                                1f
+                            )
+                        }
                         .onFocusChanged { focusState ->
                             isFocused = focusState.isFocused
                         }
@@ -758,29 +830,24 @@ fun albumTab(
                             contentAlignment = Alignment.CenterStart
                         ) {
                             if (searchQr.isEmpty() && !isFocused) {
-                                Text(
-                                    "searching",
-                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
-                                )
+
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(
+                                        Icons.Sharp.Search, "", tint =
+                                            MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
+                                    )
+                                    Text(
+                                        "searching",
+                                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f),
+                                        modifier = Modifier.padding(start = 16.dp)
+                                    )
+                                }
                             }
                             innerTextField()
                         }
                     }
                 )
 
-                if (!searchQr.isEmpty()) {
-                    Button(
-                        onClick = { searchQr = "" },
-                        modifier = Modifier.height(40.dp),
-                        shape = RectangleShape,
-                        colors = ButtonDefaults.buttonColors(
-                            contentColor = Color(255, 255, 255),
-                            containerColor = MaterialTheme.colorScheme.primary
-                        )
-                    ) {
-                        Text("clear")
-                    }
-                }
             }
         }
 

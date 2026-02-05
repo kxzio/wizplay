@@ -28,6 +28,7 @@ import androidx.compose.material.icons.sharp.Audiotrack
 import androidx.compose.material.icons.sharp.Draw
 import androidx.compose.material.icons.sharp.ExpandMore
 import androidx.compose.material.icons.sharp.PowerSettingsNew
+import androidx.compose.material.icons.sharp.PrecisionManufacturing
 import androidx.compose.material.icons.sharp.Settings
 import androidx.compose.material.icons.sharp.SettingsApplications
 import androidx.compose.material.icons.sharp.SettingsInputSvideo
@@ -131,7 +132,7 @@ fun settingTab(
         }
 
 
-        val painter = rememberVectorPainter(Icons.Sharp.Settings)
+        val painter = rememberVectorPainter(Icons.Sharp.Settings)//manufactirug
 
 
         Box(
@@ -159,7 +160,7 @@ fun settingTab(
                                 draw(
                                     size = Size(iconSize, iconSize),
                                     colorFilter = ColorFilter.tint(
-                                        Color(255, 255, 255, 10)
+                                        Color(255, 255, 255, 20)
                                     )
                                 )
                             }

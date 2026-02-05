@@ -68,6 +68,19 @@ val nativeDir = when {
     else -> "bass"
 }
 
+val commonRenderJvmArgs = listOf(
+    "-Dskiko.vsync.enabled=false",
+    "-Dskiko.fps.enabled=false",
+)
+
+val linuxRenderJvmArgs = listOf(
+    "-Dskiko.renderApi=OPENGL",
+    "-Dskiko.linux.opengl.api=GL",
+    "-Dcompose.layers.type=component"
+)
+
+val windowsRenderJvmArgs = emptyList<String>()
+
 compose.desktop {
     application {
         mainClass = "org.example.MainKt"
@@ -78,29 +91,58 @@ compose.desktop {
             }
         }
 
-        jvmArgs += listOf(
-            "-Xms512m",
-            "-Xmx2048m",
-            "-Dsun.java2d.uiScale.enabled=false",
-            "-Dsun.java2d.dpiaware=true",
+        nativeDistributions {
 
-            // ВКЛЮЧАЕМ VSync обратно, но фиксим его
-            "-Dskiko.vsync.enabled=false",
-            "-Dskiko.fps.enabled=false",
+            targetFormats(
+                TargetFormat.AppImage, // Linux
+                TargetFormat.Msi,      // Windows
+            )
 
-            // Пытаемся задать лимит, если VSync всё равно будет врать
-            "-Dskiko.fps.limit=144",
-            "-Dskiko.render.on.request=true",
-            "-Dcompose.interop.blending=true",
-            "-XX:+TieredCompilation",
-            "-Djna.library.path=${projectDir.absolutePath}/$nativeDir",
-        )
+            linux {
+                appResourcesRootDir.set(
+                    project.layout.projectDirectory.dir("bass/linux")
+                )
+            }
+            windows {
+                appResourcesRootDir.set(
+                    project.layout.projectDirectory.dir("bass/microslop")
+                )
+            }
 
-        if (os.contains("linux")) {
-            jvmArgs += "-Dskiko.renderApi=OPENGL"
-            jvmArgs += "-Dskiko.linux.opengl.api=GL"
-            jvmArgs += "-Dcompose.layers.type=component"
+            packageName = "grooviq-desktop"
+            packageVersion = "0.1.0"
+
+            jvmArgs(
+                "-XX:+UseG1GC",
+                "-Xms512m",
+                "-Xmx2048m",
+                "-XX:+TieredCompilation",
+                "-Dsun.java2d.uiScale.enabled=false",
+                "-Dskiko.vsync.enabled=false",
+            )
+
+            linux {
+                jvmArgs(
+                    *commonRenderJvmArgs.toTypedArray(),
+                    *linuxRenderJvmArgs.toTypedArray()
+                )
+            }
+
+            windows {
+                jvmArgs(
+                    *commonRenderJvmArgs.toTypedArray()
+                )
+            }
+
         }
+
+        jvmArgs += commonRenderJvmArgs
+        jvmArgs += when {
+            os.contains("linux") -> linuxRenderJvmArgs
+            os.contains("win") -> windowsRenderJvmArgs
+            else -> emptyList()
+        }
+
     }
 }
 
