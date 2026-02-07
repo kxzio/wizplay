@@ -19,8 +19,6 @@ class AudioDatabase(dbPath: Path) {
             }
         }
 
-
-
     fun insertRoot(path: Path) {
         conn.prepareStatement(
             "INSERT OR IGNORE INTO roots(path) VALUES (?)"
@@ -73,6 +71,33 @@ class AudioDatabase(dbPath: Path) {
             ON audio(album_key)
             WHERE album_creator = 1
         """.trimIndent())
+
+
+            st.execute("""
+            CREATE TABLE IF NOT EXISTS playlists (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL,
+                created_at INTEGER NOT NULL
+            )
+        """.trimIndent())
+
+            st.execute("""
+            CREATE TABLE IF NOT EXISTS playlist_tracks (
+                playlist_id INTEGER NOT NULL,
+                track_path TEXT NOT NULL,
+                position INTEGER NOT NULL,
+        
+                PRIMARY KEY (playlist_id, track_path),
+                FOREIGN KEY (playlist_id) REFERENCES playlists(id) ON DELETE CASCADE,
+                FOREIGN KEY (track_path) REFERENCES audio(path) ON DELETE CASCADE
+            )
+        """.trimIndent())
+
+            st.execute("""
+            CREATE INDEX IF NOT EXISTS idx_playlist_tracks_playlist
+            ON playlist_tracks(playlist_id)
+        """.trimIndent())
+
         }
     }
 
@@ -258,4 +283,119 @@ class AudioDatabase(dbPath: Path) {
             ps.executeUpdate()
         }
     }
+
+    fun createPlaylist(name: String): Long {
+        conn.prepareStatement(
+            "INSERT INTO playlists(name, created_at) VALUES (?, ?)",
+            java.sql.Statement.RETURN_GENERATED_KEYS
+        ).use { ps ->
+            ps.setString(1, name)
+            ps.setLong(2, System.currentTimeMillis())
+            ps.executeUpdate()
+
+            ps.generatedKeys.use { rs ->
+                if (rs.next()) return rs.getLong(1)
+            }
+        }
+        error("Failed to create playlist")
+    }
+
+    fun deletePlaylist(id: Long) {
+        conn.prepareStatement(
+            "DELETE FROM playlists WHERE id = ?"
+        ).use {
+            it.setLong(1, id)
+            it.executeUpdate()
+        }
+    }
+
+    fun renamePlaylist(id: Long, name: String) {
+        conn.prepareStatement(
+            "UPDATE playlists SET name = ? WHERE id = ?"
+        ).use {
+            it.setString(1, name)
+            it.setLong(2, id)
+            it.executeUpdate()
+        }
+    }
+
+    fun loadPlaylists(): List<Pair<Long, String>> =
+        conn.createStatement().use { st ->
+            val rs = st.executeQuery("""
+            SELECT id, name
+            FROM playlists
+            ORDER BY created_at
+        """.trimIndent())
+
+            buildList {
+                while (rs.next()) {
+                    add(rs.getLong("id") to rs.getString("name"))
+                }
+            }
+        }
+
+    fun addTrackToPlaylist(
+        playlistId: Long,
+        path: Path,
+        position: Int
+    ) {
+        conn.prepareStatement("""
+        INSERT OR REPLACE INTO playlist_tracks
+        (playlist_id, track_path, position)
+        VALUES (?, ?, ?)
+    """.trimIndent()).use { ps ->
+            ps.setLong(1, playlistId)
+            ps.setString(2, path.toString())
+            ps.setInt(3, position)
+            ps.executeUpdate()
+        }
+    }
+
+    fun removeTrackFromPlaylist(
+        playlistId: Long,
+        path: Path
+    ) {
+        conn.prepareStatement("""
+        DELETE FROM playlist_tracks
+        WHERE playlist_id = ? AND track_path = ?
+    """.trimIndent()).use { ps ->
+            ps.setLong(1, playlistId)
+            ps.setString(2, path.toString())
+            ps.executeUpdate()
+        }
+    }
+
+    fun tracksInPlaylist(playlistId: Long): List<ScannedAudio> {
+        val list = mutableListOf<ScannedAudio>()
+
+        conn.prepareStatement("""
+        SELECT a.*
+        FROM playlist_tracks pt
+        JOIN audio a ON a.path = pt.track_path
+        WHERE pt.playlist_id = ?
+        ORDER BY pt.position
+    """.trimIndent()).use { ps ->
+            ps.setLong(1, playlistId)
+            val rs = ps.executeQuery()
+
+            while (rs.next()) {
+                list += ScannedAudio(
+                    path = Path(rs.getString("path")),
+                    title = rs.getString("title"),
+                    artist = rs.getString("artist"),
+                    album = rs.getString("album"),
+                    year = rs.getString("year"),
+                    pos = rs.getString("pos"),
+                    disc = rs.getString("disc"),
+                    artworkPath = rs.getString("artwork_path")?.let { Path(it) }
+                )
+            }
+        }
+
+        return list
+    }
+
+
+
+
 }

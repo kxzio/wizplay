@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material.Text
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
@@ -31,9 +30,9 @@ import dev.chrisbanes.haze.hazeSource
 import dev.chrisbanes.haze.rememberHazeState
 import org.example.folderGetter.FolderScanController
 import org.example.FullscreenController
-import org.example.TraceCompose
 import org.example.audioindex.AudioFolderController
 import org.example.bassAudioController
+import org.example.folderGetter.PlaylistController
 import org.example.loaderConfig
 import org.example.ui.screens.leftPager.settings.AppPrefs
 import org.example.ui.screens.trackFullScreen
@@ -46,7 +45,8 @@ import ui.uiHelpers.myTypography
 fun draw(
     fullscreen: FullscreenController,
     audioFolderController: AudioFolderController,
-    folderScanController: FolderScanController
+    folderScanController: FolderScanController,
+    playlistController: PlaylistController
 )  {
 
     val colors = darkColorScheme(
@@ -115,7 +115,8 @@ fun draw(
                                 maxWidth,
                                 fullscreen,
                                 audioFolderController,
-                                folderScanController
+                                folderScanController,
+                                playlistController
                             )
 
                             renderRightPager(

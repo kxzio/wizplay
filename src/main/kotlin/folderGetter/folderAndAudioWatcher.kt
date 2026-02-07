@@ -39,7 +39,7 @@ class AudioFolderController {
     private val albumArtworkCache = mutableMapOf<String, Path>()
 
     //sq lite database
-    private val db = AudioDatabase(Path("audio-index.db"))
+    val db = AudioDatabase(Path("audio-index.db"))
 
     //thread controlling to not block ui layer
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)

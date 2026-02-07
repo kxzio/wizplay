@@ -1,10 +1,7 @@
 package org.example
 
 
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -18,27 +15,16 @@ import androidx.compose.runtime.setValue
 
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.SideEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.awt.ComposePanel
-import androidx.compose.ui.composed
-import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.draw.drawWithContent
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.withContext
 import org.example.audioindex.AudioFolderController
@@ -46,6 +32,7 @@ import org.example.bass.bassController.PlayerController
 import org.example.bass.bassController.deserializeAudioOutput
 import org.example.bass.queue.QueueController
 import org.example.folderGetter.FolderScanController
+import org.example.folderGetter.PlaylistController
 import org.example.ui.screens.leftPager.settings.AppPrefs
 import ui.draw
 import win32helpers.CrossPlatformFullscreen
@@ -224,10 +211,17 @@ fun main() {
 @Composable
 fun preDraw() {
 
+    //init audio folder controller
     val audioFolderController = remember {
         AudioFolderController()
     }
 
+    //init playlist abobe the audio folder db
+    val playlistController = remember {
+        PlaylistController(audioFolderController.db)
+    }
+
+    //folder scan controller for song loading
     val folderScanController = remember {
         FolderScanController(audioFolderController)
     }
@@ -281,7 +275,7 @@ fun preDraw() {
         }
         else {
 
-            draw(fullscreen, audioFolderController, folderScanController)
+            draw(fullscreen, audioFolderController, folderScanController, playlistController)
 
             //return@CompositionLocalProvider
 

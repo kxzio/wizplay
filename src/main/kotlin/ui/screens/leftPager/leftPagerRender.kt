@@ -1,17 +1,10 @@
 package ui.screens.leftPager
 
-import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideOutHorizontally
-import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -20,16 +13,12 @@ import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.sharp.Settings
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
-import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -40,7 +29,8 @@ import androidx.compose.ui.unit.sp
 import org.example.folderGetter.FolderScanController
 import org.example.FullscreenController
 import org.example.audioindex.AudioFolderController
-import org.example.ui.screens.leftPager.queue.drawQueue
+import org.example.folderGetter.PlaylistController
+import org.example.ui.screens.leftPager.playlists.playlistTab
 import org.example.ui.screens.leftPager.settings.AppPrefs
 import org.example.wizui.wizui
 import ui.screens.leftPager.albums.albumTab
@@ -53,7 +43,8 @@ fun renderLeftPager(
     maxWidth: Dp,
     fullscreen: FullscreenController,
     audioFolderController: AudioFolderController,
-    folderScanController: FolderScanController
+    folderScanController: FolderScanController,
+    playlistController: PlaylistController
 )
 {
 
@@ -84,7 +75,8 @@ fun renderLeftPager(
             maxWidth = maxWidth,
             fullscreen = fullscreen,
             audioFolderController = audioFolderController,
-            folderScanController = folderScanController
+            folderScanController = folderScanController,
+            playlistController
         )
     }
 
@@ -98,7 +90,8 @@ fun leftPagerContent(
     maxWidth: Dp,
     fullscreen: FullscreenController,
     audioFolderController: AudioFolderController,
-    folderScanController: FolderScanController
+    folderScanController: FolderScanController,
+    playlistController: PlaylistController
 )
 {
     val openedTab = rememberSaveable { mutableStateOf(1) }
@@ -197,7 +190,11 @@ fun leftPagerContent(
                 )
 
                 2 -> {
-
+                    playlistTab(
+                        audioFolderController,
+                        openedAudioSource,
+                        playlistController
+                    )
                 }
 
             }

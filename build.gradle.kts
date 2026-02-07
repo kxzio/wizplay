@@ -143,6 +143,20 @@ compose.desktop {
             else -> emptyList()
         }
 
+        jvmArgs += listOf(
+            "-Xms512m",
+            "-Xmx2048m",
+            "-Dsun.java2d.uiScale.enabled=false",
+            "-Dsun.java2d.dpiaware=true",
+            "-Dskiko.vsync.enabled=false",
+            "-Dskiko.fps.enabled=false",
+            "-Dskiko.fps.limit=144",
+            "-Dskiko.render.on.request=true",
+            "-Dcompose.interop.blending=true",
+            "-XX:+TieredCompilation",
+            "-Djna.library.path=${projectDir.absolutePath}/$nativeDir"
+            )
+
     }
 }
 

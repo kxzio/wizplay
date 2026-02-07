@@ -1,22 +1,17 @@
-package ui.screens.leftPager.albums
+package org.example.ui.screens.leftPager.playlists
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
-import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.rememberSplineBasedDecay
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.ScrollableDefaults
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
-import androidx.compose.foundation.gestures.stopScroll
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsHoveredAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -26,42 +21,23 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.GridItemSpan
-import androidx.compose.foundation.lazy.grid.LazyGridState
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.itemsIndexed
-import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.LastPage
-import androidx.compose.material.icons.rounded.Start
-import androidx.compose.material.icons.sharp.Album
-import androidx.compose.material.icons.sharp.Bookmark
-import androidx.compose.material.icons.sharp.ExpandCircleDown
-import androidx.compose.material.icons.sharp.FastForward
+import androidx.compose.material.icons.automirrored.sharp.PlaylistAdd
 import androidx.compose.material.icons.sharp.Folder
 import androidx.compose.material.icons.sharp.LastPage
-import androidx.compose.material.icons.sharp.PermMedia
-import androidx.compose.material.icons.sharp.SdCard
+import androidx.compose.material.icons.sharp.PlaylistAdd
+import androidx.compose.material.icons.sharp.PlaylistAddCheckCircle
 import androidx.compose.material.icons.sharp.Search
-import androidx.compose.material.icons.sharp.Settings
-import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.ButtonElevation
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
@@ -78,80 +54,57 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
+import androidx.compose.runtime.toString
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.scale
-import androidx.compose.ui.focus.onFocusChanged
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.RectangleShape
-import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.input.pointer.PointerEventType
-import androidx.compose.ui.input.pointer.onPointerEvent
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.input.pointer.pointerMoveFilter
-import androidx.compose.ui.layout.onSizeChanged
-import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.IntOffset
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import androidx.compose.ui.util.lerp
-import androidx.compose.ui.zIndex
-import dev.chrisbanes.haze.HazeState
-import dev.chrisbanes.haze.HazeStyle
-import dev.chrisbanes.haze.HazeTint
-import dev.chrisbanes.haze.hazeEffect
-import dev.chrisbanes.haze.hazeSource
-import dev.chrisbanes.haze.rememberHazeState
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.FlowPreview
-import kotlinx.coroutines.flow.debounce
-import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.filterNotNull
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.withContext
-import org.example.CustomFlingBehavior
-import org.example.audioindex.AudioFolderController
-import org.example.audioindex.ScannedAudio
-import org.example.similarity
-import org.example.ui.screens.leftPager.albums.artworkAsync
-import org.example.ui.screens.leftPager.settings.AppPrefs
-import org.example.wizui.wizui
-import org.example.wizui.wizui.wizAnimateIf
-import ui.uiHelpers.relativeLetterSpacing
-import java.nio.file.Path
-import kotlin.math.roundToInt
-import androidx.compose.material3.OutlinedIconButton
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
-import org.example.TraceCompose
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.zIndex
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import org.example.OS
+import org.example.audioindex.AudioFolderController
+import org.example.audioindex.ScannedAudio
+import org.example.folderGetter.Playlist
+import org.example.folderGetter.PlaylistController
+import org.example.pickFolderLinuxNative
+import org.example.pickFolderWindowsNative
+import org.example.ui.screens.leftPager.albums.artworkAsync
+import org.example.ui.screens.leftPager.settings.AppPrefs
 import org.example.ui.uiHelpers.wizuiUIMove
+import org.example.wizui.wizui
+import ui.screens.leftPager.albums.AlphabetBubble
+import ui.screens.leftPager.albums.ScrollProgressThumb
+import ui.screens.leftPager.albums.albumScore
+import ui.screens.leftPager.albums.albumsWithAlphabetScroller
+import ui.screens.leftPager.albums.buildAlbumRepresentatives
+import ui.screens.leftPager.albums.handleAlphabetTouch
+import ui.screens.leftPager.albums.matchesQuery
+import ui.screens.leftPager.albums.rememberScrollFraction
+import kotlin.collections.component1
+import kotlin.collections.component2
 
-private fun albumKey(a: ScannedAudio): String =
-    "${a.album}::${a.year}"
-
-fun buildAlbumRepresentatives(
-    audioMap: Map<String, ScannedAudio>
-): List<ScannedAudio> =
-    audioMap.values
-        .groupBy { albumKey(it) }
-        .map { (_, tracks) ->
-            tracks.firstOrNull { it.artworkPath != null }
-                ?: tracks.first()
-        }
-
-fun matchesQuery(query: String, album: ScannedAudio): Boolean {
+fun matchesQueryPlaylist(query: String, playlist: Playlist): Boolean {
     if (query.isBlank()) return true
 
     val words = query
@@ -160,9 +113,7 @@ fun matchesQuery(query: String, album: ScannedAudio): Boolean {
         .filter { it.isNotBlank() }
 
     val fields = listOf(
-        album.album,
-        album.artist,
-        album.year
+        playlist.name
     ).map { it.lowercase() }
 
     return words.all { word ->
@@ -170,12 +121,233 @@ fun matchesQuery(query: String, album: ScannedAudio): Boolean {
     }
 }
 
-fun albumScore(query: String, album: ScannedAudio): Float {
-    val q = query.lowercase()
-    return maxOf(
-        similarity(q, album.album.lowercase()),
-        similarity(q, album.artist.lowercase())
-    )
+@Composable
+fun playlistsWithAlphabetScroller(
+    results: List<Playlist>,
+    listState: LazyListState,
+    openedAudioSource: MutableState<String>
+) {
+    val scope = rememberCoroutineScope()
+    val scrollFraction = rememberScrollFraction(listState)
+
+    // ───── Alphabet ─────
+    val letters = remember(results) {
+        results
+            .mapNotNull { it.name.firstOrNull()?.uppercaseChar() }
+            .distinct()
+            .sorted()
+    }
+
+    // ───── Letter → index ─────
+    val letterToIndex = remember(results) {
+        buildMap {
+            letters.forEach { letter ->
+                put(
+                    letter,
+                    results.indexOfFirst {
+                        it.name.firstOrNull()?.uppercaseChar() == letter
+                    }
+                )
+            }
+        }
+    }
+
+    var bubbleLetter by remember { mutableStateOf<Char?>(null) }
+    var alphabetHeightPx by remember { mutableStateOf(0) }
+
+    Box(modifier = Modifier.fillMaxSize()) {
+
+        val isOpenedAlbumVisible = listState.layoutInfo.visibleItemsInfo.map { it.key }.contains(openedAudioSource.value)
+
+        // ───── YOUR LazyColumn ─────
+        LazyColumn(
+            state = listState,
+            modifier = Modifier.fillMaxSize(),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+            contentPadding = PaddingValues(top = 69.dp, bottom = 16.dp)
+        ) {
+            items(
+                items = results,
+                key = { it.id },
+                contentType = { "playlist" }
+            ) { item ->
+
+                HorizontalDivider(Modifier.fillMaxWidth()
+                    .padding(vertical = 0.dp, horizontal = 64.dp), thickness = 1.dp,
+                    color = Color(255, 255, 255, 10))
+
+                Box {
+
+
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .clickable {
+                                openedAudioSource.value = item.id.toString()
+                                AppPrefs.setString("openedAudioSource", item.id.toString())
+                            }
+                    ) {
+
+                        val sizeAnimated = animateFloatAsState(
+                            targetValue = if (openedAudioSource.value != item.id.toString()) 1f else 1.6f
+                        )
+
+                        Box(
+                            modifier = Modifier
+                                .size(100.dp * sizeAnimated.value)
+                                .aspectRatio(1f)
+                                .background(Color(45, 45, 45))
+
+                        ) {
+
+                            if (openedAudioSource.value == item.id.toString())
+                            {
+                                Box(Modifier.fillMaxSize().background(Color(0, 0, 0, 150)).border(BorderStroke(
+                                    1.dp, Color(80, 80, 80)
+                                )))
+                                {
+                                    Icon(Icons.Sharp.LastPage, "", modifier = Modifier.align(Alignment.Center).size(100.dp), tint = Color(255, 255, 255))
+                                }
+                            }
+
+                        }
+
+                        Column(
+                            modifier = Modifier
+                                .padding(start = 24.dp, end = 24.dp)
+                                .fillMaxWidth()
+                        ) {
+
+                            Text(
+                                text = item.name,
+                                fontSize = 16.sp,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                color = Color.White
+                            )
+
+                            Spacer(Modifier.height(8.dp))
+
+                            Text(
+                                text = "playlist",
+                                fontSize = 14.sp,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                color = Color.White.copy(alpha = 0.5f)
+                            )
+
+                        }
+                    }
+                }
+
+                HorizontalDivider(Modifier.fillMaxWidth()
+                    .padding(vertical = 0.dp, horizontal = 64.dp), thickness = 1.dp,
+                    color = Color(255, 255, 255, 10))
+
+            }
+        }
+
+        val cour = rememberCoroutineScope()
+
+        AnimatedVisibility(visible = !isOpenedAlbumVisible, Modifier.align(Alignment.BottomStart)) {
+
+            val interactionSource = remember { MutableInteractionSource() }
+            OutlinedButton({
+                cour.launch {
+                    listState.animateScrollToItem(results.indexOfFirst { it.id.toString() == openedAudioSource.value})
+                }
+            }, modifier = Modifier.align(Alignment.BottomStart).padding(16.dp).animateContentSize(
+
+            ),
+                elevation = ButtonDefaults.elevatedButtonElevation(),
+                interactionSource = interactionSource,
+                border = BorderStroke(0.75.dp, Color(255, 255, 255, 100)),
+                colors = ButtonDefaults.outlinedButtonColors(
+                    containerColor = Color(20, 20, 20)
+                )
+            )
+            {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+
+                    Icon(Icons.Sharp.LastPage, "",
+                        tint = Color(255, 255, 255),
+                        modifier = Modifier.size(40.dp)
+                    )
+
+                    if (interactionSource.collectIsHoveredAsState().value) {
+                        Text("go to opened!",
+                            color = Color(255, 255, 255),
+                            modifier = Modifier.padding(horizontal = 16.dp))
+                    }
+
+
+
+                }
+
+            }
+        }
+
+
+
+        ScrollProgressThumb(
+            scrollFraction = scrollFraction,
+            modifier = Modifier
+                .align(Alignment.CenterEnd)
+                .padding(end = 0.dp) // левее букв
+        )
+
+        // ───── Alphabet bar ─────
+        Column(
+            modifier = Modifier
+                .align(Alignment.CenterEnd)
+                .padding(top = 76.dp, bottom = 16.dp)
+                .fillMaxHeight()
+                .width(24.dp)
+                .onSizeChanged { alphabetHeightPx = it.height }
+                .pointerInput(Unit) {
+                    detectVerticalDragGestures(
+                        onDragStart = { offset ->
+                            handleAlphabetTouch(
+                                offset.y,
+                                alphabetHeightPx,
+                                letters,
+                                letterToIndex,
+                                scope,
+                                listState
+                            ) { bubbleLetter = it }
+                        },
+                        onVerticalDrag = { change, _ ->
+                            handleAlphabetTouch(
+                                change.position.y,
+                                alphabetHeightPx,
+                                letters,
+                                letterToIndex,
+                                scope,
+                                listState
+                            ) { bubbleLetter = it }
+                        },
+                        onDragEnd = {
+                            bubbleLetter = null
+                        }
+                    )
+                }
+        ) {
+            letters.forEach {
+                Text(
+                    text = it.toString(),
+                    fontSize = 11.sp,
+                    color = Color.White.copy(alpha = 0.7f),
+                    modifier = Modifier.weight(1f),
+                    textAlign = TextAlign.Center
+                )
+            }
+        }
+
+        // ───── Bubble ─────
+        bubbleLetter?.let { letter ->
+            AlphabetBubble(letter)
+        }
+    }
 }
 
 @Composable
@@ -344,7 +516,7 @@ fun albumsWithAlphabetScroller(
                         modifier = Modifier.size(40.dp)
                     )
 
-                   if (interactionSource.collectIsHoveredAsState().value) {
+                    if (interactionSource.collectIsHoveredAsState().value) {
                         Text("go to opened!",
                             color = Color(255, 255, 255),
                             modifier = Modifier.padding(horizontal = 16.dp))
@@ -420,134 +592,14 @@ fun albumsWithAlphabetScroller(
     }
 }
 
-@Composable
-fun rememberScrollFraction(listState: LazyListState): Float {
-    return remember {
-        derivedStateOf {
-            val layout = listState.layoutInfo
-            val total = layout.totalItemsCount
-            if (total == 0) return@derivedStateOf 0f
-
-            val first = listState.firstVisibleItemIndex
-            val offset = listState.firstVisibleItemScrollOffset
-
-            val itemSize =
-                layout.visibleItemsInfo.firstOrNull()?.size ?: 1
-
-            val preciseIndex = first + offset / itemSize.toFloat()
-            preciseIndex / total
-        }
-    }.value.coerceIn(0f, 1f)
-}
-
-@Composable
-fun ScrollProgressThumb(
-    scrollFraction: Float,
-    modifier: Modifier = Modifier,
-    thumbHeight: Dp = 36.dp
-) {
-    var containerHeightPx by remember { mutableStateOf(0) }
-    val density = LocalDensity.current
-    val thumbHeightPx = with(density) { thumbHeight.toPx() }
-
-    Box(
-        modifier = modifier
-            .padding(top = 76.dp, bottom = 28.dp)
-            .width(1.dp)
-            .fillMaxHeight()
-            .onSizeChanged {
-                containerHeightPx = it.height
-            }
-    ) {
-        // ───── Track ─────
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(
-                    Color.White.copy(alpha = 0.10f),
-                )
-        )
-
-        if (containerHeightPx > 0) {
-            val maxOffset =
-                (containerHeightPx - thumbHeightPx).coerceAtLeast(0f)
-
-            val thumbOffsetY =
-                maxOffset * scrollFraction.coerceIn(0f, 1f)
-
-            // ───── Thumb ─────
-            Box(
-                modifier = Modifier
-                    .offset { IntOffset(0, thumbOffsetY.toInt()) }
-                    .width(3.dp)
-                    .height(thumbHeight)
-                    .background(
-                        MaterialTheme.colorScheme.primary,
-                    )
-            )
-        }
-    }
-}
-
-@Composable
-fun AlphabetBubble(letter: Char) {
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color.Black.copy(alpha = 0.3f)),
-        contentAlignment = Alignment.Center
-    ) {
-        Box(
-            modifier = Modifier
-                .size(96.dp)
-                .background(Color.DarkGray, CircleShape),
-            contentAlignment = Alignment.Center
-        ) {
-            Text(
-                text = letter.toString(),
-                fontSize = 48.sp,
-                color = Color.White
-            )
-        }
-    }
-}
-
-fun handleAlphabetTouch(
-    y: Float,
-    heightPx: Int,
-    letters: List<Char>,
-    letterToIndex: Map<Char, Int>,
-    scope: CoroutineScope,
-    listState: LazyListState,
-    onLetterChanged: (Char) -> Unit
-) {
-    if (heightPx == 0) return
-
-    val letterHeight = heightPx / letters.size
-    val index = (y / letterHeight)
-        .toInt()
-        .coerceIn(0, letters.lastIndex)
-
-    val letter = letters[index]
-    onLetterChanged(letter)
-
-    val targetIndex = letterToIndex[letter] ?: return
-    scope.launch {
-        listState.scrollToItem(targetIndex)
-    }
-}
-
-
 @OptIn(FlowPreview::class, ExperimentalComposeUiApi::class)
 @Composable
-fun albumTab(
+fun playlistTab(
     audioFolderController: AudioFolderController,
-    openedTab: MutableState<Int>,
-    gridMultiplier: MutableState<Float>,
     openedAudioSource: MutableState<String>,
+    playlistController: PlaylistController,
 ) {
 
-    val gridState = rememberSaveable(saver = LazyGridState.Saver) { LazyGridState() }
     val listState = rememberSaveable(saver = LazyListState.Saver) { LazyListState() }
 
     var searchQr by rememberSaveable { mutableStateOf("") }
@@ -557,10 +609,10 @@ fun albumTab(
 
     Column(Modifier.padding(horizontal = 32.dp).fillMaxSize()) {
 
-        val painter = rememberVectorPainter(Icons.Sharp.Album)
+        val painter = rememberVectorPainter(Icons.Sharp.PlaylistAddCheckCircle)
 
         wizui.wizBlinkingText(
-            "albums",
+            "playlists",
             normalColor = Color(255, 255, 255),
             blinkColor = MaterialTheme.colorScheme.primary,
             fontSize = 32.sp,
@@ -611,11 +663,11 @@ fun albumTab(
             )
         }
 
-        val audioMap by audioFolderController.audioMap.collectAsState()
+        val audioMap by playlistController.playlists.collectAsState()
 
         val albums by remember {
             derivedStateOf {
-                buildAlbumRepresentatives(audioMap)
+                audioMap
             }
         }
 
@@ -638,60 +690,46 @@ fun albumTab(
                 if (debouncedQuery.isBlank()) albums
                 else withContext(Dispatchers.Default) {
                     albums
-                        .filter { matchesQuery(debouncedQuery, it) }
-                        .sortedByDescending { albumScore(debouncedQuery, it) }
+                        .filter { matchesQueryPlaylist(debouncedQuery, it) }
                 }
         }
 
         LaunchedEffect(wizuiUIMove.albumListMoveToAlbumKey)
         {
-            val index = results.indexOfFirst { it.albumKey == openedAudioSource.value}
+            val index = results.indexOfFirst { it.id.toString() == openedAudioSource.value}
             if (index != -1) listState.animateScrollToItem(index)
             wizuiUIMove.albumListMoveToAlbumKey = ""
         }
 
+        Spacer(Modifier.height(8.dp))
 
-        // Оптимизация: animateScrollToItem для плавности, без stopScroll (оно может джанкать)
-        LaunchedEffect(debouncedQuery, queryChangedByUser) {
-            if (!queryChangedByUser) return@LaunchedEffect
-            listState.animateScrollToItem(0)
-            gridState.animateScrollToItem(0)
-            queryChangedByUser = false
+
+        wizui.wizButton(
+            backgroundColor = Color(0, 0, 0, 0),
+            modifier = Modifier.fillMaxWidth().height(60.dp).border(
+                BorderStroke(0.5.dp, Color(255, 255, 255, 100))),
+            contentColor = Color.White,
+            shape = RectangleShape,
+            onClick = {
+
+            }
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.AutoMirrored.Sharp.PlaylistAdd, "", tint = Color.White)
+                Text("create playlist", modifier = Modifier.padding(horizontal = 12.dp))
+            }
         }
+
+        Spacer(Modifier.height(16.dp))
+        
 
         Box {
 
             if (results.isNotEmpty()) {
 
-                val baseCardWidth = 160.dp
-                val baseTitleFont = 14.sp
-                val baseArtistFont = 10.sp
-
-                var gridWidth by remember { mutableStateOf(0.dp) }  // Предполагаю, ты где-то обновляешь; если нет, используй onSizeChanged
-                val itemWidth by remember { mutableStateOf(0.dp) }  // Аналогично
-
-                val scale by remember(gridMultiplier.value, itemWidth) {
-                    derivedStateOf {
-                        if (gridMultiplier.value.roundToInt() == 0) {
-                            val adaptiveColumns = maxOf(1, (gridWidth / baseCardWidth).toInt())
-                            lerp(
-                                start = 1.5f,
-                                stop = 0.6f,
-                                fraction = ((adaptiveColumns - 1) / 6f).coerceIn(0f, 1f)
-                            )
-                        } else {
-                            (itemWidth / baseCardWidth).coerceIn(0.2f, 1.5f)
-                        }
-                    }
-                }
-
-                val titleFontSize by remember(scale) { mutableStateOf(baseTitleFont * scale) }
-                val artistFontSize by remember(scale) { mutableStateOf(baseArtistFont * scale) }
-
-                val density = LocalDensity.current
 
                 Box(Modifier.onSizeChanged { size ->
-                    gridWidth = with(density) { size.width.toDp() }
+
                 }) {
 
                     Box(
@@ -709,85 +747,11 @@ fun albumTab(
 
                     val drawGrid = false
 
-                    if (drawGrid)
-                    {
-                        LazyVerticalGrid(
-                            columns = if (gridMultiplier.value.roundToInt() != 0)
-                                GridCells.Fixed(gridMultiplier.value.roundToInt())
-                            else
-                                GridCells.Adaptive(160.dp),
-                            modifier = Modifier.padding(),
-                            state = gridState,
-                            userScrollEnabled = true,
-                            horizontalArrangement = Arrangement.spacedBy(16.dp, Alignment.Start),
-                            verticalArrangement = Arrangement.spacedBy(16.dp),
-                            contentPadding = PaddingValues(top = 69.dp, bottom = 16.dp),
-
-                            ) {
-                            itemsIndexed(
-                                items = results,
-                                contentType = { _, _ -> "album" },
-                                key = { _, album -> album.albumKey }
-                            ) { index, item ->
-
-
-                                Column(
-                                    modifier = Modifier.clickable {
-                                        openedAudioSource.value = item.albumKey
-                                        AppPrefs.setString("openedAudioSource", item.albumKey)
-                                    }
-                                ) {
-
-                                    Box(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .aspectRatio(1f)
-                                            .background(Color(45, 45, 45))
-                                    ) {
-                                        artworkAsync(
-                                            item.artworkPath,
-                                            modifier = Modifier.fillMaxSize()
-                                        )
-                                    }
-
-                                    if (titleFontSize > 9.5.sp) {
-                                        Column(modifier = Modifier.padding(top = 9.dp * scale)) {
-                                            Text(
-                                                text = item.album,
-                                                fontSize = titleFontSize,
-                                                letterSpacing = relativeLetterSpacing(titleFontSize),
-                                                maxLines = 1,
-                                                overflow = TextOverflow.Ellipsis,
-                                                color = Color.White
-                                            )
-
-                                            Spacer(Modifier.height(4.dp * scale))
-
-                                            Text(
-                                                text = item.artist,
-                                                fontSize = artistFontSize,
-                                                letterSpacing = relativeLetterSpacing(artistFontSize),
-                                                maxLines = 1,
-                                                overflow = TextOverflow.Ellipsis,
-                                                color = Color.White.copy(alpha = 0.4f)
-                                            )
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    else
-                    {
-
-                        albumsWithAlphabetScroller(
-                            results = results,
-                            listState = listState,
-                            openedAudioSource = openedAudioSource
-                        )
-
-
-                    }
+                    playlistsWithAlphabetScroller(
+                        results = results,
+                        listState = listState,
+                        openedAudioSource = openedAudioSource
+                    )
 
                 }
             }
