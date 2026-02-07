@@ -14,7 +14,7 @@ import org.example.folderGetter.tagsAndAudioGetter.AudioDatabase
 data class Playlist(
     val id: Long,
     val name: String,
-    val tracks: List<ScannedAudio>
+    val trackCount: Int
 )
 
 class PlaylistController(
@@ -32,7 +32,7 @@ class PlaylistController(
                 Playlist(
                     id = id,
                     name = name,
-                    tracks = db.tracksInPlaylist(id)
+                    trackCount = db.playlistTrackCount(id)
                 )
             }
             _playlists.value = result
@@ -45,6 +45,9 @@ class PlaylistController(
             load()
         }
     }
+
+    fun tracksByPlaylist(playlistId: Long): List<ScannedAudio> =
+        db.tracksInPlaylist(playlistId)
 
     fun addTrack(playlistId: Long, track: ScannedAudio) {
         scope.launch {

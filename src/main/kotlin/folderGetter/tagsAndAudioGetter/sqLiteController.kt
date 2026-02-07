@@ -334,6 +334,17 @@ class AudioDatabase(dbPath: Path) {
             }
         }
 
+    fun playlistTrackCount(playlistId: Long): Int =
+        conn.prepareStatement(
+            "SELECT COUNT(*) FROM playlist_tracks WHERE playlist_id = ?"
+        ).use { ps ->
+            ps.setLong(1, playlistId)
+            ps.executeQuery().use { rs ->
+                rs.next()
+                rs.getInt(1)
+            }
+        }
+
     fun addTrackToPlaylist(
         playlistId: Long,
         path: Path,
