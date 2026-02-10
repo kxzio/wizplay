@@ -2,6 +2,9 @@ package org.example.ui.screens.leftPager.playlists
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutLinearInEasing
+import androidx.compose.animation.core.LinearOutSlowInEasing
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
@@ -41,7 +44,6 @@ import androidx.compose.material.icons.sharp.Close
 import androidx.compose.material.icons.sharp.Create
 import androidx.compose.material.icons.sharp.Folder
 import androidx.compose.material.icons.sharp.LastPage
-import androidx.compose.material.icons.sharp.PlaylistAdd
 import androidx.compose.material.icons.sharp.PlaylistAddCheckCircle
 import androidx.compose.material.icons.sharp.Search
 import androidx.compose.material3.ButtonDefaults
@@ -65,7 +67,6 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
-import androidx.compose.runtime.toString
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
@@ -87,24 +88,15 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogWindow
-import androidx.compose.ui.window.Popup
-import androidx.compose.ui.window.PopupProperties
 import androidx.compose.ui.zIndex
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import org.example.OS
 import org.example.audioindex.AudioFolderController
-import org.example.audioindex.ScannedAudio
 import org.example.folderGetter.Playlist
 import org.example.folderGetter.PlaylistController
-import org.example.pickFolderLinuxNative
-import org.example.pickFolderWindowsNative
-import org.example.ui.screens.leftPager.albums.artworkAsync
 import org.example.ui.screens.leftPager.settings.AppPrefs
 import org.example.ui.uiHelpers.AniJinPopup
 import org.example.ui.uiHelpers.wizuiUIMove
@@ -112,14 +104,8 @@ import org.example.wizui.wizui
 import org.example.wizui.wizui.wizAnimateIf
 import ui.screens.leftPager.albums.AlphabetBubble
 import ui.screens.leftPager.albums.ScrollProgressThumb
-import ui.screens.leftPager.albums.albumScore
-import ui.screens.leftPager.albums.albumsWithAlphabetScroller
-import ui.screens.leftPager.albums.buildAlbumRepresentatives
 import ui.screens.leftPager.albums.handleAlphabetTouch
-import ui.screens.leftPager.albums.matchesQuery
 import ui.screens.leftPager.albums.rememberScrollFraction
-import kotlin.collections.component1
-import kotlin.collections.component2
 
 fun matchesQueryPlaylist(query: String, playlist: Playlist): Boolean {
     if (query.isBlank()) return true
@@ -142,10 +128,40 @@ fun matchesQueryPlaylist(query: String, playlist: Playlist): Boolean {
 fun playlistsWithAlphabetScroller(
     results: List<Playlist>,
     listState: LazyListState,
+    highlitedPlaylist1: MutableState<String>,
     openedAudioSource: MutableState<String>
 ) {
     val scope = rememberCoroutineScope()
     val scrollFraction = rememberScrollFraction(listState)
+
+    val highlight = remember { Animatable(0f) }
+
+    LaunchedEffect(highlitedPlaylist1.value) {
+        if (highlitedPlaylist1.value.isNotEmpty()) {
+            highlight.snapTo(0f)
+
+            // резкий всплеск
+            highlight.animateTo(
+                1f,
+                animationSpec = tween(
+                    durationMillis = 500,
+                    easing = FastOutLinearInEasing
+                )
+            )
+
+            // плавное затухание
+            highlight.animateTo(
+                0f,
+                animationSpec = tween(
+                    durationMillis = 800,
+                    easing = LinearOutSlowInEasing
+                )
+            )
+
+            highlitedPlaylist1.value = ""
+        }
+    }
+
 
     // ───── Alphabet ─────
     val letters = remember(results) {
@@ -172,6 +188,8 @@ fun playlistsWithAlphabetScroller(
     var bubbleLetter by remember { mutableStateOf<Char?>(null) }
     var alphabetHeightPx by remember { mutableStateOf(0) }
 
+    val highlitedColor = MaterialTheme.colorScheme.primary.copy(alpha = highlight.value)
+
     Box(modifier = Modifier.fillMaxSize()) {
 
         val isOpenedAlbumVisible = listState.layoutInfo.visibleItemsInfo.map { it.key }.contains(openedAudioSource.value)
@@ -195,10 +213,13 @@ fun playlistsWithAlphabetScroller(
 
                 Box {
 
-
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier
+                            .border(
+                                1.dp,
+                                if (highlitedPlaylist1.value == item.name) highlitedColor else Color(0, 0, 0, 0)
+                            )
                             .clickable {
                                 openedAudioSource.value = item.id.toString()
                                 AppPrefs.setString("openedAudioSource", item.id.toString())
@@ -385,6 +406,7 @@ fun playlistTab(
     var isFocused by rememberSaveable { mutableStateOf(false) }
     var queryChangedByUser by rememberSaveable { mutableStateOf(false) }
     var playlistCreateWindow by remember { mutableStateOf(false) }
+    var highlitedPlaylist = remember { mutableStateOf("") }
 
     Column(Modifier.padding(horizontal = 32.dp).fillMaxSize()) {
 
@@ -529,6 +551,7 @@ fun playlistTab(
                     playlistsWithAlphabetScroller(
                         results = results,
                         listState = listState,
+                        highlitedPlaylist,
                         openedAudioSource = openedAudioSource
                     )
 
@@ -705,6 +728,39 @@ fun playlistTab(
                                     }
                                 }
                             )
+                        }
+
+                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.width(400.dp)) {
+
+                            wizui.wizButton(
+                                backgroundColor = Color(0, 0, 0, 0),
+                                modifier = Modifier.weight(1f).border(
+                                    BorderStroke(0.5.dp, Color(255, 255, 255, 100))),
+                                contentColor = Color.White,
+                                shape = RectangleShape,
+                                onClick = {
+                                    playlistCreateWindow = false
+                                },
+                            ){
+                                Text("cancel")
+                            }
+
+                            (!newPlaylistName.isEmpty()).wizAnimateIf(wizui.WizAnimationType.ExpandHorizontally) {
+                                wizui.wizButton(
+                                    backgroundColor = Color(0, 0, 0, 0),
+                                    modifier = Modifier.padding(start = 16.dp).weight(1f).border(
+                                        BorderStroke(0.5.dp, primary)),
+                                    contentColor = Color.White,
+                                    shape = RectangleShape,
+                                    onClick = {
+                                        highlitedPlaylist.value = newPlaylistName
+                                        playlistCreateWindow = false
+                                        playlistController.create(newPlaylistName)
+                                    }
+                                ){
+                                    Text("create")
+                                }
+                            }
                         }
                     }
                 }

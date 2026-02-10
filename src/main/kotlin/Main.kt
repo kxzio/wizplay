@@ -220,6 +220,7 @@ fun preDraw() {
     val playlistController = remember {
         PlaylistController(audioFolderController.db)
     }
+    playlistController.load()
 
     //folder scan controller for song loading
     val folderScanController = remember {
