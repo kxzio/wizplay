@@ -47,6 +47,7 @@ import androidx.compose.material.icons.sharp.Folder
 import androidx.compose.material.icons.sharp.LastPage
 import androidx.compose.material.icons.sharp.PlaylistAddCheckCircle
 import androidx.compose.material.icons.sharp.Search
+import androidx.compose.material.icons.sharp.Warning
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -169,30 +170,6 @@ fun playlistsWithAlphabetScroller(
         highlitedPlaylist1.value = ""
     }
 
-    // ───── Alphabet ─────
-    val letters = remember(results) {
-        results
-            .mapNotNull { it.name.firstOrNull()?.uppercaseChar() }
-            .distinct()
-            .sorted()
-    }
-
-    // ───── Letter → index ─────
-    val letterToIndex = remember(results) {
-        buildMap {
-            letters.forEach { letter ->
-                put(
-                    letter,
-                    results.indexOfFirst {
-                        it.name.firstOrNull()?.uppercaseChar() == letter
-                    }
-                )
-            }
-        }
-    }
-
-    var bubbleLetter by remember { mutableStateOf<Char?>(null) }
-    var alphabetHeightPx by remember { mutableStateOf(0) }
 
     val highlitedColor = MaterialTheme.colorScheme.primary.copy(alpha = highlight.value)
 
@@ -304,9 +281,14 @@ fun playlistsWithAlphabetScroller(
             val interactionSource = remember { MutableInteractionSource() }
             OutlinedButton({
                 cour.launch {
-                    listState.animateScrollToItem(results.indexOfFirst { it.id.toString() == openedAudioSource.value})
+
+                    val index = results.indexOfFirst { it.id.toString() == openedAudioSource.value}
+
+                    if ( index > -1 )
+                        listState.animateScrollToItem(index)
+
                 }
-            }, modifier = Modifier.align(Alignment.BottomStart).padding(16.dp).animateContentSize(
+            }, modifier = Modifier.align(Alignment.BottomStart).padding(bottom = 16.dp).animateContentSize(
 
             ),
                 elevation = ButtonDefaults.elevatedButtonElevation(),
@@ -337,8 +319,6 @@ fun playlistsWithAlphabetScroller(
             }
         }
 
-
-
         ScrollProgressThumb(
             scrollFraction = scrollFraction,
             modifier = Modifier
@@ -346,57 +326,6 @@ fun playlistsWithAlphabetScroller(
                 .padding(end = 0.dp) // левее букв
         )
 
-        // ───── Alphabet bar ─────
-        Column(
-            modifier = Modifier
-                .align(Alignment.CenterEnd)
-                .padding(top = 76.dp, bottom = 16.dp)
-                .fillMaxHeight()
-                .width(24.dp)
-                .onSizeChanged { alphabetHeightPx = it.height }
-                .pointerInput(Unit) {
-                    detectVerticalDragGestures(
-                        onDragStart = { offset ->
-                            handleAlphabetTouch(
-                                offset.y,
-                                alphabetHeightPx,
-                                letters,
-                                letterToIndex,
-                                scope,
-                                listState
-                            ) { bubbleLetter = it }
-                        },
-                        onVerticalDrag = { change, _ ->
-                            handleAlphabetTouch(
-                                change.position.y,
-                                alphabetHeightPx,
-                                letters,
-                                letterToIndex,
-                                scope,
-                                listState
-                            ) { bubbleLetter = it }
-                        },
-                        onDragEnd = {
-                            bubbleLetter = null
-                        }
-                    )
-                }
-        ) {
-            letters.forEach {
-                Text(
-                    text = it.toString(),
-                    fontSize = 11.sp,
-                    color = Color.White.copy(alpha = 0.7f),
-                    modifier = Modifier.weight(1f),
-                    textAlign = TextAlign.Center
-                )
-            }
-        }
-
-        // ───── Bubble ─────
-        bubbleLetter?.let { letter ->
-            AlphabetBubble(letter)
-        }
     }
 }
 
@@ -556,8 +485,6 @@ fun playlistTab(
                             )
                     )
 
-                    val drawGrid = false
-
                     playlistsWithAlphabetScroller(
                         results = results,
                         listState = listState,
@@ -639,7 +566,7 @@ fun playlistTab(
     }
 
     val createPlaylistErrorText = remember { mutableStateOf("") }
-    val errorWindowDragging = remember { Animatable(0f) }
+    val errorWindowDragging     = remember { Animatable(0f) }
 
     LaunchedEffect(createPlaylistErrorText.value)
     {
@@ -730,7 +657,7 @@ fun playlistTab(
                 Surface(
                     color = Color(20, 20, 20),
                     border = BorderStroke(0.5.dp, Color(255, 255, 255, 100)),
-                    modifier = Modifier.padding(16.dp).align(Alignment.Center).offset(x = 4.dp * errorWindowDragging.value)
+                    modifier = Modifier.padding(16.dp).align(Alignment.Center).offset(x = 3.dp * errorWindowDragging.value)
                 ) {
 
                     Column(Modifier.padding(32.dp)) {
@@ -836,6 +763,10 @@ fun playlistTab(
                                         {
                                             createPlaylistErrorText.value = "name of this playlist is already in use"
                                         }
+                                        else if (newPlaylistName.isBlank())
+                                        {
+                                            createPlaylistErrorText.value = "name should consist of symbols/digits"
+                                        }
                                         else
                                         {
                                             highlitedPlaylist.value = newPlaylistName
@@ -853,7 +784,16 @@ fun playlistTab(
                         }
 
                         if (!createPlaylistErrorText.value.isEmpty()) {
-                            Text(createPlaylistErrorText.value, color = Color(226, 80, 80, 255), modifier = Modifier.padding(top = 16.dp))
+
+                            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 16.dp)) {
+
+                                Icon(
+                                    Icons.Sharp.Warning, "", tint = Color(226, 80, 80, 255),
+                                )
+
+                                Text(createPlaylistErrorText.value, color = Color(226, 80, 80, 255), modifier = Modifier.padding(start = 16.dp))
+                            }
+
                         }
 
                     }

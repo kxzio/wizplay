@@ -324,9 +324,12 @@ fun albumsWithAlphabetScroller(
             val interactionSource = remember { MutableInteractionSource() }
             OutlinedButton({
                 cour.launch {
-                    listState.animateScrollToItem(results.indexOfFirst { it.albumKey == openedAudioSource.value})
+                    val index = results.indexOfFirst { it.albumKey == openedAudioSource.value}
+
+                    if ( index > -1 )
+                        listState.animateScrollToItem(index)
                 }
-            }, modifier = Modifier.align(Alignment.BottomStart).padding(16.dp).animateContentSize(
+            }, modifier = Modifier.align(Alignment.BottomStart).padding(bottom = 16.dp).animateContentSize(
 
             ),
                 elevation = ButtonDefaults.elevatedButtonElevation(),
