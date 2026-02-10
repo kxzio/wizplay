@@ -31,6 +31,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -60,6 +61,7 @@ import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
@@ -92,6 +94,7 @@ import androidx.compose.ui.zIndex
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.example.audioindex.AudioFolderController
@@ -126,7 +129,7 @@ fun matchesQueryPlaylist(query: String, playlist: Playlist): Boolean {
 
 @Composable
 fun playlistsWithAlphabetScroller(
-    results: List<Playlist>,
+    results: MutableList<Playlist>,
     listState: LazyListState,
     highlitedPlaylist1: MutableState<String>,
     openedAudioSource: MutableState<String>
@@ -137,31 +140,34 @@ fun playlistsWithAlphabetScroller(
     val highlight = remember { Animatable(0f) }
 
     LaunchedEffect(highlitedPlaylist1.value) {
-        if (highlitedPlaylist1.value.isNotEmpty()) {
-            highlight.snapTo(0f)
+        val target = highlitedPlaylist1.value
+        if (target.isEmpty()) return@LaunchedEffect
 
-            // резкий всплеск
-            highlight.animateTo(
-                1f,
-                animationSpec = tween(
-                    durationMillis = 500,
-                    easing = FastOutLinearInEasing
-                )
-            )
+        // 🔑 ЖДЁМ, пока элемент реально появится в списке
+        snapshotFlow { results.size }
+            .first {
+                results.any { it.name == target }
+            }
 
-            // плавное затухание
-            highlight.animateTo(
-                0f,
-                animationSpec = tween(
-                    durationMillis = 800,
-                    easing = LinearOutSlowInEasing
-                )
-            )
-
-            highlitedPlaylist1.value = ""
+        val index = results.indexOfFirst { it.name == target }
+        if (index != -1) {
+            listState.scrollToItem(0)
         }
-    }
 
+        highlight.snapTo(0f)
+
+        highlight.animateTo(
+            1f,
+            tween(500, easing = FastOutLinearInEasing)
+        )
+
+        highlight.animateTo(
+            0f,
+            tween(800, easing = LinearOutSlowInEasing)
+        )
+
+        highlitedPlaylist1.value = ""
+    }
 
     // ───── Alphabet ─────
     val letters = remember(results) {
@@ -202,7 +208,7 @@ fun playlistsWithAlphabetScroller(
             contentPadding = PaddingValues(top = 69.dp, bottom = 16.dp)
         ) {
             items(
-                items = results,
+                items = results.reversed(),
                 key = { it.id },
                 contentType = { "playlist" }
             ) { item ->
@@ -219,6 +225,12 @@ fun playlistsWithAlphabetScroller(
                             .border(
                                 1.dp,
                                 if (highlitedPlaylist1.value == item.name) highlitedColor else Color(0, 0, 0, 0)
+                            )
+                            .background(
+                                if (highlitedPlaylist1.value == item.name)
+                                    highlitedColor.copy(alpha = highlitedColor.alpha / 2)
+                                else
+                                    Color(0, 0, 0, 0)
                             )
                             .clickable {
                                 openedAudioSource.value = item.id.toString()
@@ -482,18 +494,16 @@ fun playlistTab(
         }
 
         // Оптимизация: derivedStateOf вместо produceState — ленивее, без корутин в UI
-        val results by produceState(
-            initialValue = albums,
-            albums,
-            debouncedQuery
-        ) {
-            value =
+        val results = remember { mutableStateListOf<Playlist>() }
+
+        LaunchedEffect(albums, debouncedQuery) {
+            results.clear()
+            results.addAll(
                 if (debouncedQuery.isBlank()) albums
-                else withContext(Dispatchers.Default) {
-                    albums
-                        .filter { matchesQueryPlaylist(debouncedQuery, it) }
-                }
+                else albums.filter { matchesQueryPlaylist(debouncedQuery, it) }
+            )
         }
+
 
         LaunchedEffect(wizuiUIMove.albumListMoveToAlbumKey)
         {
@@ -628,11 +638,74 @@ fun playlistTab(
         }
     }
 
+    val createPlaylistErrorText = remember { mutableStateOf("") }
+    val errorWindowDragging = remember { Animatable(0f) }
+
+    LaunchedEffect(createPlaylistErrorText.value)
+    {
+
+        if (createPlaylistErrorText.value.isEmpty())
+            return@LaunchedEffect
+
+        errorWindowDragging.snapTo(0f)
+
+        errorWindowDragging.animateTo(
+            2f,
+            tween(100, easing = FastOutLinearInEasing)
+        )
+
+        errorWindowDragging.animateTo(
+            -2f,
+            tween(100, easing = LinearOutSlowInEasing)
+        )
+
+        errorWindowDragging.animateTo(
+            1.5f,
+            tween(100, easing = FastOutLinearInEasing)
+        )
+
+        errorWindowDragging.animateTo(
+            -1.5f,
+            tween(100, easing = LinearOutSlowInEasing)
+        )
+
+        errorWindowDragging.animateTo(
+            1f,
+            tween(100, easing = FastOutLinearInEasing)
+        )
+
+        errorWindowDragging.animateTo(
+            -1f,
+            tween(100, easing = FastOutLinearInEasing)
+        )
+
+        errorWindowDragging.animateTo(
+            0.5f,
+            tween(100, easing = FastOutLinearInEasing)
+        )
+
+        errorWindowDragging.animateTo(
+            -0.5f,
+            tween(100, easing = FastOutLinearInEasing)
+        )
+
+
+        errorWindowDragging.animateTo(
+            0f,
+            tween(100, easing = LinearOutSlowInEasing)
+        )
+
+    }
 
     AniJinPopup(
         focusable = true,
         expanded = playlistCreateWindow,
-        onDismissRequest = { playlistCreateWindow = false },
+        onDismissRequest =
+            {
+                playlistCreateWindow = false
+                newPlaylistName = ""
+                createPlaylistErrorText.value = ""
+            },
         enter =
             fadeIn(
                 animationSpec = tween(120)
@@ -657,7 +730,7 @@ fun playlistTab(
                 Surface(
                     color = Color(20, 20, 20),
                     border = BorderStroke(0.5.dp, Color(255, 255, 255, 100)),
-                    modifier = Modifier.padding(16.dp).align(Alignment.Center)
+                    modifier = Modifier.padding(16.dp).align(Alignment.Center).offset(x = 4.dp * errorWindowDragging.value)
                 ) {
 
                     Column(Modifier.padding(32.dp)) {
@@ -666,6 +739,8 @@ fun playlistTab(
 
                             IconButton( {
                                 playlistCreateWindow = false
+                                newPlaylistName = ""
+                                createPlaylistErrorText.value = ""
                             }){
                                 Icon(Icons.Sharp.Close, "", tint = Color.White)
                             }
@@ -682,6 +757,7 @@ fun playlistTab(
                                 value = newPlaylistName,
                                 onValueChange = {
                                     newPlaylistName = it
+                                    createPlaylistErrorText.value = ""
                                 },
                                 singleLine = true,
                                 textStyle = MaterialTheme.typography.bodyMedium.copy(color = MaterialTheme.colorScheme.onSurface),
@@ -739,6 +815,8 @@ fun playlistTab(
                                 contentColor = Color.White,
                                 shape = RectangleShape,
                                 onClick = {
+                                    newPlaylistName = ""
+                                    createPlaylistErrorText.value = ""
                                     playlistCreateWindow = false
                                 },
                             ){
@@ -753,15 +831,31 @@ fun playlistTab(
                                     contentColor = Color.White,
                                     shape = RectangleShape,
                                     onClick = {
-                                        highlitedPlaylist.value = newPlaylistName
-                                        playlistCreateWindow = false
-                                        playlistController.create(newPlaylistName)
+
+                                        if (playlistController.playlists.value.any { it.name == newPlaylistName })
+                                        {
+                                            createPlaylistErrorText.value = "name of this playlist is already in use"
+                                        }
+                                        else
+                                        {
+                                            highlitedPlaylist.value = newPlaylistName
+                                            playlistCreateWindow = false
+                                            playlistController.create(newPlaylistName)
+                                            newPlaylistName = ""
+                                            createPlaylistErrorText.value = ""
+                                        }
+
                                     }
                                 ){
                                     Text("create")
                                 }
                             }
                         }
+
+                        if (!createPlaylistErrorText.value.isEmpty()) {
+                            Text(createPlaylistErrorText.value, color = Color(226, 80, 80, 255), modifier = Modifier.padding(top = 16.dp))
+                        }
+
                     }
                 }
             }

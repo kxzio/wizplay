@@ -155,7 +155,6 @@ fun settingTab(
                             left = iconOffsetX,
                             top = centerY - iconSize / 2
                         ) {
-                            // 🔑 ВАЖНО: painter — receiver
                             with(painter) {
                                 draw(
                                     size = Size(iconSize, iconSize),
