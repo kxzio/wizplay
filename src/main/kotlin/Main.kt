@@ -28,6 +28,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.withContext
 import org.example.audioindex.AudioFolderController
+import org.example.audioindex.ScannedAudio
 import org.example.bass.bassController.PlayerController
 import org.example.bass.bassController.deserializeAudioOutput
 import org.example.bass.queue.QueueController
@@ -245,38 +246,42 @@ fun preDraw() {
 
     var isReady by remember { mutableStateOf(false) }
 
-    // Основной UI
-    CompositionLocalProvider(
-        LocalDensity provides Density(
-            loaderConfig.dpiScale.value,
-            loaderConfig.dpiScale.value
-        )
-    ) {
+    val openedAudioSource = remember {
+        mutableStateOf(AppPrefs.getString("openedAudioSource", ""))
+    }
 
-        if (!isReady) {
+    if (!isReady) {
 
-            Box(
-                contentAlignment = Alignment.Center,
-                modifier = Modifier.fillMaxSize().background(Color(20, 20, 20))){
-                CircularProgressIndicator(color = Color(255, 255, 255))
-            }
-
-            LaunchedEffect(Unit)
-            {
-                withContext(Dispatchers.IO) {
-                    audioFolderController.start()
-                    folderScanController.restoreFromAudioController()
-
-                    if (shouldUpdateOnStart)
-                        folderScanController.refreshAllOnStartup()
-                }
-
-                isReady = true
-            }
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier.fillMaxSize().background(Color(20, 20, 20))){
+            CircularProgressIndicator(color = Color(255, 255, 255))
         }
-        else {
 
-            draw(fullscreen, audioFolderController, folderScanController, playlistController)
+        LaunchedEffect(Unit)
+        {
+            withContext(Dispatchers.IO) {
+                audioFolderController.start()
+                folderScanController.restoreFromAudioController()
+
+                if (shouldUpdateOnStart)
+                    folderScanController.refreshAllOnStartup()
+            }
+
+            isReady = true
+        }
+    }
+    else
+    {
+        // Основной UI
+        CompositionLocalProvider(
+            LocalDensity provides Density(
+                loaderConfig.dpiScale.value,
+                loaderConfig.dpiScale.value
+            )
+        ) {
+
+            draw(fullscreen, audioFolderController, folderScanController, playlistController, openedAudioSource )
 
             //return@CompositionLocalProvider
 
@@ -289,8 +294,6 @@ fun preDraw() {
             )
 
         }
-
-
     }
 
 }

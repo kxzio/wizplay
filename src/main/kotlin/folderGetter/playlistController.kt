@@ -49,11 +49,35 @@ class PlaylistController(
     fun tracksByPlaylist(playlistId: Long): List<ScannedAudio> =
         db.tracksInPlaylist(playlistId)
 
+
+
+
     fun addTrack(playlistId: Long, track: ScannedAudio) {
         scope.launch {
             val pos = db.tracksInPlaylist(playlistId).size
             db.addTrackToPlaylist(playlistId, track.path, pos)
             load()
+        }
+    }
+
+    fun delete(id: Long) {
+        scope.launch {
+            db.deletePlaylist(id)
+            _playlists.value = _playlists.value.filter { it.id != id }
+        }
+    }
+
+
+    fun rename(id: Long, newName: String) {
+        scope.launch {
+            db.renamePlaylist(id, newName)
+
+            _playlists.value = _playlists.value.map {
+                if (it.id == id)
+                    it.copy(name = newName)
+                else
+                    it
+            }
         }
     }
 }

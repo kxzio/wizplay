@@ -15,6 +15,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -34,7 +35,6 @@ import org.example.audioindex.AudioFolderController
 import org.example.bassAudioController
 import org.example.folderGetter.PlaylistController
 import org.example.loaderConfig
-import org.example.ui.screens.leftPager.settings.AppPrefs
 import org.example.ui.screens.trackFullScreen
 import ui.screens.leftPager.renderLeftPager
 import ui.screens.rightPager.renderRightPager
@@ -46,7 +46,8 @@ fun draw(
     fullscreen: FullscreenController,
     audioFolderController: AudioFolderController,
     folderScanController: FolderScanController,
-    playlistController: PlaylistController
+    playlistController: PlaylistController,
+    openedAudioSource: MutableState<String>
 )  {
 
     val colors = darkColorScheme(
@@ -67,10 +68,6 @@ fun draw(
         colorScheme = colorScheme,
         typography = myTypography
     ) {
-
-        val openedAudioSource = remember {
-            mutableStateOf(AppPrefs.getString("openedAudioSource", ""))
-        }
 
         BoxWithConstraints(
             modifier = Modifier.fillMaxSize()
@@ -142,6 +139,7 @@ fun draw(
 
 
         }
+
     }
 
 

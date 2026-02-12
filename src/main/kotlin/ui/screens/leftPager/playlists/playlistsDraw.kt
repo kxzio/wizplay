@@ -17,7 +17,6 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsHoveredAsState
 import androidx.compose.foundation.layout.Arrangement
@@ -27,7 +26,6 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -35,6 +33,7 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
@@ -43,12 +42,16 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.sharp.PlaylistAdd
 import androidx.compose.material.icons.sharp.Close
 import androidx.compose.material.icons.sharp.Create
+import androidx.compose.material.icons.sharp.DeleteForever
 import androidx.compose.material.icons.sharp.Folder
 import androidx.compose.material.icons.sharp.LastPage
+import androidx.compose.material.icons.sharp.MoreVert
 import androidx.compose.material.icons.sharp.PlaylistAddCheckCircle
 import androidx.compose.material.icons.sharp.Search
 import androidx.compose.material.icons.sharp.Warning
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -64,7 +67,6 @@ import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -85,19 +87,18 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
-import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.PointerEventType
+import androidx.compose.ui.input.pointer.isSecondaryPressed
+import androidx.compose.ui.input.pointer.onPointerEvent
 import androidx.compose.ui.layout.onSizeChanged
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import org.example.audioindex.AudioFolderController
 import org.example.folderGetter.Playlist
 import org.example.folderGetter.PlaylistController
@@ -106,9 +107,7 @@ import org.example.ui.uiHelpers.AniJinPopup
 import org.example.ui.uiHelpers.wizuiUIMove
 import org.example.wizui.wizui
 import org.example.wizui.wizui.wizAnimateIf
-import ui.screens.leftPager.albums.AlphabetBubble
 import ui.screens.leftPager.albums.ScrollProgressThumb
-import ui.screens.leftPager.albums.handleAlphabetTouch
 import ui.screens.leftPager.albums.rememberScrollFraction
 
 fun matchesQueryPlaylist(query: String, playlist: Playlist): Boolean {
@@ -128,17 +127,22 @@ fun matchesQueryPlaylist(query: String, playlist: Playlist): Boolean {
     }
 }
 
+@OptIn(ExperimentalComposeUiApi::class)
 @Composable
 fun playlistsWithAlphabetScroller(
     results: MutableList<Playlist>,
     listState: LazyListState,
     highlitedPlaylist1: MutableState<String>,
-    openedAudioSource: MutableState<String>
+    openedAudioSource: MutableState<String>,
+    deletePlaylistId: MutableState<String>,
+    renamePlaylistId: MutableState<String>
 ) {
+
     val scope = rememberCoroutineScope()
     val scrollFraction = rememberScrollFraction(listState)
 
     val highlight = remember { Animatable(0f) }
+    val playlistDropDownMenuOpened = remember { mutableStateOf("") }
 
     LaunchedEffect(highlitedPlaylist1.value) {
         val target = highlitedPlaylist1.value
@@ -159,18 +163,18 @@ fun playlistsWithAlphabetScroller(
 
         highlight.animateTo(
             1f,
-            tween(500, easing = FastOutLinearInEasing)
+            tween(400, easing = FastOutLinearInEasing)
         )
 
         highlight.animateTo(
             0f,
-            tween(800, easing = LinearOutSlowInEasing)
+            tween(600, easing = LinearOutSlowInEasing)
         )
 
         highlitedPlaylist1.value = ""
     }
 
-
+    val primary = MaterialTheme.colorScheme.primary
     val highlitedColor = MaterialTheme.colorScheme.primary.copy(alpha = highlight.value)
 
     Box(modifier = Modifier.fillMaxSize()) {
@@ -194,7 +198,7 @@ fun playlistsWithAlphabetScroller(
                     .padding(vertical = 0.dp, horizontal = 64.dp), thickness = 1.dp,
                     color = Color(255, 255, 255, 10))
 
-                Box {
+                Box(Modifier.animateItem()) {
 
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
@@ -243,25 +247,99 @@ fun playlistsWithAlphabetScroller(
                             modifier = Modifier
                                 .padding(start = 24.dp, end = 24.dp)
                                 .fillMaxWidth()
+                                .onPointerEvent(PointerEventType.Press) { event ->
+
+                                    if (event.buttons.isSecondaryPressed) {
+                                        playlistDropDownMenuOpened.value = item.id.toString()
+                                    }
+
+                                }
                         ) {
 
-                            Text(
-                                text = item.name,
-                                fontSize = 16.sp,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                                color = Color.White
-                            )
+                            Row(verticalAlignment = Alignment.CenterVertically) {
 
-                            Spacer(Modifier.height(8.dp))
+                                Column(Modifier.weight(1f)) {
+                                    Text(
+                                        text = item.name,
+                                        fontSize = 16.sp,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                        color = Color.White
+                                    )
 
-                            Text(
-                                text = "playlist",
-                                fontSize = 14.sp,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                                color = Color.White.copy(alpha = 0.5f)
-                            )
+                                    Spacer(Modifier.height(8.dp))
+
+                                    Text(
+                                        text = "playlist",
+                                        fontSize = 14.sp,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                        color = Color.White.copy(alpha = 0.5f)
+                                    )
+                                }
+
+                                Box {
+                                    IconButton(
+                                        onClick = {
+                                            playlistDropDownMenuOpened.value = item.id.toString()
+                                        },
+                                    ){
+                                        Icon(Icons.Sharp.MoreVert, "", tint = Color(255, 255, 255, 150))
+                                    }
+
+                                    DropdownMenu(
+                                        shape = RectangleShape,
+                                        containerColor = Color(20, 20, 20),
+                                        border = BorderStroke(0.5.dp, Color(255, 255, 255, 50)),
+                                        expanded = playlistDropDownMenuOpened.value == item.id.toString(),
+                                        onDismissRequest = { playlistDropDownMenuOpened.value = "" },
+                                        modifier = Modifier
+                                            .width(220.dp).padding(horizontal = 8.dp)
+                                    ) {
+
+                                        DropdownMenuItem(
+                                            text = { Text("open") },
+                                            onClick = {
+                                                playlistDropDownMenuOpened.value = ""
+                                            }
+                                        )
+
+                                        DropdownMenuItem(
+                                            text = { Text("rename") },
+                                            onClick = {
+                                                playlistDropDownMenuOpened.value = ""
+                                                renamePlaylistId.value = item.id.toString()
+                                            }
+                                        )
+
+                                        HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+
+                                        DropdownMenuItem(
+                                            text = {
+
+                                                Row(verticalAlignment = Alignment.CenterVertically) {
+
+                                                    Icon(Icons.Sharp.DeleteForever, "",
+                                                        tint = Color(226, 80, 80, 255))
+
+                                                    Text(
+                                                        "delete",
+                                                        modifier = Modifier.padding(start = 12.dp),
+                                                        color = Color(226, 80, 80, 255)
+                                                    )
+                                                }
+                                            },
+                                            onClick = {
+                                                playlistDropDownMenuOpened.value = ""
+                                                deletePlaylistId.value = item.id.toString()
+                                            }
+                                        )
+                                    }
+                                }
+
+                            }
+
+
 
                         }
                     }
@@ -326,6 +404,9 @@ fun playlistsWithAlphabetScroller(
                 .padding(end = 0.dp) // левее букв
         )
 
+
+
+
     }
 }
 
@@ -346,8 +427,14 @@ fun playlistTab(
     var debouncedQuery by rememberSaveable { mutableStateOf("") }
     var isFocused by rememberSaveable { mutableStateOf(false) }
     var queryChangedByUser by rememberSaveable { mutableStateOf(false) }
+
     var playlistCreateWindow by remember { mutableStateOf(false) }
+    var deletePlaylistId = remember { mutableStateOf("") }
+    var renamePlaylistId = remember { mutableStateOf("") }
+    var renamePlaylistString = remember { mutableStateOf("") }
     var highlitedPlaylist = remember { mutableStateOf("") }
+
+    val audioMap by playlistController.playlists.collectAsState()
 
     Column(Modifier.padding(horizontal = 32.dp).fillMaxSize()) {
 
@@ -404,8 +491,6 @@ fun playlistTab(
                 color = MaterialTheme.colorScheme.primary
             )
         }
-
-        val audioMap by playlistController.playlists.collectAsState()
 
         val albums by remember {
             derivedStateOf {
@@ -489,7 +574,10 @@ fun playlistTab(
                         results = results,
                         listState = listState,
                         highlitedPlaylist,
-                        openedAudioSource = openedAudioSource
+                        openedAudioSource = openedAudioSource,
+                        deletePlaylistId,
+                        renamePlaylistId
+
                     )
 
                 }
@@ -566,12 +654,13 @@ fun playlistTab(
     }
 
     val createPlaylistErrorText = remember { mutableStateOf("") }
+    val renamePlaylistErrorText = remember { mutableStateOf("") }
     val errorWindowDragging     = remember { Animatable(0f) }
 
-    LaunchedEffect(createPlaylistErrorText.value)
+    LaunchedEffect(createPlaylistErrorText.value, renamePlaylistErrorText.value)
     {
 
-        if (createPlaylistErrorText.value.isEmpty())
+        if (createPlaylistErrorText.value.isEmpty() && renamePlaylistErrorText.value.isEmpty())
             return@LaunchedEffect
 
         errorWindowDragging.snapTo(0f)
@@ -802,7 +891,305 @@ fun playlistTab(
         }
     )
 
+    AniJinPopup(
+        focusable = true,
+        expanded = deletePlaylistId.value != "",
+        onDismissRequest =
+            {
+                deletePlaylistId.value = ""
+            },
+        enter =
+            fadeIn(
+                animationSpec = tween(120)
+            ) +
+                    scaleIn(
+                        initialScale = 0.85f,
+                        animationSpec = spring(
+                            dampingRatio = Spring.DampingRatioMediumBouncy,
+                            stiffness = Spring.StiffnessLow
+                        )
+                    ),
+        exit =
+            fadeOut(
+                animationSpec = tween(90)
+            ) +
+                    scaleOut(
+                        targetScale = 0.85f,
+                        animationSpec = tween(120)
+                    ),
+        content = {
+            Box(Modifier.fillMaxSize().background(Color(0, 0, 0, 100))) {
+                Surface(
+                    color = Color(20, 20, 20),
+                    border = BorderStroke(0.5.dp, Color(255, 255, 255, 100)),
+                    modifier = Modifier.padding(16.dp).align(Alignment.Center).offset(x = 3.dp * errorWindowDragging.value).width(400.dp)
+                ) {
 
+                    Column(Modifier.padding(32.dp)) {
+
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+
+                            IconButton( {
+                                deletePlaylistId.value = ""
+                            }){
+                                Icon(Icons.Sharp.Close, "", tint = Color.White)
+                            }
+
+                            val playlist = audioMap.firstOrNull {
+                                it.id == deletePlaylistId.value.toLongOrNull()
+                            }
+
+                            Text(  "delete playlist ${playlist?.name ?: ""}?", color = Color.White, fontSize = 18.sp, modifier = Modifier.padding(horizontal = 8.dp))
+                        }
+
+
+                        Spacer(Modifier.height(16   .dp))
+
+                        Box(
+                            modifier = Modifier.fillMaxWidth(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                                modifier = Modifier.wrapContentWidth()
+                            ) {
+
+                                wizui.wizButton(
+                                    backgroundColor = Color.Transparent,
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .border(BorderStroke(0.5.dp, Color(255, 255, 255, 100))),
+                                    contentColor = Color.White,
+                                    shape = RectangleShape,
+                                    onClick = {
+                                        deletePlaylistId.value = ""
+                                    },
+                                ) {
+                                    Text("n (no)")
+                                }
+
+                                wizui.wizButton(
+                                    backgroundColor = Color.Transparent,
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .border(BorderStroke(0.5.dp, primary)),
+                                    contentColor = Color.White,
+                                    shape = RectangleShape,
+                                    onClick = {
+                                        playlistController.delete(deletePlaylistId.value.toLong())
+                                        deletePlaylistId.value = ""
+                                    },
+                                ) {
+                                    Text("y (yes)")
+                                }
+                            }
+                        }
+
+
+
+                    }
+                }
+            }
+        }
+    )
+
+    LaunchedEffect(renamePlaylistId.value) {
+        renamePlaylistString.value = audioMap.firstOrNull {
+            it.id == renamePlaylistId.value.toLongOrNull()
+        }?.name ?: ""
+    }
+
+    AniJinPopup(
+        focusable = true,
+        expanded = renamePlaylistId.value != "",
+        onDismissRequest =
+            {
+                renamePlaylistErrorText.value = ""
+                renamePlaylistId.value = ""
+            },
+        enter =
+            fadeIn(
+                animationSpec = tween(120)
+            ) +
+                    scaleIn(
+                        initialScale = 0.85f,
+                        animationSpec = spring(
+                            dampingRatio = Spring.DampingRatioMediumBouncy,
+                            stiffness = Spring.StiffnessLow
+                        )
+                    ),
+        exit =
+            fadeOut(
+                animationSpec = tween(90)
+            ) +
+                    scaleOut(
+                        targetScale = 0.85f,
+                        animationSpec = tween(120)
+                    ),
+        content = {
+            Box(Modifier.fillMaxSize().background(Color(0, 0, 0, 100))) {
+                Surface(
+                    color = Color(20, 20, 20),
+                    border = BorderStroke(0.5.dp, Color(255, 255, 255, 100)),
+                    modifier = Modifier.padding(16.dp).align(Alignment.Center).offset(x = 3.dp * errorWindowDragging.value).width(400.dp)
+                ) {
+
+                    Column(Modifier.padding(32.dp)) {
+
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+
+                            IconButton( {
+                                renamePlaylistErrorText.value = ""
+                                renamePlaylistId.value = ""
+                            }){
+                                Icon(Icons.Sharp.Close, "", tint = Color.White)
+                            }
+
+                            val playlist = audioMap.firstOrNull {
+                                it.id == renamePlaylistId.value.toLongOrNull()
+                            }
+
+                            Text("remame playlist ${playlist?.name ?: ""}", color = Color.White, fontSize = 18.sp, modifier = Modifier.padding(horizontal = 8.dp))
+                        }
+
+                        Spacer(Modifier.height(16   .dp))
+
+                        var isFocusedOnCreation by rememberSaveable { mutableStateOf(false) }
+                        Row(Modifier.padding(top = 8.dp).zIndex(3f)) {
+                            BasicTextField(
+                                cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+                                value = renamePlaylistString.value,
+                                onValueChange = {
+                                    renamePlaylistErrorText.value = ""
+                                    renamePlaylistString.value = it
+                                },
+                                singleLine = true,
+                                textStyle = MaterialTheme.typography.bodyMedium.copy(color = MaterialTheme.colorScheme.onSurface),
+                                modifier = Modifier
+                                    .padding(bottom = 16.dp)
+                                    .width(400.dp)
+                                    .height(40.dp)
+                                    .background(Color(25, 25, 25, 150))
+                                    .drawBehind {
+
+                                        val y = size.height
+
+                                        drawLine(
+                                            if (isFocusedOnCreation) primary else Color(255, 255, 255, 100),
+                                            Offset(0f, y),
+                                            Offset(size.width, y),
+                                            1f
+                                        )
+                                    }
+                                    .onFocusChanged { focusState ->
+                                        isFocusedOnCreation = focusState.isFocused
+                                    }
+                                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                                decorationBox = { innerTextField ->
+                                    Box(
+                                        modifier = Modifier.fillMaxSize(),
+                                        contentAlignment = Alignment.CenterStart
+                                    ) {
+                                        if (renamePlaylistString.value.isEmpty() && !isFocusedOnCreation) {
+
+                                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                                Icon(
+                                                    Icons.Sharp.Create, "", tint =
+                                                        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
+                                                )
+                                                Text(
+                                                    "new playlist name",
+                                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f),
+                                                    modifier = Modifier.padding(start = 16.dp)
+                                                )
+                                            }
+                                        }
+                                        innerTextField()
+                                    }
+                                }
+                            )
+                        }
+
+                        Spacer(Modifier.height(16   .dp))
+
+                        Box(
+                            modifier = Modifier.fillMaxWidth(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                                modifier = Modifier.wrapContentWidth()
+                            ) {
+
+                                wizui.wizButton(
+                                    backgroundColor = Color.Transparent,
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .border(BorderStroke(0.5.dp, Color(255, 255, 255, 100))),
+                                    contentColor = Color.White,
+                                    shape = RectangleShape,
+                                    onClick = {
+                                        renamePlaylistErrorText.value = ""
+                                        renamePlaylistId.value = ""
+                                    },
+                                ) {
+                                    Text("cancel")
+                                }
+
+                                wizui.wizButton(
+                                    backgroundColor = Color.Transparent,
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .border(BorderStroke(0.5.dp, primary)),
+                                    contentColor = Color.White,
+                                    shape = RectangleShape,
+                                    onClick = {
+
+                                        if (playlistController.playlists.value.any { it.name == renamePlaylistString.value })
+                                        {
+                                            renamePlaylistErrorText.value = "name of this playlist is already in use"
+                                        }
+                                        else if (renamePlaylistString.value.isBlank())
+                                        {
+                                            renamePlaylistErrorText.value = "name should consist of symbols/digits"
+                                        }
+                                        else
+                                        {
+                                            renamePlaylistErrorText.value = ""
+                                            playlistController.rename(id = renamePlaylistId.value.toLong(), renamePlaylistString.value)
+                                            renamePlaylistId.value = ""
+                                        }
+
+
+                                    },
+                                ) {
+                                    Text("apply!")
+                                }
+                            }
+                        }
+
+                        if (!renamePlaylistErrorText.value.isEmpty()) {
+
+                            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 16.dp)) {
+
+                                Icon(
+                                    Icons.Sharp.Warning, "", tint = Color(226, 80, 80, 255),
+                                )
+
+                                Text(renamePlaylistErrorText.value, color = Color(226, 80, 80, 255), modifier = Modifier.padding(start = 16.dp))
+                            }
+
+                        }
+
+
+
+                    }
+                }
+            }
+        }
+    )
 
 
 }
