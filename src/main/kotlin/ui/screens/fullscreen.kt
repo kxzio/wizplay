@@ -345,7 +345,10 @@ fun trackFullScreen(fullscreen: MutableState<Boolean>)
             if (track.artworkPath != null)
                 Box(Modifier.zIndex(3f).fillMaxSize()) {
                     Crossfade(targetState = track.artworkPath, animationSpec = tween(180)) { artworkPath ->
-                        artworkAsync(artworkPath, Modifier.fillMaxSize().scale(2f).blur(260.dp).alpha(0.5f))
+                        artworkAsync(artworkPath,
+                            Modifier.fillMaxSize().scale(2f).alpha(0.5f),
+                            blurRadius = 60f
+                        )
                     }
                 }
             else

@@ -375,13 +375,13 @@ fun drawBottomBar(
                                 Row(Modifier.zIndex(2f).align(Alignment.End).padding(end = 6.dp)) {
 
 
-                                    Text(state.positionSec.toTimeString(), fontSize = 11.sp,
+                                    Text(state.positionSec.toTimeString(), fontSize = 13.sp,
                                         color = col
                                     )
 
-                                    Text("  /  ", fontSize = 11.sp, color = Color(255, 255, 255))
+                                    Text("  /  ", fontSize = 13.sp, color = Color(255, 255, 255))
 
-                                    Text(state.durationSec.toTimeString(), fontSize = 11.sp,
+                                    Text(state.durationSec.toTimeString(), fontSize = 13.sp,
                                         color = Color(255, 255, 255))
                                 }
 
@@ -406,66 +406,6 @@ fun drawBottomBar(
                                             modifier = Modifier.size(24.dp),
                                             imageVector = Icons.Sharp.Fullscreen, contentDescription = "",
                                             tint = Color(255, 255, 255, 100)
-                                        )
-                                    }
-
-                                    Spacer(Modifier.width(16.dp))
-
-                                    IconButton(
-
-                                        modifier = Modifier
-                                            .size(40.dp)
-                                        ,
-                                        colors = IconButtonDefaults.iconButtonColors(
-                                            containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.0f)
-                                        ),
-                                        onClick = {
-                                            bassQueueController.toggleShuffle(!bassQueueController.isShuffle)
-                                        }
-                                    )
-                                    {
-                                        Icon(
-                                            modifier = Modifier.size(24.dp),
-                                            imageVector = Icons.Sharp.Shuffle, contentDescription = "",
-                                            tint =
-                                                if (bassQueueController.isShuffle)
-                                                    col
-                                                else
-                                                    Color(255, 255, 255, 100)
-                                        )
-                                    }
-
-                                    Spacer(Modifier.width(16.dp))
-
-                                    IconButton(
-
-                                        modifier = Modifier
-                                            .size(40.dp)
-                                        ,
-                                        colors = IconButtonDefaults.iconButtonColors(
-                                            containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.0f)
-                                        ),
-                                        onClick = {
-                                            bassQueueController.toggleRepeat()
-                                        }
-                                    )
-                                    {
-                                        Icon(
-                                            modifier = Modifier.size(24.dp),
-                                            imageVector =
-                                                if (bassQueueController.repeatMode == repeatMods.REPEAT_OFF)
-                                                    Icons.Sharp.Repeat
-                                                else if (bassQueueController.repeatMode == repeatMods.REPEAT_ALL)
-                                                    Icons.Sharp.Repeat
-                                                else
-                                                    Icons.Sharp.RepeatOne
-                                            ,
-                                            contentDescription = "",
-                                            tint =
-                                                if (bassQueueController.repeatMode == repeatMods.REPEAT_OFF)
-                                                    Color(255, 255, 255, 100)
-                                                else
-                                                    col
                                         )
                                     }
 

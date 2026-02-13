@@ -40,8 +40,11 @@ dependencies {
     implementation("net.java.dev.jna:jna-platform:5.15.0")
 
     // Image Loading
-    implementation("io.coil-kt.coil3:coil-compose:3.0.0-rc01")
-    implementation("io.coil-kt.coil3:coil-network-okhttp:3.0.0-rc01")
+    implementation(platform("io.coil-kt.coil3:coil-bom:3.3.0"))
+
+    implementation("io.coil-kt.coil3:coil-compose")
+    implementation("io.coil-kt.coil3:coil-core")
+    implementation("io.coil-kt.coil3:coil-network-okhttp")
 
     // Haze 1.7.0 (требует Skiko 0.9.x)
     implementation("dev.chrisbanes.haze:haze:1.7.0")

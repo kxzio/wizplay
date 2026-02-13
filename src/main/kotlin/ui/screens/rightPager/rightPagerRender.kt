@@ -408,8 +408,8 @@ fun drawAlbum(
                                         artworkPath,
                                         Modifier
                                             .fillMaxSize()
-                                            .blur(60.dp)
-                                            .alpha(0.3f)
+                                            .alpha(0.3f),
+                                        blurRadius = 60f
                                     )
                                 }
                             }

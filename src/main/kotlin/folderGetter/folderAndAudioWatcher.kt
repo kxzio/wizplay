@@ -207,14 +207,26 @@ class AudioFolderController {
             val audio = AudioFileIO.read(path.toFile())
             val tag = audio.tag ?: return null
 
-            val artist = tag.getFirst(FieldKey.ARTIST)
-            val album = tag.getFirst(FieldKey.ALBUM)
+            var artist = tag.getFirst(FieldKey.ARTIST)
+            var album = tag.getFirst(FieldKey.ALBUM)
             val year = tag.getFirst(FieldKey.YEAR)
-            val title = tag.getFirst(FieldKey.TITLE)
+            var title = tag.getFirst(FieldKey.TITLE)
             val pos = tag.getFirst(FieldKey.TRACK)
             val discRaw = tag.getFirst(FieldKey.DISC_NO)
             val discNumber = discRaw
                 .substringBefore("/")
+
+            if (artist.isBlank() || artist.isNullOrEmpty()) {
+                artist = "Unknown Artist"
+            }
+
+            if (album.isBlank() || album.isNullOrEmpty()) {
+                album = path.parent?.fileName?.toString()
+            }
+
+            if (title.isBlank() || title.isNullOrEmpty()) {
+                title = path.fileName.toString().substringBeforeLast(".")
+            }
 
             val albumKey = "$album::$year"
 

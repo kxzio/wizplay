@@ -26,10 +26,13 @@ import coil3.ImageLoader
 import coil3.compose.AsyncImage
 import coil3.compose.AsyncImagePainter
 import coil3.compose.LocalPlatformContext
+import coil3.compose.SubcomposeAsyncImage
 import coil3.compose.rememberAsyncImagePainter
 import coil3.request.ImageRequest
 import coil3.request.crossfade
+import coil3.request.transformations
 import coil3.size.Size
+import org.example.ui.effects.PreRenderBlurTransformation
 import java.nio.file.Path
 import javax.swing.GroupLayout
 
@@ -43,10 +46,15 @@ private fun dpToPx(dp: Dp): Int {
 fun artworkAsync(
     path: Path?,
     modifier: Modifier = Modifier,
-    placeholderSize: Float = 0.7f
+    placeholderSize: Float = 0.7f,
+    blurRadius: Float = 0f
 ) {
+
     if (path == null) {
-        Box(modifier.fillMaxSize() , contentAlignment = Alignment.Center) {
+        Box(
+            modifier = modifier,
+            contentAlignment = Alignment.Center
+        ) {
             Icon(
                 Icons.Sharp.Album,
                 contentDescription = null,
@@ -59,25 +67,36 @@ fun artworkAsync(
 
     val context = LocalPlatformContext.current
 
-    val painter: AsyncImagePainter = rememberAsyncImagePainter(
-        model = remember(path) {
-            ImageRequest.Builder(context)
-                .data(path.toString())
-                .size(Size(512, 512))
-                .memoryCacheKey(path.toString())
-                .diskCacheKey(path.toString())
-                .crossfade(durationMillis = 200)
-                .build()
-        },
-        filterQuality = FilterQuality.Low,
-        contentScale = ContentScale.Crop,
-    )
+    val request = remember(path, blurRadius) {
 
-    Box(modifier.background(Color(45, 45, 45))) {
-        Image(
-            painter = painter,
+        ImageRequest.Builder(context)
+            .data(path.toString())
+
+            // critical for caching
+            .memoryCacheKey("artwork_${path}_blur_$blurRadius")
+            .diskCacheKey("artwork_${path}_blur_$blurRadius")
+
+            .crossfade(200)
+
+            .apply {
+                if (blurRadius > 0f) {
+                    transformations(
+                        PreRenderBlurTransformation(blurRadius)
+                    )
+                }
+            }
+
+            .build()
+    }
+
+    Box(
+        modifier = modifier.background(Color(45, 45, 45))
+    ) {
+        SubcomposeAsyncImage(
+            model = request,
             contentDescription = null,
-            modifier = Modifier.fillMaxSize()
+            contentScale = ContentScale.Crop,
+            modifier = Modifier.matchParentSize()
         )
     }
 }

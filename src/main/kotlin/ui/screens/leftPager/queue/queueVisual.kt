@@ -1,6 +1,7 @@
 package org.example.ui.screens.leftPager.queue
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -16,10 +17,16 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.sharp.Close
 import androidx.compose.material.icons.sharp.DragHandle
+import androidx.compose.material.icons.sharp.PlayArrow
+import androidx.compose.material.icons.sharp.Queue
 import androidx.compose.material.icons.sharp.Remove
+import androidx.compose.material.icons.sharp.Repeat
+import androidx.compose.material.icons.sharp.RepeatOne
+import androidx.compose.material.icons.sharp.Shuffle
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -39,6 +46,7 @@ import org.burnoutcrew.reorderable.detectReorder
 import org.burnoutcrew.reorderable.rememberReorderableLazyListState
 import org.burnoutcrew.reorderable.reorderable
 import org.example.bass.queue.QueueItem
+import org.example.bass.queue.repeatMods
 import org.example.bassQueueController
 import org.example.ui.screens.leftPager.albums.artworkAsync
 import org.example.wizui.wizui
@@ -58,7 +66,7 @@ fun drawQueue(offsetOfBottomBar: MutableState<Dp>) {
                     "queue",
                     normalColor = Color(255, 255, 255),
                     blinkColor = MaterialTheme.colorScheme.primary,
-                    fontSize = 22.sp,
+                    fontSize = 32.sp,
                     modifier = Modifier.padding(start = 12.dp),
                     onClick = {
 
@@ -95,6 +103,83 @@ fun drawQueue(offsetOfBottomBar: MutableState<Dp>) {
             }
         }
 
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier
+            .padding(start = 32.dp, end = 32.dp, top = 8.dp, bottom = 16.dp)) {
+
+            wizui.wizButton(
+
+                modifier = Modifier.border(1.dp, Color(255, 255, 255, 20)),
+                shape = RectangleShape,
+                toggleVariable = bassQueueController.isShuffle,
+                turnOffToggleIndication = true,
+                contentColorToggled = Color(255, 255, 255),
+                contentColor = Color(255, 255, 255, 100),
+                backgroundColor = Color(20, 20, 20),
+                onClick = {
+                    bassQueueController.toggleShuffle(!bassQueueController.isShuffle)
+                }
+            )
+            {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+
+                    Icon(
+                        modifier = Modifier.size(24.dp),
+                        imageVector = Icons.Sharp.Shuffle, contentDescription = "",
+                        tint =
+                            if (bassQueueController.isShuffle)
+                                MaterialTheme.colorScheme.primary
+                            else
+                                Color(255, 255, 255, 100)
+                    )
+
+                    Text("shuffle : " + if (bassQueueController.isShuffle) "on" else "off", modifier = Modifier.padding(start = 16.dp))
+
+                }
+
+            }
+
+            Spacer(Modifier.width(16.dp))
+
+            wizui.wizButton(
+
+                modifier = Modifier.border(1.dp, Color(255, 255, 255, 20)),
+                shape = RectangleShape,
+                contentColor = Color(255, 255, 255),
+                backgroundColor = Color(20, 20, 20),
+                onClick = {
+                    bassQueueController.toggleRepeat()
+                }
+            )
+            {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+
+                    Icon(
+                        modifier = Modifier.size(24.dp),
+                        imageVector =
+                            if (bassQueueController.repeatMode == repeatMods.REPEAT_OFF)
+                                Icons.Sharp.Repeat
+                            else if (bassQueueController.repeatMode == repeatMods.REPEAT_ALL)
+                                Icons.Sharp.Repeat
+                            else
+                                Icons.Sharp.RepeatOne
+                        ,
+                        contentDescription = "",
+                        tint =
+                            if (bassQueueController.repeatMode == repeatMods.REPEAT_OFF)
+                                Color(255, 255, 255, 100)
+                            else
+                                MaterialTheme.colorScheme.primary
+                    )
+
+                    Text("repeat mode", modifier = Modifier.padding(start = 16.dp))
+
+
+                }
+
+            }
+        }
+
+
         val state = rememberReorderableLazyListState(
             onMove = { from, to ->
 
@@ -123,6 +208,23 @@ fun drawQueue(offsetOfBottomBar: MutableState<Dp>) {
                 bassQueueController.setQueue(localQueue.toList())
             }
         )
+
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(start = 32.dp, bottom = 8.dp)) {
+
+            Icon(
+                modifier = Modifier.size(26.dp),
+                imageVector = Icons.Sharp.PlayArrow,
+                contentDescription = "",
+                tint = Color(255, 255, 255, 100)
+
+            )
+
+            Text(
+                "now playing", modifier = Modifier.padding(start = 16.dp),
+                color = Color(255, 255, 255, 100),
+                fontSize = 16.sp
+            )
+        }
 
         LazyColumn(
             state = state.listState,
