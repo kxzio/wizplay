@@ -214,8 +214,9 @@ fun albumsWithAlphabetScroller(
 
     Box(modifier = Modifier.fillMaxSize()) {
 
-        val isOpenedAlbumVisible = listState.layoutInfo.visibleItemsInfo.map { it.key }.contains(openedAudioSource.value)
-
+        val isOpenedAlbumVisible = listState.layoutInfo.visibleItemsInfo.map { it.key }.
+        contains(openedAudioSource.value)
+        
         // ───── YOUR LazyColumn ─────
         LazyColumn(
             state = listState,

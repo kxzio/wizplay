@@ -15,10 +15,13 @@ data class Playlist(
     val id: Long,
     val name: String,
     val trackCount: Int
-)
+){
+    val playlistKey: String
+        get() = "_playlist:$name::$id"
+}
 
 class PlaylistController(
-    private val db: AudioDatabase
+    val db: AudioDatabase
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
@@ -48,9 +51,6 @@ class PlaylistController(
 
     fun tracksByPlaylist(playlistId: Long): List<ScannedAudio> =
         db.tracksInPlaylist(playlistId)
-
-
-
 
     fun addTrack(playlistId: Long, track: ScannedAudio) {
         scope.launch {

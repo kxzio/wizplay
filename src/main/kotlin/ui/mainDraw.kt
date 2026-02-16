@@ -119,6 +119,7 @@ fun draw(
                             renderRightPager(
                                 audioFolderController,
                                 openedAudioSource,
+                                playlistController,
                                 overlayEnabled
                             )
 

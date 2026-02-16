@@ -190,7 +190,7 @@ fun playlistsWithAlphabetScroller(
         ) {
             items(
                 items = results.reversed(),
-                key = { it.id },
+                key = { it.playlistKey },
                 contentType = { "playlist" }
             ) { item ->
 
@@ -214,13 +214,13 @@ fun playlistsWithAlphabetScroller(
                                     Color(0, 0, 0, 0)
                             )
                             .clickable {
-                                openedAudioSource.value = item.id.toString()
-                                AppPrefs.setString("openedAudioSource", item.id.toString())
+                                openedAudioSource.value = item.playlistKey
+                                AppPrefs.setString("openedAudioSource", item.playlistKey)
                             }
                     ) {
 
                         val sizeAnimated = animateFloatAsState(
-                            targetValue = if (openedAudioSource.value != item.id.toString()) 1f else 1.6f
+                            targetValue = if (openedAudioSource.value != item.playlistKey) 1f else 1.6f
                         )
 
                         Box(
@@ -231,7 +231,7 @@ fun playlistsWithAlphabetScroller(
 
                         ) {
 
-                            if (openedAudioSource.value == item.id.toString())
+                            if (openedAudioSource.value == item.playlistKey)
                             {
                                 Box(Modifier.fillMaxSize().background(Color(0, 0, 0, 150)).border(BorderStroke(
                                     1.dp, Color(80, 80, 80)
@@ -360,7 +360,7 @@ fun playlistsWithAlphabetScroller(
             OutlinedButton({
                 cour.launch {
 
-                    val index = results.indexOfFirst { it.id.toString() == openedAudioSource.value}
+                    val index = results.indexOfFirst { it.playlistKey == openedAudioSource.value}
 
                     if ( index > -1 )
                         listState.animateScrollToItem(index)
@@ -521,7 +521,7 @@ fun playlistTab(
 
         LaunchedEffect(wizuiUIMove.albumListMoveToAlbumKey)
         {
-            val index = results.indexOfFirst { it.id.toString() == openedAudioSource.value}
+            val index = results.indexOfFirst { it.playlistKey == openedAudioSource.value}
             if (index != -1) listState.animateScrollToItem(index)
             wizuiUIMove.albumListMoveToAlbumKey = ""
         }

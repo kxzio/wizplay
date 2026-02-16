@@ -45,7 +45,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
@@ -63,11 +62,12 @@ import dev.chrisbanes.haze.HazeTint
 import dev.chrisbanes.haze.hazeEffect
 import dev.chrisbanes.haze.hazeSource
 import dev.chrisbanes.haze.rememberHazeState
-import org.apache.commons.io.IOCase.value
 import org.example.audioindex.AudioFolderController
 import org.example.audioindex.ScannedAudio
+import org.example.bass.bassController.trackSource
 import org.example.bassAudioController
 import org.example.bassQueueController
+import org.example.folderGetter.PlaylistController
 import org.example.ui.screens.leftPager.albums.artworkAsync
 import org.example.ui.screens.leftPager.queue.drawQueue
 import org.example.ui.screens.rightPager.drawBottomBar
@@ -118,6 +118,7 @@ fun TimePreviewBubble(text: String) {
 fun renderRightPager(
     audioFolderController: AudioFolderController,
     openedAudioSource: MutableState<String>,
+    playlistController: PlaylistController,
     overlayEnabled: MutableState<Boolean>,
 )
 {
@@ -170,7 +171,6 @@ fun renderRightPager(
         }
 
 
-
         val pagerState = rememberPagerState(
             initialPage = openedTab.value - 1,
             pageCount = { 2 }
@@ -195,7 +195,8 @@ fun renderRightPager(
                     overlayEnabled,
                     hazeState,
                     offsetOfBottomBar,
-                    listState
+                    listState,
+                    playlistController
                 )
 
                 1 -> drawQueue(offsetOfBottomBar)
@@ -313,6 +314,7 @@ fun drawAlbum(
     hazeState: HazeState,
     offsetOfBottomBar: MutableState<Dp>,
     listState: LazyListState,
+    playlistController: PlaylistController,
 )
 {
     val col = MaterialTheme.colorScheme.primary
@@ -328,14 +330,25 @@ fun drawAlbum(
     {
 
         val openedAlbumTracks =
-            audioFolderController
-                .tracksByAlbum(openedAudioSource.value)
-                .sortedWith(
-                    compareBy<ScannedAudio>(
-                        { it.disc },
-                        { it.pos.toIntOrNull() ?: Int.MAX_VALUE }
-                    )
-                )
+
+            when (val parsed = trackSource.fromString(openedAudioSource.value)) {
+
+                is trackSource.album ->
+                    audioFolderController
+                        .tracksByAlbum(openedAudioSource.value)
+                        .sortedWith(
+                            compareBy<ScannedAudio>(
+                                { it.disc },
+                                { it.pos.toIntOrNull() ?: Int.MAX_VALUE }
+                            )
+                        )
+
+                is trackSource.playlist ->
+                    playlistController.tracksByPlaylist(parsed.playlistId)
+
+                else -> { emptyList()}
+            }
+
 
         val albumDurationCache = remember { mutableMapOf<String, String>() }
 
@@ -350,9 +363,28 @@ fun drawAlbum(
             }
         }
 
-        if (openedAlbumTracks.isEmpty())
-        {
-            openedAudioSource.value = ""
+        LaunchedEffect(openedAudioSource.value) {
+
+            when (val parsed = trackSource.fromString(openedAudioSource.value)) {
+
+                is trackSource.album -> {
+                    if (!playlistController.db.hasAlbumKey(parsed.albumKey)) {
+                        openedAudioSource.value = ""
+                    }
+                }
+
+
+                is trackSource.playlist -> {
+                    if (!playlistController.db.hasPlaylistId(parsed.playlistId)) {
+                        openedAudioSource.value = ""
+                    }
+                }
+
+
+                else -> {
+
+                }
+            }
         }
 
         if (openedAudioSource.value.isBlank())
@@ -365,6 +397,9 @@ fun drawAlbum(
 
                 Text("select album or playlist from the media-tab", fontSize = 16.sp, color = Color(255, 255, 255))
             }
+        else if (openedAlbumTracks.isEmpty()) {
+
+        }
         else
         {
 

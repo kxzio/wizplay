@@ -20,10 +20,9 @@ data class ScannedAudio(
     val year: String,
     val pos: String,
     val artworkPath: Path? = null,
-    val albumCreator: Boolean = false
 ) {
     val albumKey: String
-        get() = "$album::$year"
+        get() = "_album:$album::$year"
 }
 
 private fun norm(path: Path): Path =
@@ -114,92 +113,83 @@ class AudioFolderController {
 
     private suspend fun scanRoot(root: Path) {
 
-        val current = _audioMap.value.toMutableMap()
-
         Files.walk(root).use { stream ->
             stream
                 .filter { it.isRegularFile() }
                 .filter { isAudio(it) }
                 .forEach { file ->
 
-                    //update all audio files, BUT we dont write them in memory. only in bd
                     val path = norm(file)
 
                     readTagsAndArtwork(path)?.let { audio ->
                         db.upsertAudio(audio)
-
-                        if (audio.albumCreator && !current.containsKey(audio.albumKey)) {
-                            current[audio.albumKey] = audio
-                        }
                     }
                 }
         }
 
-        //update creators
-        _audioMap.value = current
+        reloadCreators()
     }
+
+    private fun reloadCreators() {
+
+        val creators = db.loadAlbumCreators()
+
+        _audioMap.value =
+            creators.associateBy { it.albumKey }
+
+        albumArtworkCache.clear()
+
+        creators.forEach {
+            it.artworkPath?.let { p ->
+                albumArtworkCache[it.albumKey] = p
+            }
+        }
+    }
+
+
 
     suspend fun refreshRoot(
         rootPath: Path,
         onProgress: (current: Int, total: Int) -> Unit
     ) {
+
         val root = norm(rootPath)
         if (!roots.contains(root)) return
 
-        // 🔹 1. Файлы на диске
-        val fsFiles: Set<Path> = Files.walk(root).use { stream ->
-            stream
-                .filter { it.isRegularFile() }
+        val fsFiles = Files.walk(root).use { stream ->
+            stream.filter { it.isRegularFile() }
                 .filter { isAudio(it) }
                 .map(::norm)
                 .toList()
                 .toSet()
         }
 
-        // 🔹 2. Файлы в БД
-        val dbFiles: Set<Path> = db.pathsByRoot(root)
+        val dbFiles = db.pathsByRoot(root)
 
-        // 🔹 3. DIFF
         val added = fsFiles - dbFiles
         val removed = dbFiles - fsFiles
 
-        val current = _audioMap.value.toMutableMap()
-
-        // 🔹 4. Удалённые
-        for (path in removed) {
+        for (path in removed)
             db.deleteByPath(path)
 
-            // если удалён albumCreator — нужно выбрать нового
-            val albumKey = db.albumKeyByPath(path) ?: continue
-            if (!db.hasAlbumCreator(albumKey)) {
-                db.findAnyTrackInAlbum(albumKey)?.let {
-                    current[albumKey] = it.copy(albumCreator = true)
-                }
-            }
-        }
-
-        // 🔹 5. Новые
         var index = 0
+
         for (path in added) {
+
             index++
             onProgress(index, added.size)
 
-            readTagsAndArtwork(path)?.let { audio ->
-                db.upsertAudio(audio)
-                if (audio.albumCreator) {
-                    current[audio.albumKey] = audio
-                }
+            readTagsAndArtwork(path)?.let {
+                db.upsertAudio(it)
             }
 
             yield()
         }
 
-        _audioMap.value = current
+        reloadCreators()
     }
 
-
     /* ================= TAGS + ARTWORK ================= */
-
 
     private fun readTagsAndArtwork(path: Path): ScannedAudio? =
         try {
@@ -230,8 +220,6 @@ class AudioFolderController {
 
             val albumKey = "$album::$year"
 
-            val alreadyHasCreator = db.hasAlbumCreator(albumKey)
-
             val artworkPath =
                 albumArtworkCache[albumKey]
                     ?: extractAndCacheArtwork(albumKey, audio)
@@ -245,7 +233,6 @@ class AudioFolderController {
                 pos = pos,
                 disc = discNumber,
                 artworkPath = artworkPath,
-                albumCreator = !alreadyHasCreator
             )
 
         } catch (_: Exception) {

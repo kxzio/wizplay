@@ -40,6 +40,8 @@ class AudioDatabase(dbPath: Path) {
     init {
         conn.createStatement().use { st ->
 
+            st.execute("PRAGMA foreign_keys = ON")
+
             st.execute("""
             CREATE TABLE IF NOT EXISTS roots (
                 path TEXT PRIMARY KEY
@@ -56,22 +58,13 @@ class AudioDatabase(dbPath: Path) {
                 pos TEXT,
                 artwork_path TEXT,
                 album_key TEXT,
-                disc TEXT,
-                album_creator INTEGER
+                disc TEXT
             )
         """.trimIndent())
 
             st.execute("""
-            CREATE INDEX IF NOT EXISTS idx_album_key
-            ON audio(album_key)
+           CREATE INDEX IF NOT EXISTS idx_album_key ON audio(album_key)
         """.trimIndent())
-
-            st.execute("""
-            CREATE UNIQUE INDEX IF NOT EXISTS uniq_album_creator
-            ON audio(album_key)
-            WHERE album_creator = 1
-        """.trimIndent())
-
 
             st.execute("""
             CREATE TABLE IF NOT EXISTS playlists (
@@ -106,8 +99,8 @@ class AudioDatabase(dbPath: Path) {
     fun upsertAudio(a: ScannedAudio) {
         conn.prepareStatement("""
         INSERT INTO audio
-        (path, title, artist, album, year, pos, artwork_path, album_key, disc, album_creator)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        (path, title, artist, album, year, pos, artwork_path, album_key, disc)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(path) DO UPDATE SET
             title=excluded.title,
             artist=excluded.artist,
@@ -116,9 +109,9 @@ class AudioDatabase(dbPath: Path) {
             pos=excluded.pos,
             artwork_path=excluded.artwork_path,
             album_key=excluded.album_key,
-            disc=excluded.disc,
-            album_creator=excluded.album_creator
+            disc=excluded.disc
     """.trimIndent()).use { ps ->
+
             ps.setString(1, a.path.toString())
             ps.setString(2, a.title)
             ps.setString(3, a.artist)
@@ -128,18 +121,25 @@ class AudioDatabase(dbPath: Path) {
             ps.setString(7, a.artworkPath?.toString())
             ps.setString(8, a.albumKey)
             ps.setString(9, a.disc)
-            ps.setInt(10, if (a.albumCreator) 1 else 0)
+
             ps.executeUpdate()
         }
     }
 
     fun loadAlbumCreators(): List<ScannedAudio> {
+
         val list = mutableListOf<ScannedAudio>()
 
         conn.createStatement().use { st ->
             val rs = st.executeQuery("""
-            SELECT * FROM audio WHERE album_creator = 1
-        """.trimIndent())
+            SELECT *
+            FROM audio
+            WHERE path IN (
+                SELECT MIN(path)
+                FROM audio
+                GROUP BY album_key
+            )
+        """)
 
             while (rs.next()) {
                 list += ScannedAudio(
@@ -149,18 +149,23 @@ class AudioDatabase(dbPath: Path) {
                     album = rs.getString("album"),
                     year = rs.getString("year"),
                     pos = rs.getString("pos"),
-                    artworkPath = rs.getString("artwork_path")?.let { Path(it) },
                     disc = rs.getString("disc"),
-                    albumCreator = true
+                    artworkPath = rs.getString("artwork_path")?.let { Path(it) }
                 )
             }
         }
+
         return list
     }
 
-    fun hasAlbumCreator(albumKey: String): Boolean {
+    fun hasAlbumKey(albumKey: String): Boolean {
         conn.prepareStatement(
-            "SELECT 1 FROM audio WHERE album_key = ? AND album_creator = 1 LIMIT 1"
+            """
+        SELECT 1
+        FROM audio
+        WHERE album_key = ?
+        LIMIT 1
+        """
         ).use { ps ->
             ps.setString(1, albumKey)
             ps.executeQuery().use { rs ->
@@ -168,6 +173,24 @@ class AudioDatabase(dbPath: Path) {
             }
         }
     }
+
+    fun hasPlaylistId(playlistId: Long): Boolean {
+        conn.prepareStatement(
+            """
+        SELECT 1
+        FROM playlists
+        WHERE id = ?
+        LIMIT 1
+        """
+        ).use { ps ->
+            ps.setLong(1, playlistId)
+            ps.executeQuery().use { rs ->
+                return rs.next()
+            }
+        }
+    }
+
+
 
     fun pathsByRoot(root: Path): Set<Path> =
         conn.prepareStatement(
@@ -201,29 +224,6 @@ class AudioDatabase(dbPath: Path) {
                 if (rs.next()) rs.getString(1) else null
             }
         }
-
-    fun findAnyTrackInAlbum(albumKey: String): ScannedAudio? =
-        conn.prepareStatement(
-            "SELECT * FROM audio WHERE album_key = ? LIMIT 1"
-        ).use { ps ->
-            ps.setString(1, albumKey)
-            ps.executeQuery().use { rs ->
-                if (!rs.next()) return null
-
-                ScannedAudio(
-                    path = Path(rs.getString("path")),
-                    title = rs.getString("title"),
-                    artist = rs.getString("artist"),
-                    album = rs.getString("album"),
-                    year = rs.getString("year"),
-                    pos = rs.getString("pos"),
-                    disc = rs.getString("disc"),
-                    artworkPath = rs.getString("artwork_path")?.let { Path(it) },
-                    albumCreator = true
-                )
-            }
-        }
-
 
     fun loadAll(): Map<Path, ScannedAudio> {
         val map = mutableMapOf<Path, ScannedAudio>()
