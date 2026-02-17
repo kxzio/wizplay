@@ -3,6 +3,7 @@ package ui.screens.rightPager
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.ExperimentalAnimationApi
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -26,6 +27,7 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.sharp.Album
 import androidx.compose.material.icons.sharp.PermMedia
+import androidx.compose.material.icons.sharp.Queue
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -72,6 +74,7 @@ import org.example.ui.screens.leftPager.albums.artworkAsync
 import org.example.ui.screens.leftPager.queue.drawQueue
 import org.example.ui.screens.rightPager.drawBottomBar
 import org.example.wizui.wizui
+import kotlin.io.path.Path
 
 fun Modifier.bottomGradient(col: Color) = this.drawWithCache {
     val gradient = Brush.radialGradient(
@@ -399,6 +402,116 @@ fun drawAlbum(
             }
         else if (openedAlbumTracks.isEmpty()) {
 
+            val parsed = trackSource.fromString(openedAudioSource.value)
+            val isAlbum = parsed is trackSource.album
+
+            if (!isAlbum) {
+
+                Box(Modifier.fillMaxSize().padding(bottom = 142.dp)) {
+                    Box {
+
+                        Column(modifier = Modifier.padding(top = 76.dp))
+                        {
+                            Row(horizontalArrangement = Arrangement.spacedBy(16.dp),
+                                modifier = Modifier.padding(
+                                    top = 32.dp,
+                                    start = 32.dp,
+                                    end = 32.dp,
+                                    bottom = 26.dp
+                                )) {
+
+                                Box(Modifier.size(250.dp)) {
+
+                                    Crossfade(
+                                        targetState = Path(""),
+                                        animationSpec = tween(180)
+                                    ) { artworkPath ->
+                                        artworkAsync(
+                                            artworkPath,
+                                            Modifier.size(250.dp)
+                                        )
+                                    }
+                                }
+
+
+                                Column {
+
+                                    val parsed = trackSource.fromString(openedAudioSource.value)
+                                    val playlistId = if (parsed is trackSource.playlist) {
+                                        parsed.playlistId
+                                    } else 0
+
+                                    val playlist = playlistController.getPlaylistById(playlistId)
+
+                                    Text(
+                                        playlist?.name ?: "playlist name",
+                                        fontSize = 28.sp,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                        color = Color(255, 255, 255)
+                                    )
+
+                                    Spacer(Modifier.height(6.dp))
+
+
+                                    Text(
+                                        "playlist",
+                                        fontSize = 16.sp,
+                                        color = Color(255, 255, 255, 120)
+                                    )
+
+                                    Spacer(Modifier.height(6.dp))
+
+
+                                }
+
+                            }
+
+                            HorizontalDivider(
+                                modifier = Modifier.padding().fillMaxWidth(),
+                                thickness = 1.0.dp,
+                                color = Color(255, 255, 255, 60)
+                            )
+
+                            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center)
+                            {
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+
+                                    Icon(Icons.Sharp.Queue, "",
+                                        tint = Color(255, 255, 255, 30),
+                                        modifier = Modifier.size(150.dp)
+                                    )
+
+                                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 16.dp)) {
+                                        Text("this source is empty, ", fontSize = 16.sp, color = Color(255, 255, 255))
+
+                                        wizui.wizButton(
+                                            backgroundColor = Color(0, 0, 0, 0),
+                                            modifier = Modifier.border(
+                                                BorderStroke(0.5.dp, Color(255, 255, 255, 100))),
+                                            contentColor = Color.White,
+                                            shape = RectangleShape,
+                                            onClick = {
+
+                                            },
+                                        ){
+                                            Text("add something!")
+                                        }
+
+                                    }
+
+                                }
+                            }
+
+
+                        }
+                    }
+                }
+            }
+            else {
+                openedAudioSource.value = ""
+            }
+
         }
         else
         {
@@ -407,7 +520,7 @@ fun drawAlbum(
 
                 var trackWithArtOrFirst = openedAlbumTracks.firstOrNull { it.artworkPath != null }
                 if (trackWithArtOrFirst == null)
-                    trackWithArtOrFirst = openedAlbumTracks.first()
+                    trackWithArtOrFirst = openedAlbumTracks.firstOrNull()
 
                 val hasMultipleDiscs =
                     openedAlbumTracks
@@ -435,7 +548,7 @@ fun drawAlbum(
                                     .height(414.dp - 30.dp)
                             ) {
                                 Crossfade(
-                                    targetState = trackWithArtOrFirst.artworkPath,
+                                    targetState = trackWithArtOrFirst?.artworkPath,
                                     animationSpec = tween(180),
                                     modifier = Modifier.fillMaxSize()
                                 ) { artworkPath ->
@@ -463,7 +576,7 @@ fun drawAlbum(
                                     Box(Modifier.size(250.dp)) {
 
                                         Crossfade(
-                                            targetState = trackWithArtOrFirst.artworkPath,
+                                            targetState = trackWithArtOrFirst?.artworkPath,
                                             animationSpec = tween(180)
                                         ) { artworkPath ->
                                             artworkAsync(
@@ -476,7 +589,7 @@ fun drawAlbum(
                                     Column {
 
                                         Text(
-                                            trackWithArtOrFirst.album,
+                                            trackWithArtOrFirst?.album ?: "",
                                             fontSize = 28.sp,
                                             maxLines = 1,
                                             overflow = TextOverflow.Ellipsis,
@@ -487,7 +600,7 @@ fun drawAlbum(
 
 
                                         Text(
-                                            "· " + trackWithArtOrFirst.artist,
+                                            ("· " + trackWithArtOrFirst?.artist) ?: "",
                                             fontSize = 16.sp,
                                             color = Color(255, 255, 255, 120)
                                         )
@@ -495,7 +608,7 @@ fun drawAlbum(
                                         Spacer(Modifier.height(6.dp))
 
                                         Text(
-                                            "${trackWithArtOrFirst.year}",
+                                            trackWithArtOrFirst?.year ?: "",
                                             fontSize = 16.sp,
                                             color = Color(255, 255, 255, 100)
                                         )

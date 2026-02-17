@@ -1,22 +1,13 @@
 package ui.screens.leftPager.albums
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.animateContentSize
-import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.rememberSplineBasedDecay
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.ScrollableDefaults
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
-import androidx.compose.foundation.gestures.stopScroll
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsHoveredAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -33,37 +24,20 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed
-import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.LastPage
-import androidx.compose.material.icons.rounded.Start
 import androidx.compose.material.icons.sharp.Album
-import androidx.compose.material.icons.sharp.Bookmark
-import androidx.compose.material.icons.sharp.ExpandCircleDown
-import androidx.compose.material.icons.sharp.FastForward
 import androidx.compose.material.icons.sharp.Folder
 import androidx.compose.material.icons.sharp.LastPage
-import androidx.compose.material.icons.sharp.PermMedia
-import androidx.compose.material.icons.sharp.SdCard
 import androidx.compose.material.icons.sharp.Search
-import androidx.compose.material.icons.sharp.Settings
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.ButtonElevation
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -81,16 +55,11 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.scale
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.input.pointer.PointerEventType
-import androidx.compose.ui.input.pointer.onPointerEvent
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.input.pointer.pointerMoveFilter
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.style.TextAlign
@@ -101,33 +70,20 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.util.lerp
 import androidx.compose.ui.zIndex
-import dev.chrisbanes.haze.HazeState
-import dev.chrisbanes.haze.HazeStyle
-import dev.chrisbanes.haze.HazeTint
-import dev.chrisbanes.haze.hazeEffect
-import dev.chrisbanes.haze.hazeSource
-import dev.chrisbanes.haze.rememberHazeState
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.debounce
-import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
-import org.example.CustomFlingBehavior
 import org.example.audioindex.AudioFolderController
 import org.example.audioindex.ScannedAudio
 import org.example.similarity
 import org.example.ui.screens.leftPager.albums.artworkAsync
 import org.example.ui.screens.leftPager.settings.AppPrefs
 import org.example.wizui.wizui
-import org.example.wizui.wizui.wizAnimateIf
 import ui.uiHelpers.relativeLetterSpacing
-import java.nio.file.Path
 import kotlin.math.roundToInt
-import androidx.compose.material3.OutlinedIconButton
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -135,7 +91,7 @@ import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
-import org.example.TraceCompose
+import kotlinx.coroutines.flow.filterNotNull
 import org.example.ui.uiHelpers.wizuiUIMove
 
 private fun albumKey(a: ScannedAudio): String =
@@ -214,8 +170,6 @@ fun albumsWithAlphabetScroller(
 
     Box(modifier = Modifier.fillMaxSize()) {
 
-        val isOpenedAlbumVisible = listState.layoutInfo.visibleItemsInfo.map { it.key }.
-        contains(openedAudioSource.value)
         
         // ───── YOUR LazyColumn ─────
         LazyColumn(
@@ -317,51 +271,6 @@ fun albumsWithAlphabetScroller(
 
             }
         }
-
-        val cour = rememberCoroutineScope()
-
-        AnimatedVisibility(visible = !isOpenedAlbumVisible, Modifier.align(Alignment.BottomStart)) {
-
-            val interactionSource = remember { MutableInteractionSource() }
-            OutlinedButton({
-                cour.launch {
-                    val index = results.indexOfFirst { it.albumKey == openedAudioSource.value}
-
-                    if ( index > -1 )
-                        listState.animateScrollToItem(index)
-                }
-            }, modifier = Modifier.align(Alignment.BottomStart).padding(bottom = 16.dp).animateContentSize(
-
-            ),
-                elevation = ButtonDefaults.elevatedButtonElevation(),
-                interactionSource = interactionSource,
-                border = BorderStroke(0.75.dp, Color(255, 255, 255, 100)),
-                colors = ButtonDefaults.outlinedButtonColors(
-                    containerColor = Color(20, 20, 20)
-                )
-            )
-            {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-
-                    Icon(Icons.Sharp.LastPage, "",
-                        tint = Color(255, 255, 255),
-                        modifier = Modifier.size(40.dp)
-                    )
-
-                   if (interactionSource.collectIsHoveredAsState().value) {
-                        Text("go to opened!",
-                            color = Color(255, 255, 255),
-                            modifier = Modifier.padding(horizontal = 16.dp))
-                    }
-
-
-
-                }
-
-            }
-        }
-
-
 
         ScrollProgressThumb(
             scrollFraction = scrollFraction,
@@ -545,6 +454,7 @@ fun handleAlphabetTouch(
 @OptIn(FlowPreview::class, ExperimentalComposeUiApi::class)
 @Composable
 fun albumTab(
+    listState: LazyListState,
     audioFolderController: AudioFolderController,
     openedTab: MutableState<Int>,
     gridMultiplier: MutableState<Float>,
@@ -552,7 +462,6 @@ fun albumTab(
 ) {
 
     val gridState = rememberSaveable(saver = LazyGridState.Saver) { LazyGridState() }
-    val listState = rememberSaveable(saver = LazyListState.Saver) { LazyListState() }
 
     var searchQr by rememberSaveable { mutableStateOf("") }
     var debouncedQuery by rememberSaveable { mutableStateOf("") }
@@ -645,13 +554,6 @@ fun albumTab(
                         .filter { matchesQuery(debouncedQuery, it) }
                         .sortedByDescending { albumScore(debouncedQuery, it) }
                 }
-        }
-
-        LaunchedEffect(wizuiUIMove.albumListMoveToAlbumKey)
-        {
-            val index = results.indexOfFirst { it.albumKey == openedAudioSource.value}
-            if (index != -1) listState.animateScrollToItem(index)
-            wizuiUIMove.albumListMoveToAlbumKey = ""
         }
 
 
@@ -783,6 +685,21 @@ fun albumTab(
                     }
                     else
                     {
+
+                        LaunchedEffect(Unit)
+                        {
+                            snapshotFlow { wizuiUIMove.albumListMoveToAlbumKey }
+                                .filterNotNull()
+                                .collect { key ->
+
+                                    val index = results.indexOfFirst { it.albumKey == key }
+
+                                    if (index != -1)
+                                        listState.animateScrollToItem(index)
+
+                                    wizuiUIMove.albumListMoveToAlbumKey = null
+                                }
+                        }
 
                         albumsWithAlphabetScroller(
                             results = results,

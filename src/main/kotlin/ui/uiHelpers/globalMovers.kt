@@ -6,7 +6,8 @@ import androidx.compose.runtime.setValue
 
 //pending navigation
 class globalUIMovers {
-    var albumListMoveToAlbumKey by mutableStateOf("")
+    var albumListMoveToAlbumKey by mutableStateOf<String?>(null)
+    var playlistListMoveToPlaylistKey by mutableStateOf<String?>(null)
 }
 
 val wizuiUIMove = globalUIMovers()

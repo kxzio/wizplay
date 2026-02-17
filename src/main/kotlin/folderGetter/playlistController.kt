@@ -42,6 +42,12 @@ class PlaylistController(
         }
     }
 
+    fun getPlaylistById(
+        playlistId : Long
+    ) : Playlist? {
+        return playlists.value.firstOrNull { it.id == playlistId }
+    }
+
     fun create(name: String) {
         scope.launch {
             db.createPlaylist(name)

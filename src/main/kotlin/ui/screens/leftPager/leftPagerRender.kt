@@ -1,38 +1,60 @@
 package ui.screens.leftPager
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateContentSize
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsHoveredAsState
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.sharp.LastPage
 import androidx.compose.material.icons.sharp.Settings
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.launch
 import org.example.folderGetter.FolderScanController
 import org.example.FullscreenController
 import org.example.audioindex.AudioFolderController
+import org.example.bass.bassController.trackSource
 import org.example.folderGetter.PlaylistController
 import org.example.ui.screens.leftPager.playlists.playlistTab
 import org.example.ui.screens.leftPager.settings.AppPrefs
+import org.example.ui.uiHelpers.globalUIMovers
+import org.example.ui.uiHelpers.snapCornerOverlay
+import org.example.ui.uiHelpers.wizuiUIMove
 import org.example.wizui.wizui
+import org.example.wizui.wizui.wizAnimateIf
 import ui.screens.leftPager.albums.albumTab
 import ui.screens.leftPager.settings.settingTab
 
@@ -163,41 +185,132 @@ fun leftPagerContent(
             pagerState.animateScrollToPage(openedTab.value - 1)
         }
 
-        HorizontalPager(
-            state = pagerState,
-            userScrollEnabled = false,
-            beyondViewportPageCount = 2,
-            modifier = Modifier.fillMaxSize()
-        ) { page ->
+        Box {
 
-            when (page) {
+            val albumListState      = rememberSaveable(saver = LazyListState.Saver) { LazyListState() }
+            val playlistListState   = rememberSaveable(saver = LazyListState.Saver) { LazyListState() }
 
-                0 -> settingTab(
-                    allowResize,
-                    openedTab,
-                    openedSettingsTab,
-                    fullscreen,
-                    audioFolderController,
-                    gridMultiplier,
-                    folderScanController
-                )
+            val cour                 = rememberCoroutineScope()
+            val isOpenedAlbumVisible =
 
-                1 -> albumTab(
-                    audioFolderController,
-                    openedTab,
-                    gridMultiplier,
-                    openedAudioSource
-                )
+            if (pagerState.currentPage == 1)
+                albumListState.layoutInfo.visibleItemsInfo.map { it.key }.
+                    contains(openedAudioSource.value)
+            else
+                playlistListState.layoutInfo.visibleItemsInfo.map { it.key }.
+                    contains(openedAudioSource.value)
 
-                2 -> {
-                    playlistTab(
+            HorizontalPager(
+                state = pagerState,
+                userScrollEnabled = false,
+                beyondViewportPageCount = 2,
+                modifier = Modifier.fillMaxSize()
+            ) { page ->
+
+                when (page) {
+
+                    0 -> settingTab(
+                        allowResize,
+                        openedTab,
+                        openedSettingsTab,
+                        fullscreen,
                         audioFolderController,
-                        openedAudioSource,
-                        playlistController
+                        gridMultiplier,
+                        folderScanController
                     )
-                }
 
+                    1 -> albumTab(
+                        albumListState,
+                        audioFolderController,
+                        openedTab,
+                        gridMultiplier,
+                        openedAudioSource
+                    )
+
+                    2 -> {
+                        playlistTab(
+                            playlistListState,
+                            audioFolderController,
+                            openedAudioSource,
+                            playlistController
+                        )
+                    }
+
+                }
             }
+
+            androidx.compose.animation.AnimatedVisibility(visible = !isOpenedAlbumVisible, modifier = Modifier.align(Alignment.BottomEnd).padding(end = 32.dp)) {
+
+                val interactionSource = remember { MutableInteractionSource() }
+                OutlinedButton({
+
+                    cour.launch {
+
+                        when (val parsed = trackSource.fromString(openedAudioSource.value))
+                        {
+                            is trackSource.playlist -> {
+
+                                if (pagerState.currentPage != 2) {
+                                    pagerState.animateScrollToPage(2)
+                                    openedTab.value = 3
+                                }
+
+                                wizuiUIMove.playlistListMoveToPlaylistKey = openedAudioSource.value
+                            }
+
+                            is trackSource.album -> {
+
+                                if (pagerState.currentPage != 1) {
+                                    pagerState.animateScrollToPage(1)
+                                    openedTab.value = 2
+                                }
+
+                                wizuiUIMove.albumListMoveToAlbumKey = parsed.albumKey
+                            }
+
+                            else -> {
+
+                            }
+                        }
+                    }
+
+                },
+                    shape = CircleShape,
+                    modifier = Modifier.align(Alignment.BottomStart).padding(16.dp),
+                    elevation = ButtonDefaults.elevatedButtonElevation(),
+                    interactionSource = interactionSource,
+                    border = BorderStroke(0.8.dp, if (interactionSource.collectIsHoveredAsState().value)
+                        MaterialTheme.colorScheme.primary
+                        else
+                        Color(255, 255, 255, 60)
+                    ),
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        containerColor = Color(20, 20, 20)
+                    )
+                )
+                {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+
+                        Icon(Icons.Sharp.LastPage, "",
+                            tint = Color(255, 255, 255),
+                            modifier = Modifier.size(40.dp)
+                        )
+
+                        (interactionSource.collectIsHoveredAsState().value).wizAnimateIf(wizui.WizAnimationType.ExpandHorizontally) {
+                            Text("go to opened!",
+                                color = Color(255, 255, 255),
+                                modifier = Modifier.padding(horizontal = 16.dp))
+                        }
+
+
+
+                    }
+
+                }
+            }
+
+
+
         }
 
 

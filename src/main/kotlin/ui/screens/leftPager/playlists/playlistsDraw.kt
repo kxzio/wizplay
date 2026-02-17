@@ -1,7 +1,5 @@
 package org.example.ui.screens.leftPager.playlists
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutLinearInEasing
 import androidx.compose.animation.core.LinearOutSlowInEasing
@@ -17,8 +15,6 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsHoveredAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -49,14 +45,12 @@ import androidx.compose.material.icons.sharp.MoreVert
 import androidx.compose.material.icons.sharp.PlaylistAddCheckCircle
 import androidx.compose.material.icons.sharp.Search
 import androidx.compose.material.icons.sharp.Warning
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -97,8 +91,8 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.launch
 import org.example.audioindex.AudioFolderController
 import org.example.folderGetter.Playlist
 import org.example.folderGetter.PlaylistController
@@ -177,9 +171,22 @@ fun playlistsWithAlphabetScroller(
     val primary = MaterialTheme.colorScheme.primary
     val highlitedColor = MaterialTheme.colorScheme.primary.copy(alpha = highlight.value)
 
-    Box(modifier = Modifier.fillMaxSize()) {
+    LaunchedEffect(Unit)
+    {
+        snapshotFlow { wizuiUIMove.playlistListMoveToPlaylistKey }
+            .filterNotNull()
+            .collect { key ->
 
-        val isOpenedAlbumVisible = listState.layoutInfo.visibleItemsInfo.map { it.key }.contains(openedAudioSource.value)
+                val index = results.indexOfFirst { it.playlistKey == key }
+
+                if (index != -1)
+                    listState.animateScrollToItem(index)
+
+                wizuiUIMove.playlistListMoveToPlaylistKey = null
+            }
+    }
+
+    Box(modifier = Modifier.fillMaxSize()) {
 
         // ───── YOUR LazyColumn ─────
         LazyColumn(
@@ -189,7 +196,7 @@ fun playlistsWithAlphabetScroller(
             contentPadding = PaddingValues(top = 69.dp, bottom = 16.dp)
         ) {
             items(
-                items = results.reversed(),
+                items = results,
                 key = { it.playlistKey },
                 contentType = { "playlist" }
             ) { item ->
@@ -352,51 +359,6 @@ fun playlistsWithAlphabetScroller(
             }
         }
 
-        val cour = rememberCoroutineScope()
-
-        AnimatedVisibility(visible = !isOpenedAlbumVisible, Modifier.align(Alignment.BottomStart)) {
-
-            val interactionSource = remember { MutableInteractionSource() }
-            OutlinedButton({
-                cour.launch {
-
-                    val index = results.indexOfFirst { it.playlistKey == openedAudioSource.value}
-
-                    if ( index > -1 )
-                        listState.animateScrollToItem(index)
-
-                }
-            }, modifier = Modifier.align(Alignment.BottomStart).padding(bottom = 16.dp).animateContentSize(
-
-            ),
-                elevation = ButtonDefaults.elevatedButtonElevation(),
-                interactionSource = interactionSource,
-                border = BorderStroke(0.75.dp, Color(255, 255, 255, 100)),
-                colors = ButtonDefaults.outlinedButtonColors(
-                    containerColor = Color(20, 20, 20)
-                )
-            )
-            {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-
-                    Icon(Icons.Sharp.LastPage, "",
-                        tint = Color(255, 255, 255),
-                        modifier = Modifier.size(40.dp)
-                    )
-
-                    if (interactionSource.collectIsHoveredAsState().value) {
-                        Text("go to opened!",
-                            color = Color(255, 255, 255),
-                            modifier = Modifier.padding(horizontal = 16.dp))
-                    }
-
-
-
-                }
-
-            }
-        }
-
         ScrollProgressThumb(
             scrollFraction = scrollFraction,
             modifier = Modifier
@@ -413,14 +375,13 @@ fun playlistsWithAlphabetScroller(
 @OptIn(FlowPreview::class, ExperimentalComposeUiApi::class)
 @Composable
 fun playlistTab(
+    listState: LazyListState,
     audioFolderController: AudioFolderController,
     openedAudioSource: MutableState<String>,
     playlistController: PlaylistController,
 ) {
 
     val primary = MaterialTheme.colorScheme.primary
-
-    val listState = rememberSaveable(saver = LazyListState.Saver) { LazyListState() }
 
     var searchQr by rememberSaveable { mutableStateOf("") }
     var newPlaylistName by rememberSaveable { mutableStateOf("") }
@@ -513,21 +474,12 @@ fun playlistTab(
         LaunchedEffect(albums, debouncedQuery) {
             results.clear()
             results.addAll(
-                if (debouncedQuery.isBlank()) albums
-                else albums.filter { matchesQueryPlaylist(debouncedQuery, it) }
+                if (debouncedQuery.isBlank()) albums.reversed()
+                else albums.reversed().filter { matchesQueryPlaylist(debouncedQuery, it) }
             )
         }
 
-
-        LaunchedEffect(wizuiUIMove.albumListMoveToAlbumKey)
-        {
-            val index = results.indexOfFirst { it.playlistKey == openedAudioSource.value}
-            if (index != -1) listState.animateScrollToItem(index)
-            wizuiUIMove.albumListMoveToAlbumKey = ""
-        }
-
         Spacer(Modifier.height(8.dp))
-
 
         wizui.wizButton(
             backgroundColor = Color(0, 0, 0, 0),
@@ -657,6 +609,7 @@ fun playlistTab(
     val renamePlaylistErrorText = remember { mutableStateOf("") }
     val errorWindowDragging     = remember { Animatable(0f) }
 
+    //error animation
     LaunchedEffect(createPlaylistErrorText.value, renamePlaylistErrorText.value)
     {
 
@@ -713,6 +666,7 @@ fun playlistTab(
 
     }
 
+    //playlist add
     AniJinPopup(
         focusable = true,
         expanded = playlistCreateWindow,
@@ -891,6 +845,7 @@ fun playlistTab(
         }
     )
 
+    //delete playlist
     AniJinPopup(
         focusable = true,
         expanded = deletePlaylistId.value != "",
@@ -1000,6 +955,7 @@ fun playlistTab(
         }?.name ?: ""
     }
 
+    //rename playlist
     AniJinPopup(
         focusable = true,
         expanded = renamePlaylistId.value != "",
@@ -1190,6 +1146,8 @@ fun playlistTab(
             }
         }
     )
+
+
 
 
 }
