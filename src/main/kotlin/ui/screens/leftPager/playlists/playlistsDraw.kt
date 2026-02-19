@@ -85,7 +85,10 @@ import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.isSecondaryPressed
 import androidx.compose.ui.input.pointer.onPointerEvent
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.DpOffset
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
@@ -94,6 +97,7 @@ import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import org.example.audioindex.AudioFolderController
+import org.example.dashedBorder
 import org.example.folderGetter.Playlist
 import org.example.folderGetter.PlaylistController
 import org.example.ui.screens.leftPager.settings.AppPrefs
@@ -137,6 +141,8 @@ fun playlistsWithAlphabetScroller(
 
     val highlight = remember { Animatable(0f) }
     val playlistDropDownMenuOpened = remember { mutableStateOf("") }
+    val playlistDropDownMenuOffset = remember { mutableStateOf(IntOffset(0, 0)) }
+
 
     LaunchedEffect(highlitedPlaylist1.value) {
         val target = highlitedPlaylist1.value
@@ -205,14 +211,91 @@ fun playlistsWithAlphabetScroller(
                     .padding(vertical = 0.dp, horizontal = 64.dp), thickness = 1.dp,
                     color = Color(255, 255, 255, 10))
 
-                Box(Modifier.animateItem()) {
+                Box(Modifier.animateItem()
+
+                ) {
+
+                    val density = LocalDensity.current
+                    val offsetFromIntToDp = with (density) {
+                        DpOffset(x = playlistDropDownMenuOffset.value.x.toDp(),
+                            y = playlistDropDownMenuOffset.value.y.toDp()
+                        )
+                    }
+
+                    Box(Modifier.matchParentSize()
+                        .onPointerEvent(PointerEventType.Press) { event ->
+                        if (event.buttons.isSecondaryPressed) {
+                            playlistDropDownMenuOpened.value = item.id.toString()
+                            val pos = event.changes.first().position
+                            playlistDropDownMenuOffset.value = IntOffset(pos.x.toInt(), pos.y.toInt())
+                        }})
+                    {
+                        DropdownMenu(
+                            shape = RectangleShape,
+                            offset = offsetFromIntToDp,
+                            containerColor = Color(20, 20, 20),
+                            border = BorderStroke(0.5.dp, Color(255, 255, 255, 50)),
+                            expanded = playlistDropDownMenuOpened.value == item.id.toString(),
+                            onDismissRequest = { playlistDropDownMenuOpened.value = "" },
+                            modifier = Modifier
+                                .width(220.dp).padding(horizontal = 8.dp)
+                        ) {
+
+                            DropdownMenuItem(
+                                text = { Text("open") },
+                                onClick = {
+                                    playlistDropDownMenuOpened.value = ""
+                                }
+                            )
+
+                            DropdownMenuItem(
+                                text = { Text("rename") },
+                                onClick = {
+                                    playlistDropDownMenuOpened.value = ""
+                                    renamePlaylistId.value = item.id.toString()
+                                }
+                            )
+
+                            HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+
+                            DropdownMenuItem(
+                                text = {
+
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+
+                                        Icon(Icons.Sharp.DeleteForever, "",
+                                            tint = Color(226, 80, 80, 255))
+
+                                        Text(
+                                            "delete",
+                                            modifier = Modifier.padding(start = 12.dp),
+                                            color = Color(226, 80, 80, 255)
+                                        )
+                                    }
+                                },
+                                onClick = {
+                                    playlistDropDownMenuOpened.value = ""
+                                    deletePlaylistId.value = item.id.toString()
+                                }
+                            )
+                        }
+                    }
+
 
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier
                             .border(
                                 1.dp,
-                                if (highlitedPlaylist1.value == item.name) highlitedColor else Color(0, 0, 0, 0)
+                                color =
+                                    if (highlitedPlaylist1.value == item.name) highlitedColor else Color(0, 0, 0, 0)
+
+                            )
+                            .dashedBorder(
+                                1.dp,
+                                color = if (playlistDropDownMenuOpened.value == item.id.toString())
+                                    primary.copy(alpha = 0.5f)
+                                else Color(0, 0, 0, 0)
                             )
                             .background(
                                 if (highlitedPlaylist1.value == item.name)
@@ -254,13 +337,6 @@ fun playlistsWithAlphabetScroller(
                             modifier = Modifier
                                 .padding(start = 24.dp, end = 24.dp)
                                 .fillMaxWidth()
-                                .onPointerEvent(PointerEventType.Press) { event ->
-
-                                    if (event.buttons.isSecondaryPressed) {
-                                        playlistDropDownMenuOpened.value = item.id.toString()
-                                    }
-
-                                }
                         ) {
 
                             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -294,54 +370,7 @@ fun playlistsWithAlphabetScroller(
                                         Icon(Icons.Sharp.MoreVert, "", tint = Color(255, 255, 255, 150))
                                     }
 
-                                    DropdownMenu(
-                                        shape = RectangleShape,
-                                        containerColor = Color(20, 20, 20),
-                                        border = BorderStroke(0.5.dp, Color(255, 255, 255, 50)),
-                                        expanded = playlistDropDownMenuOpened.value == item.id.toString(),
-                                        onDismissRequest = { playlistDropDownMenuOpened.value = "" },
-                                        modifier = Modifier
-                                            .width(220.dp).padding(horizontal = 8.dp)
-                                    ) {
 
-                                        DropdownMenuItem(
-                                            text = { Text("open") },
-                                            onClick = {
-                                                playlistDropDownMenuOpened.value = ""
-                                            }
-                                        )
-
-                                        DropdownMenuItem(
-                                            text = { Text("rename") },
-                                            onClick = {
-                                                playlistDropDownMenuOpened.value = ""
-                                                renamePlaylistId.value = item.id.toString()
-                                            }
-                                        )
-
-                                        HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
-
-                                        DropdownMenuItem(
-                                            text = {
-
-                                                Row(verticalAlignment = Alignment.CenterVertically) {
-
-                                                    Icon(Icons.Sharp.DeleteForever, "",
-                                                        tint = Color(226, 80, 80, 255))
-
-                                                    Text(
-                                                        "delete",
-                                                        modifier = Modifier.padding(start = 12.dp),
-                                                        color = Color(226, 80, 80, 255)
-                                                    )
-                                                }
-                                            },
-                                            onClick = {
-                                                playlistDropDownMenuOpened.value = ""
-                                                deletePlaylistId.value = item.id.toString()
-                                            }
-                                        )
-                                    }
                                 }
 
                             }

@@ -19,6 +19,18 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.withFrameNanos
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Outline
+import androidx.compose.ui.graphics.Paint
+import androidx.compose.ui.graphics.PaintingStyle
+import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
 import java.awt.FileDialog
 import java.awt.Frame
 import java.awt.Image
@@ -416,4 +428,76 @@ object OS {
     }
 
 }
+
+fun Modifier.dashedBorder(
+    width: Dp,
+    color: Color,
+    dashLength: Dp = 6.dp,
+    gapLength: Dp = 6.dp,
+    shape: Shape = RectangleShape
+) = this.drawBehind {
+
+    val strokeWidth = width.toPx()
+
+    val dashPx = dashLength.toPx()
+    val gapPx = gapLength.toPx()
+
+    val paint = Paint().apply {
+        this.color = color
+        style = PaintingStyle.Stroke
+        this.strokeWidth = strokeWidth
+
+        pathEffect = PathEffect.dashPathEffect(
+            floatArrayOf(dashPx, gapPx),
+            0f
+        )
+    }
+
+    val outline = shape.createOutline(size, layoutDirection, this)
+
+    when (outline) {
+
+        is Outline.Rectangle -> {
+            drawRect(
+                color = color,
+                style = Stroke(
+                    width = strokeWidth,
+                    pathEffect = PathEffect.dashPathEffect(
+                        floatArrayOf(dashPx, gapPx),
+                        0f
+                    )
+                )
+            )
+        }
+
+        is Outline.Rounded -> {
+            drawRoundRect(
+                color = color,
+                cornerRadius = outline.roundRect.topLeftCornerRadius,
+                style = Stroke(
+                    width = strokeWidth,
+                    pathEffect = PathEffect.dashPathEffect(
+                        floatArrayOf(dashPx, gapPx),
+                        0f
+                    )
+                )
+            )
+        }
+
+        is Outline.Generic -> {
+            drawPath(
+                outline.path,
+                color = color,
+                style = Stroke(
+                    width = strokeWidth,
+                    pathEffect = PathEffect.dashPathEffect(
+                        floatArrayOf(dashPx, gapPx),
+                        0f
+                    )
+                )
+            )
+        }
+    }
+}
+
 

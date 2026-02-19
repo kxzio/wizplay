@@ -26,11 +26,17 @@ import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.sharp.Album
+import androidx.compose.material.icons.sharp.DeleteForever
+import androidx.compose.material.icons.sharp.MoreVert
 import androidx.compose.material.icons.sharp.PermMedia
+import androidx.compose.material.icons.sharp.PlayArrow
 import androidx.compose.material.icons.sharp.Queue
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -52,10 +58,14 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.input.pointer.PointerEventType
+import androidx.compose.ui.input.pointer.isSecondaryPressed
+import androidx.compose.ui.input.pointer.onPointerEvent
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import dev.chrisbanes.haze.HazeState
@@ -69,6 +79,7 @@ import org.example.audioindex.ScannedAudio
 import org.example.bass.bassController.trackSource
 import org.example.bassAudioController
 import org.example.bassQueueController
+import org.example.dashedBorder
 import org.example.folderGetter.PlaylistController
 import org.example.ui.screens.leftPager.albums.artworkAsync
 import org.example.ui.screens.leftPager.queue.drawQueue
@@ -528,6 +539,8 @@ fun drawAlbum(
                         .distinct()
                         .size > 1
 
+                val trackDropDownOpenPath = remember { mutableStateOf("") }
+
                 LazyColumn(
                     state = listState,
                     modifier = Modifier
@@ -671,7 +684,18 @@ fun drawAlbum(
 
                         wizui.wizButton(
                             shape = RectangleShape,
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .onPointerEvent(PointerEventType.Press) { event ->
+                                    if (event.buttons.isSecondaryPressed) {
+                                        trackDropDownOpenPath.value = item.path.toString()
+                                    }
+                                }.dashedBorder(
+                                    1.dp,
+                                    color = if (trackDropDownOpenPath.value == item.path.toString())
+                                        MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
+                                    else Color(0, 0, 0, 0)
+                                ),
                             contentColor = Color(255, 255, 255),
                             backgroundColor = Color(35, 35, 35, 0),
                             onClick = {
@@ -698,9 +722,10 @@ fun drawAlbum(
                                         fontFamily = FontFamily.Monospace
                                     )
                                 }
+
                                 Column(
                                     horizontalAlignment = Alignment.Start,
-                                    modifier = Modifier.padding(start = 16.dp).fillMaxWidth()
+                                    modifier = Modifier.padding(start = 16.dp).weight(1f)
                                 ) {
 
                                     Text(item.title, fontSize = 16.sp,
@@ -710,6 +735,65 @@ fun drawAlbum(
                                     Spacer(Modifier.height(4.dp))
                                     Text(item.artist, fontSize = 12.sp, color = Color(255, 255, 255, 100))
                                 }
+
+                                Box {
+
+                                    IconButton(onClick = {
+                                        trackDropDownOpenPath.value = item.path.toString()
+                                    })
+                                    {
+                                        Icon(Icons.Sharp.MoreVert, "",
+                                            tint = Color(255, 255, 255, 100))
+                                    }
+
+                                    DropdownMenu(
+                                        shape = RectangleShape,
+                                        containerColor = Color(20, 20, 20),
+                                        border = BorderStroke(0.5.dp, Color(255, 255, 255, 50)),
+                                        expanded = trackDropDownOpenPath.value == item.path.toString(),
+                                        onDismissRequest = { trackDropDownOpenPath.value = "" },
+                                        modifier = Modifier
+                                            .width(220.dp).padding(horizontal = 8.dp)
+                                    ) {
+
+                                        DropdownMenuItem(
+                                            text = { Text("open") },
+                                            onClick = {
+
+                                            }
+                                        )
+
+                                        DropdownMenuItem(
+                                            text = { Text("rename") },
+                                            onClick = {
+
+                                            }
+                                        )
+
+                                        HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+
+                                        DropdownMenuItem(
+                                            text = {
+
+                                                Row(verticalAlignment = Alignment.CenterVertically) {
+
+                                                    Icon(Icons.Sharp.DeleteForever, "",
+                                                        tint = Color(226, 80, 80, 255))
+
+                                                    Text(
+                                                        "delete",
+                                                        modifier = Modifier.padding(start = 12.dp),
+                                                        color = Color(226, 80, 80, 255)
+                                                    )
+                                                }
+                                            },
+                                            onClick = {
+
+                                            }
+                                        )
+                                    }
+                                }
+
                             }
 
                         }

@@ -28,8 +28,10 @@ import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollbarAdapter
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.v2.maxScrollOffset
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.sharp.Album
 import androidx.compose.material.icons.sharp.Folder
@@ -335,22 +337,20 @@ fun albumsWithAlphabetScroller(
 
 @Composable
 fun rememberScrollFraction(listState: LazyListState): Float {
-    return remember {
+
+    val adapter = rememberScrollbarAdapter(listState)
+
+    val fraction by remember {
         derivedStateOf {
-            val layout = listState.layoutInfo
-            val total = layout.totalItemsCount
-            if (total == 0) return@derivedStateOf 0f
 
-            val first = listState.firstVisibleItemIndex
-            val offset = listState.firstVisibleItemScrollOffset
+            val max = adapter.maxScrollOffset
 
-            val itemSize =
-                layout.visibleItemsInfo.firstOrNull()?.size ?: 1
-
-            val preciseIndex = first + offset / itemSize.toFloat()
-            preciseIndex / total
+            if (max <= 0.0) 0f
+            else (adapter.scrollOffset / max).toFloat()
         }
-    }.value.coerceIn(0f, 1f)
+    }
+
+    return fraction.coerceIn(0f, 1f)
 }
 
 @Composable
