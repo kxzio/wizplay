@@ -154,6 +154,7 @@ fun leftPagerContent(
                 Text("albums", fontSize = 16.sp,)
             }
 
+
             wizui.wizButton(
                 contentColor = Color(255, 255, 255, 100),
                 contentColorToggled = Color(255, 255, 255, 255),
@@ -170,11 +171,27 @@ fun leftPagerContent(
                 Text("playlists", fontSize = 16.sp,)
             }
 
+            wizui.wizButton(
+                contentColor = Color(255, 255, 255, 100),
+                contentColorToggled = Color(255, 255, 255, 255),
+                backgroundColor = Color(255, 255, 255, 5),
+                turnOffToggleIndication = true,
+                modifier = Modifier.weight(1f).height(50.dp).border(1.dp, Color(255, 255, 255, 30)),
+                shape = RectangleShape,
+                onClick = {
+                    openedTab.value = 4
+                },
+                toggleVariable = openedTab.value == 4
+            )
+            {
+                Text("artists", fontSize = 16.sp,)
+            }
+
         }
 
         val pagerState = rememberPagerState(
             initialPage = openedTab.value - 1,
-            pageCount = { 3 }
+            pageCount = { 4 }
         )
 
         LaunchedEffect(openedTab.value) {

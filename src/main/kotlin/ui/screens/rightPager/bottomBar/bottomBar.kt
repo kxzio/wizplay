@@ -18,11 +18,15 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.onClick
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.sharp.Fullscreen
 import androidx.compose.material.icons.sharp.Pause
 import androidx.compose.material.icons.sharp.PlayArrow
+import androidx.compose.material.icons.sharp.Repeat
+import androidx.compose.material.icons.sharp.RepeatOne
+import androidx.compose.material.icons.sharp.Shuffle
 import androidx.compose.material.icons.sharp.SkipNext
 import androidx.compose.material.icons.sharp.SkipPrevious
 import androidx.compose.material.icons.sharp.SurroundSound
@@ -34,6 +38,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
@@ -67,6 +72,7 @@ import dev.chrisbanes.haze.HazeTint
 import dev.chrisbanes.haze.hazeEffect
 import org.example.bass.bassController.PlayerState
 import org.example.bass.bassController.prettyString
+import org.example.bass.queue.repeatMods
 import org.example.bassAudioController
 import org.example.bassQueueController
 import org.example.bottomGradient
@@ -210,7 +216,7 @@ fun drawBottomBar(
                     val offset = with(LocalDensity.current) {
                         IntOffset(
                             x = thumbX - 26,
-                            y = -40
+                            y = -45
                         )
                     }
 
@@ -330,19 +336,58 @@ fun drawBottomBar(
                             {
                                 Spacer(Modifier.height(8.dp))
 
-                                Row(verticalAlignment = Alignment.CenterVertically)
+                                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.offset(x = -0.dp))
                                 {
+
+                                    Icon(
+                                        imageVector = Icons.Sharp.Shuffle, contentDescription = "",
+                                        tint =
+                                            if (bassQueueController.isShuffle)
+                                                MaterialTheme.colorScheme.primary
+                                            else
+                                                Color(255, 255, 255, 100),
+                                        modifier = Modifier.size(20.dp).clickable {
+                                            bassQueueController.toggleShuffle(!bassQueueController.isShuffle)
+                                        }
+                                    )
+
+                                    VerticalDivider(thickness = 1.dp, modifier = Modifier.padding(horizontal = 16.dp).height(16.dp))
+
+                                    Icon(
+                                        imageVector =
+                                            if (bassQueueController.repeatMode == repeatMods.REPEAT_OFF)
+                                                Icons.Sharp.Repeat
+                                            else if (bassQueueController.repeatMode == repeatMods.REPEAT_ALL)
+                                                Icons.Sharp.Repeat
+                                            else
+                                                Icons.Sharp.RepeatOne
+                                        ,
+                                        contentDescription = "",
+                                        tint =
+                                            if (bassQueueController.repeatMode == repeatMods.REPEAT_OFF)
+                                                Color(255, 255, 255, 100)
+                                            else
+                                                MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(20.dp).clickable {
+                                            bassQueueController.toggleRepeat()
+                                        }
+                                    )
+
+
+                                    VerticalDivider(thickness = 1.dp, modifier = Modifier.padding(horizontal = 16.dp).height(16.dp))
+
                                     Icon(
                                         Icons.Sharp.SurroundSound,
                                         "",
-                                        tint = Color(255, 255, 255, 100)
+                                        tint = Color(255, 255, 255, 100),
+                                        modifier = Modifier.size(20.dp)
                                     )
                                     Text(
                                         text =
-                                            state.audioInfo!!.prettyString()
+                                            state.audioInfo!!.format.toString()
                                         ,
                                         color = Color(255, 255, 255, 100),
-                                        fontSize = 9.sp,
+                                        fontSize = 12.sp,
                                         maxLines = 1,
                                         overflow = TextOverflow.Ellipsis,
                                         modifier = Modifier.padding(start = 8.dp)

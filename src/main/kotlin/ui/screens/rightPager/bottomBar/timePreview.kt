@@ -22,12 +22,12 @@ fun TimePreviewBubble(text: String) {
                 width = 1.dp,
                 color = Color(255, 255, 255, 30),
             )
-            .padding(horizontal = 8.dp, vertical = 4.dp)
+            .padding(horizontal = 12.dp, vertical = 6.dp)
     ) {
         Text(
             text = text,
             color = Color.White,
-            fontSize = 12.sp,
+            fontSize = 14.sp,
         )
     }
 }
