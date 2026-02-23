@@ -61,11 +61,13 @@ import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.isSecondaryPressed
 import androidx.compose.ui.input.pointer.onPointerEvent
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.DpOffset
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import dev.chrisbanes.haze.HazeState
@@ -82,7 +84,11 @@ import org.example.bassQueueController
 import org.example.dashedBorder
 import org.example.folderGetter.PlaylistController
 import org.example.ui.screens.leftPager.albums.artworkAsync
+import org.example.ui.screens.leftPager.playlists.createDropDownPlaylist
+import org.example.ui.screens.leftPager.playlists.dropDownMenuOpenMode
+import org.example.ui.screens.leftPager.playlists.openMode
 import org.example.ui.screens.leftPager.queue.drawQueue
+import org.example.ui.screens.rightPager.createDropDownTrack
 import org.example.ui.screens.rightPager.drawBottomBar
 import org.example.wizui.wizui
 import kotlin.io.path.Path
@@ -539,7 +545,7 @@ fun drawAlbum(
                         .distinct()
                         .size > 1
 
-                val trackDropDownOpenPath = remember { mutableStateOf("") }
+                val trackDropDownOpen = remember { dropDownMenuOpenMode() }
 
                 LazyColumn(
                     state = listState,
@@ -688,11 +694,20 @@ fun drawAlbum(
                                 .fillMaxWidth()
                                 .onPointerEvent(PointerEventType.Press) { event ->
                                     if (event.buttons.isSecondaryPressed) {
-                                        trackDropDownOpenPath.value = item.path.toString()
+
+                                        val pos = event.changes.first().position
+                                        val intOffset = IntOffset(pos.x.toInt(), pos.y.toInt())
+
+                                        trackDropDownOpen.openDropDown(
+                                            openIndexName = item.path.toString(),
+                                            offset = intOffset,
+                                            openModeForSource = openMode.CURSOR_OPENED
+                                        )
+
                                     }
                                 }.dashedBorder(
                                     1.dp,
-                                    color = if (trackDropDownOpenPath.value == item.path.toString())
+                                    color = if (trackDropDownOpen.openedIndexName == item.path.toString())
                                         MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
                                     else Color(0, 0, 0, 0)
                                 ),
@@ -706,6 +721,22 @@ fun drawAlbum(
                                 )
                             }
                         ) {
+
+                            val density = LocalDensity.current
+                            val offsetFromIntToDp = with (density) {
+                                DpOffset(x = trackDropDownOpen.intOffset.x.toDp(),
+                                    y = 0.dp
+                                )
+                            }
+
+                            createDropDownTrack(
+                                offsetFromIntToDp = offsetFromIntToDp,
+                                expanded =
+                                    trackDropDownOpen.openedIndexName == item.path.toString() &&
+                                            trackDropDownOpen.open == openMode.CURSOR_OPENED
+                                ,
+                                onDismissRequest = { trackDropDownOpen.closeDropDown() },
+                            )
 
                             Row(verticalAlignment = Alignment.CenterVertically) {
 
@@ -739,59 +770,27 @@ fun drawAlbum(
                                 Box {
 
                                     IconButton(onClick = {
-                                        trackDropDownOpenPath.value = item.path.toString()
+                                        trackDropDownOpen.openDropDown(
+                                            openIndexName = item.path.toString(),
+                                            openModeForSource = openMode.BUTTON_OPENED
+                                        )
                                     })
                                     {
                                         Icon(Icons.Sharp.MoreVert, "",
                                             tint = Color(255, 255, 255, 100))
                                     }
 
-                                    DropdownMenu(
-                                        shape = RectangleShape,
-                                        containerColor = Color(20, 20, 20),
-                                        border = BorderStroke(0.5.dp, Color(255, 255, 255, 50)),
-                                        expanded = trackDropDownOpenPath.value == item.path.toString(),
-                                        onDismissRequest = { trackDropDownOpenPath.value = "" },
-                                        modifier = Modifier
-                                            .width(220.dp).padding(horizontal = 8.dp)
-                                    ) {
 
-                                        DropdownMenuItem(
-                                            text = { Text("open") },
-                                            onClick = {
+                                    createDropDownTrack(
+                                        offsetFromIntToDp = DpOffset(0.dp, 0.dp),
+                                        expanded =
+                                            trackDropDownOpen.openedIndexName == item.path.toString() &&
+                                                    trackDropDownOpen.open == openMode.BUTTON_OPENED
+                                        ,
+                                        onDismissRequest = { trackDropDownOpen.closeDropDown() },
+                                    )
 
-                                            }
-                                        )
 
-                                        DropdownMenuItem(
-                                            text = { Text("rename") },
-                                            onClick = {
-
-                                            }
-                                        )
-
-                                        HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
-
-                                        DropdownMenuItem(
-                                            text = {
-
-                                                Row(verticalAlignment = Alignment.CenterVertically) {
-
-                                                    Icon(Icons.Sharp.DeleteForever, "",
-                                                        tint = Color(226, 80, 80, 255))
-
-                                                    Text(
-                                                        "delete",
-                                                        modifier = Modifier.padding(start = 12.dp),
-                                                        color = Color(226, 80, 80, 255)
-                                                    )
-                                                }
-                                            },
-                                            onClick = {
-
-                                            }
-                                        )
-                                    }
                                 }
 
                             }

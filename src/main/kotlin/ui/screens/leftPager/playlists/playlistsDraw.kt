@@ -17,6 +17,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -82,6 +83,7 @@ import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.input.pointer.PointerEventType
+import androidx.compose.ui.input.pointer.isPrimaryPressed
 import androidx.compose.ui.input.pointer.isSecondaryPressed
 import androidx.compose.ui.input.pointer.onPointerEvent
 import androidx.compose.ui.layout.onSizeChanged
@@ -91,6 +93,7 @@ import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.PopupProperties
 import androidx.compose.ui.zIndex
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.debounce
@@ -140,8 +143,8 @@ fun playlistsWithAlphabetScroller(
     val scrollFraction = rememberScrollFraction(listState)
 
     val highlight = remember { Animatable(0f) }
-    val playlistDropDownMenuOpened = remember { mutableStateOf("") }
-    val playlistDropDownMenuOffset = remember { mutableStateOf(IntOffset(0, 0)) }
+
+    val playlistDropDownMenuOpened = remember { dropDownMenuOpenMode() }
 
 
     LaunchedEffect(highlitedPlaylist1.value) {
@@ -201,85 +204,47 @@ fun playlistsWithAlphabetScroller(
             verticalArrangement = Arrangement.spacedBy(16.dp),
             contentPadding = PaddingValues(top = 69.dp, bottom = 16.dp)
         ) {
-            items(
-                items = results,
-                key = { it.playlistKey },
-                contentType = { "playlist" }
-            ) { item ->
+
+
+            items(items = results, key = { it.playlistKey }, contentType = { "playlist" }) { item ->
 
                 HorizontalDivider(Modifier.fillMaxWidth()
                     .padding(vertical = 0.dp, horizontal = 64.dp), thickness = 1.dp,
                     color = Color(255, 255, 255, 10))
 
-                Box(Modifier.animateItem()
+                BoxWithConstraints(Modifier.animateItem()
+                    .onPointerEvent(PointerEventType.Press) { event ->
+                        if (event.buttons.isSecondaryPressed)
+                        {
+                            val pos = event.changes.first().position
+                            val intOffset = IntOffset(pos.x.toInt(), pos.y.toInt())
 
+                            playlistDropDownMenuOpened.openDropDown(
+                                openIndexName = item.id.toString(),
+                                offset = intOffset,
+                                openModeForSource = openMode.CURSOR_OPENED
+                            )
+
+                        }}
                 ) {
 
                     val density = LocalDensity.current
                     val offsetFromIntToDp = with (density) {
-                        DpOffset(x = playlistDropDownMenuOffset.value.x.toDp(),
-                            y = playlistDropDownMenuOffset.value.y.toDp()
+                        DpOffset(x = playlistDropDownMenuOpened.intOffset.x.toDp(),
+                            y = 0.dp
                         )
                     }
 
-                    Box(Modifier.matchParentSize()
-                        .onPointerEvent(PointerEventType.Press) { event ->
-                        if (event.buttons.isSecondaryPressed) {
-                            playlistDropDownMenuOpened.value = item.id.toString()
-                            val pos = event.changes.first().position
-                            playlistDropDownMenuOffset.value = IntOffset(pos.x.toInt(), pos.y.toInt())
-                        }})
-                    {
-                        DropdownMenu(
-                            shape = RectangleShape,
-                            offset = offsetFromIntToDp,
-                            containerColor = Color(20, 20, 20),
-                            border = BorderStroke(0.5.dp, Color(255, 255, 255, 50)),
-                            expanded = playlistDropDownMenuOpened.value == item.id.toString(),
-                            onDismissRequest = { playlistDropDownMenuOpened.value = "" },
-                            modifier = Modifier
-                                .width(220.dp).padding(horizontal = 8.dp)
-                        ) {
-
-                            DropdownMenuItem(
-                                text = { Text("open") },
-                                onClick = {
-                                    playlistDropDownMenuOpened.value = ""
-                                }
-                            )
-
-                            DropdownMenuItem(
-                                text = { Text("rename") },
-                                onClick = {
-                                    playlistDropDownMenuOpened.value = ""
-                                    renamePlaylistId.value = item.id.toString()
-                                }
-                            )
-
-                            HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
-
-                            DropdownMenuItem(
-                                text = {
-
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-
-                                        Icon(Icons.Sharp.DeleteForever, "",
-                                            tint = Color(226, 80, 80, 255))
-
-                                        Text(
-                                            "delete",
-                                            modifier = Modifier.padding(start = 12.dp),
-                                            color = Color(226, 80, 80, 255)
-                                        )
-                                    }
-                                },
-                                onClick = {
-                                    playlistDropDownMenuOpened.value = ""
-                                    deletePlaylistId.value = item.id.toString()
-                                }
-                            )
-                        }
-                    }
+                    createDropDownPlaylist(
+                        offsetFromIntToDp = offsetFromIntToDp,
+                        expanded =
+                            playlistDropDownMenuOpened.openedIndexName == item.id.toString() &&
+                            playlistDropDownMenuOpened.open == openMode.CURSOR_OPENED
+                        ,
+                        onDismissRequest = { playlistDropDownMenuOpened.closeDropDown() },
+                        onRename = { renamePlaylistId.value = item.id.toString() },
+                        onDelete = { deletePlaylistId.value = item.id.toString() },
+                    )
 
 
                     Row(
@@ -293,7 +258,7 @@ fun playlistsWithAlphabetScroller(
                             )
                             .dashedBorder(
                                 1.dp,
-                                color = if (playlistDropDownMenuOpened.value == item.id.toString())
+                                color = if (playlistDropDownMenuOpened.openedIndexName == item.id.toString())
                                     primary.copy(alpha = 0.5f)
                                 else Color(0, 0, 0, 0)
                             )
@@ -303,6 +268,7 @@ fun playlistsWithAlphabetScroller(
                                 else
                                     Color(0, 0, 0, 0)
                             )
+
                             .clickable {
                                 openedAudioSource.value = item.playlistKey
                                 AppPrefs.setString("openedAudioSource", item.playlistKey)
@@ -339,37 +305,60 @@ fun playlistsWithAlphabetScroller(
                                 .fillMaxWidth()
                         ) {
 
-                            Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box() {
 
-                                Column(Modifier.weight(1f)) {
-                                    Text(
-                                        text = item.name,
-                                        fontSize = 16.sp,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis,
-                                        color = Color.White
-                                    )
+                                Row(verticalAlignment = Alignment.CenterVertically) {
 
-                                    Spacer(Modifier.height(8.dp))
+                                    Column(Modifier.weight(1f)) {
+                                        Text(
+                                            text = item.name,
+                                            fontSize = 16.sp,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis,
+                                            color = Color.White
+                                        )
 
-                                    Text(
-                                        text = "playlist",
-                                        fontSize = 14.sp,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis,
-                                        color = Color.White.copy(alpha = 0.5f)
-                                    )
-                                }
+                                        Spacer(Modifier.height(8.dp))
 
-                                Box {
-                                    IconButton(
-                                        onClick = {
-                                            playlistDropDownMenuOpened.value = item.id.toString()
-                                        },
-                                    ){
-                                        Icon(Icons.Sharp.MoreVert, "", tint = Color(255, 255, 255, 150))
+                                        Text(
+                                            text = "playlist",
+                                            fontSize = 14.sp,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis,
+                                            color = Color.White.copy(alpha = 0.5f)
+                                        )
                                     }
 
+                                    Box {
+                                        IconButton(
+                                            onClick = {
+
+                                                playlistDropDownMenuOpened.openDropDown(
+                                                    openIndexName = item.id.toString(),
+                                                    openModeForSource = openMode.BUTTON_OPENED
+                                                )
+
+                                            },
+
+                                        ){
+                                            Icon(Icons.Sharp.MoreVert, "", tint = Color(255, 255, 255, 150))
+                                        }
+
+
+                                        createDropDownPlaylist(
+                                            offsetFromIntToDp = DpOffset(0.dp, 0.dp),
+                                            expanded =
+                                                playlistDropDownMenuOpened.openedIndexName == item.id.toString() &&
+                                                        playlistDropDownMenuOpened.open == openMode.BUTTON_OPENED
+                                            ,
+                                            onDismissRequest = { playlistDropDownMenuOpened.closeDropDown() },
+                                            onRename = { renamePlaylistId.value = item.id.toString() },
+                                            onDelete = { deletePlaylistId.value = item.id.toString() },
+                                        )
+
+
+
+                                    }
 
                                 }
 
