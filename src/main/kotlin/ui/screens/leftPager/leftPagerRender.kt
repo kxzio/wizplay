@@ -1,7 +1,5 @@
 package ui.screens.leftPager
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
@@ -50,12 +48,10 @@ import org.example.bass.bassController.trackSource
 import org.example.folderGetter.PlaylistController
 import org.example.ui.screens.leftPager.playlists.playlistTab
 import org.example.ui.screens.leftPager.settings.AppPrefs
-import org.example.ui.uiHelpers.globalUIMovers
-import org.example.ui.uiHelpers.snapCornerOverlay
 import org.example.ui.uiHelpers.wizuiUIMove
 import org.example.wizui.wizui
 import org.example.wizui.wizui.wizAnimateIf
-import ui.screens.leftPager.albums.albumTab
+import ui.screens.leftPager.audioSources.albums.albumTab
 import ui.screens.leftPager.settings.settingTab
 
 @OptIn(ExperimentalFoundationApi::class)

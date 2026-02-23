@@ -26,13 +26,9 @@ import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.sharp.Album
-import androidx.compose.material.icons.sharp.DeleteForever
 import androidx.compose.material.icons.sharp.MoreVert
 import androidx.compose.material.icons.sharp.PermMedia
-import androidx.compose.material.icons.sharp.PlayArrow
 import androidx.compose.material.icons.sharp.Queue
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -55,7 +51,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.input.pointer.PointerEventType
@@ -84,54 +79,16 @@ import org.example.bassQueueController
 import org.example.dashedBorder
 import org.example.folderGetter.PlaylistController
 import org.example.ui.screens.leftPager.albums.artworkAsync
-import org.example.ui.screens.leftPager.playlists.createDropDownPlaylist
 import org.example.ui.screens.leftPager.playlists.dropDownMenuOpenMode
 import org.example.ui.screens.leftPager.playlists.openMode
 import org.example.ui.screens.leftPager.queue.drawQueue
-import org.example.ui.screens.rightPager.createDropDownTrack
-import org.example.ui.screens.rightPager.drawBottomBar
+import org.example.ui.screens.rightPager.tracklist.createDropDownTrack
+import org.example.ui.screens.rightPager.bottomBar.drawBottomBar
+import org.example.ui.screens.rightPager.tracklist.drawTrackList
+import org.example.ui.screens.rightPager.tracklist.placeholders.emptyPlaylistPlaceHolder
+import org.example.ui.screens.rightPager.tracklist.placeholders.notSelectedSourcePlaceholder
 import org.example.wizui.wizui
 import kotlin.io.path.Path
-
-fun Modifier.bottomGradient(col: Color) = this.drawWithCache {
-    val gradient = Brush.radialGradient(
-        colors = listOf(
-            col.copy(alpha = 0.10f),
-            Color.Transparent
-        ),
-        center = Offset(size.width / 2f, size.height),
-        radius = size.width * 0.5f
-    )
-
-    val strokeWidth = 1.dp.toPx()
-    val y = strokeWidth / 2
-
-    onDrawBehind {
-        drawRect(gradient)
-    }
-}
-
-@Composable
-fun TimePreviewBubble(text: String) {
-    Box(
-        modifier = Modifier
-            .background(
-                color = Color(20, 20, 20),
-            )
-            .border(
-                width = 1.dp,
-                color = Color(255, 255, 255, 30),
-            )
-            .padding(horizontal = 8.dp, vertical = 4.dp)
-    ) {
-        Text(
-            text = text,
-            color = Color.White,
-            fontSize = 12.sp,
-        )
-    }
-}
-
 
 @OptIn(ExperimentalComposeUiApi::class, ExperimentalMaterial3Api::class)
 @Composable
@@ -241,7 +198,7 @@ fun renderRightPager(
                             backgroundColor = Color(20, 20, 20, 255),
                             blurRadius = 25.dp,
                             tint = (HazeTint(
-                                color = Color(100, 100, 100, 20)
+                                color = Color(10, 10, 10, 30)
                             )),
                             noiseFactor = 0.15f
                         )
@@ -268,7 +225,7 @@ fun renderRightPager(
                             backgroundColor = Color(20, 20, 20, 255),
                             blurRadius = 25.dp,
                             tint = (HazeTint(
-                                color = Color(100, 100, 100, 20)
+                                color = Color(10, 10, 10, 30)
                             )),
                             noiseFactor = 0.15f
                         )
@@ -370,19 +327,6 @@ fun drawAlbum(
             }
 
 
-        val albumDurationCache = remember { mutableMapOf<String, String>() }
-
-        val currentAlbumDuration by produceState<String>(
-            initialValue = "–",
-            key1 = openedAudioSource.value
-        ) {
-            value = albumDurationCache.getOrPut(openedAudioSource.value) {
-                formatDuration(
-                    bassAudioController.getAlbumDurationSec(openedAlbumTracks)
-                )
-            }
-        }
-
         LaunchedEffect(openedAudioSource.value) {
 
             when (val parsed = trackSource.fromString(openedAudioSource.value)) {
@@ -408,15 +352,9 @@ fun drawAlbum(
         }
 
         if (openedAudioSource.value.isBlank())
-            Box(Modifier.fillMaxSize().padding(16.dp), contentAlignment = Alignment.Center) {
-
-                Icon(Icons.Sharp.PermMedia, "",
-                    tint = Color(255, 255, 255, 30),
-                    modifier = Modifier.size(150.dp)
-                )
-
-                Text("select album or playlist from the media-tab", fontSize = 16.sp, color = Color(255, 255, 255))
-            }
+        {
+            notSelectedSourcePlaceholder()
+        }
         else if (openedAlbumTracks.isEmpty()) {
 
             val parsed = trackSource.fromString(openedAudioSource.value)
@@ -424,106 +362,11 @@ fun drawAlbum(
 
             if (!isAlbum) {
 
-                Box(Modifier.fillMaxSize().padding(bottom = 142.dp)) {
-                    Box {
+                emptyPlaylistPlaceHolder(
+                    openedAudioSource   = openedAudioSource,
+                    playlistController  = playlistController
+                )
 
-                        Column(modifier = Modifier.padding(top = 76.dp))
-                        {
-                            Row(horizontalArrangement = Arrangement.spacedBy(16.dp),
-                                modifier = Modifier.padding(
-                                    top = 32.dp,
-                                    start = 32.dp,
-                                    end = 32.dp,
-                                    bottom = 26.dp
-                                )) {
-
-                                Box(Modifier.size(250.dp)) {
-
-                                    Crossfade(
-                                        targetState = Path(""),
-                                        animationSpec = tween(180)
-                                    ) { artworkPath ->
-                                        artworkAsync(
-                                            artworkPath,
-                                            Modifier.size(250.dp)
-                                        )
-                                    }
-                                }
-
-
-                                Column {
-
-                                    val parsed = trackSource.fromString(openedAudioSource.value)
-                                    val playlistId = if (parsed is trackSource.playlist) {
-                                        parsed.playlistId
-                                    } else 0
-
-                                    val playlist = playlistController.getPlaylistById(playlistId)
-
-                                    Text(
-                                        playlist?.name ?: "playlist name",
-                                        fontSize = 28.sp,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis,
-                                        color = Color(255, 255, 255)
-                                    )
-
-                                    Spacer(Modifier.height(6.dp))
-
-
-                                    Text(
-                                        "playlist",
-                                        fontSize = 16.sp,
-                                        color = Color(255, 255, 255, 120)
-                                    )
-
-                                    Spacer(Modifier.height(6.dp))
-
-
-                                }
-
-                            }
-
-                            HorizontalDivider(
-                                modifier = Modifier.padding().fillMaxWidth(),
-                                thickness = 1.0.dp,
-                                color = Color(255, 255, 255, 60)
-                            )
-
-                            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center)
-                            {
-                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-
-                                    Icon(Icons.Sharp.Queue, "",
-                                        tint = Color(255, 255, 255, 30),
-                                        modifier = Modifier.size(150.dp)
-                                    )
-
-                                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 16.dp)) {
-                                        Text("this source is empty, ", fontSize = 16.sp, color = Color(255, 255, 255))
-
-                                        wizui.wizButton(
-                                            backgroundColor = Color(0, 0, 0, 0),
-                                            modifier = Modifier.border(
-                                                BorderStroke(0.5.dp, Color(255, 255, 255, 100))),
-                                            contentColor = Color.White,
-                                            shape = RectangleShape,
-                                            onClick = {
-
-                                            },
-                                        ){
-                                            Text("add something!")
-                                        }
-
-                                    }
-
-                                }
-                            }
-
-
-                        }
-                    }
-                }
             }
             else {
                 openedAudioSource.value = ""
@@ -535,274 +378,14 @@ fun drawAlbum(
 
             Box(Modifier.fillMaxSize().background(Color(16, 16, 16))) {
 
-                var trackWithArtOrFirst = openedAlbumTracks.firstOrNull { it.artworkPath != null }
-                if (trackWithArtOrFirst == null)
-                    trackWithArtOrFirst = openedAlbumTracks.firstOrNull()
-
-                val hasMultipleDiscs =
-                    openedAlbumTracks
-                        .map { it.disc }
-                        .distinct()
-                        .size > 1
-
-                val trackDropDownOpen = remember { dropDownMenuOpenMode() }
-
-                LazyColumn(
-                    state = listState,
-                    modifier = Modifier
-                    .padding(0.dp)
-                    .background(Color(16, 16, 16))
-                    .hazeSource(hazeState),
-                    contentPadding = PaddingValues()
-                ) {
-
-
-                    item {
-
-                        Box {
-
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(414.dp - 30.dp)
-                            ) {
-                                Crossfade(
-                                    targetState = trackWithArtOrFirst?.artworkPath,
-                                    animationSpec = tween(180),
-                                    modifier = Modifier.fillMaxSize()
-                                ) { artworkPath ->
-                                    artworkAsync(
-                                        artworkPath,
-                                        Modifier
-                                            .fillMaxSize()
-                                            .alpha(0.3f),
-                                        blurRadius = 60f
-                                    )
-                                }
-                            }
-
-
-                            Column(modifier = Modifier.padding(top = 76.dp))
-                            {
-                                Row(horizontalArrangement = Arrangement.spacedBy(16.dp),
-                                    modifier = Modifier.padding(
-                                        top = 32.dp,
-                                        start = 32.dp,
-                                        end = 32.dp,
-                                        bottom = 26.dp
-                                    )) {
-
-                                    Box(Modifier.size(250.dp)) {
-
-                                        Crossfade(
-                                            targetState = trackWithArtOrFirst?.artworkPath,
-                                            animationSpec = tween(180)
-                                        ) { artworkPath ->
-                                            artworkAsync(
-                                                artworkPath,
-                                                Modifier.size(250.dp)
-                                            )
-                                        }
-                                    }
-
-                                    Column {
-
-                                        Text(
-                                            trackWithArtOrFirst?.album ?: "",
-                                            fontSize = 28.sp,
-                                            maxLines = 1,
-                                            overflow = TextOverflow.Ellipsis,
-                                            color = Color(255, 255, 255)
-                                        )
-
-                                        Spacer(Modifier.height(6.dp))
-
-
-                                        Text(
-                                            ("· " + trackWithArtOrFirst?.artist) ?: "",
-                                            fontSize = 16.sp,
-                                            color = Color(255, 255, 255, 120)
-                                        )
-
-                                        Spacer(Modifier.height(6.dp))
-
-                                        Text(
-                                            trackWithArtOrFirst?.year ?: "",
-                                            fontSize = 16.sp,
-                                            color = Color(255, 255, 255, 100)
-                                        )
-
-                                        Spacer(Modifier.height(6.dp))
-
-
-                                    }
-
-                                }
-
-                                HorizontalDivider(
-                                    modifier = Modifier.padding().fillMaxWidth(),
-                                    thickness = 1.0.dp,
-                                    color = Color(255, 255, 255, 60)
-                                )
-
-                                Spacer(Modifier.height(18.dp))
-
-                                Text(
-                                    "-  length : $currentAlbumDuration",
-                                    fontSize = 16.sp,
-                                    modifier = Modifier.padding(start = 32.dp, top = 16.dp),
-                                    color = Color(255, 255, 255, 60)
-                                )
-
-                                Spacer(Modifier.height(18.dp))
-
-
-                            }
-                        }
-                    }
-
-                    itemsIndexed(openedAlbumTracks) { num, item ->
-
-                        val isFirstTrack = num == 0
-                        val prevDisc = openedAlbumTracks.getOrNull(num - 1)?.disc
-
-                        if (hasMultipleDiscs && (isFirstTrack || item.disc != prevDisc)) {
-
-                            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(vertical = 24.dp)) {
-
-                                HorizontalDivider(color = Color(255, 255, 255,60),
-                                    modifier = Modifier.width(60.dp).padding(end = 16.dp)
-                                )
-
-                                Icon(Icons.Sharp.Album, "", tint = Color(255, 255, 255))
-
-                                Text(
-                                    text = "disc ${item.disc}",
-                                    color = Color.White,
-                                    modifier = Modifier.padding(horizontal = 16.dp)
-                                )
-
-                                HorizontalDivider(color = Color(255, 255, 255, 60),
-                                    modifier = Modifier.fillMaxWidth()
-                                )
-                            }
-                        }
-
-                        wizui.wizButton(
-                            shape = RectangleShape,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .onPointerEvent(PointerEventType.Press) { event ->
-                                    if (event.buttons.isSecondaryPressed) {
-
-                                        val pos = event.changes.first().position
-                                        val intOffset = IntOffset(pos.x.toInt(), pos.y.toInt())
-
-                                        trackDropDownOpen.openDropDown(
-                                            openIndexName = item.path.toString(),
-                                            offset = intOffset,
-                                            openModeForSource = openMode.CURSOR_OPENED
-                                        )
-
-                                    }
-                                }.dashedBorder(
-                                    1.dp,
-                                    color = if (trackDropDownOpen.openedIndexName == item.path.toString())
-                                        MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
-                                    else Color(0, 0, 0, 0)
-                                ),
-                            contentColor = Color(255, 255, 255),
-                            backgroundColor = Color(35, 35, 35, 0),
-                            onClick = {
-                                bassQueueController.buildFromSource(
-                                    tracks = openedAlbumTracks,
-                                    audioSource = openedAudioSource.value,
-                                    startTrack = item
-                                )
-                            }
-                        ) {
-
-                            val density = LocalDensity.current
-                            val offsetFromIntToDp = with (density) {
-                                DpOffset(x = trackDropDownOpen.intOffset.x.toDp(),
-                                    y = 0.dp
-                                )
-                            }
-
-                            createDropDownTrack(
-                                offsetFromIntToDp = offsetFromIntToDp,
-                                expanded =
-                                    trackDropDownOpen.openedIndexName == item.path.toString() &&
-                                            trackDropDownOpen.open == openMode.CURSOR_OPENED
-                                ,
-                                onDismissRequest = { trackDropDownOpen.closeDropDown() },
-                            )
-
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-
-                                Box(
-                                    modifier = Modifier
-                                        .width(32.dp),
-                                    contentAlignment = Alignment.CenterEnd
-                                ) {
-                                    Text(
-                                        text = (num + 1).toString(),
-                                        fontSize = 14.sp,
-                                        color = Color(255, 255, 255, 100),
-                                        textAlign = TextAlign.End,
-                                        fontFamily = FontFamily.Monospace
-                                    )
-                                }
-
-                                Column(
-                                    horizontalAlignment = Alignment.Start,
-                                    modifier = Modifier.padding(start = 16.dp).weight(1f)
-                                ) {
-
-                                    Text(item.title, fontSize = 16.sp,
-                                        color = if (bassQueueController.isPlaying(item, item.albumKey))
-                                            MaterialTheme.colorScheme.primary else Color.White)
-
-                                    Spacer(Modifier.height(4.dp))
-                                    Text(item.artist, fontSize = 12.sp, color = Color(255, 255, 255, 100))
-                                }
-
-                                Box {
-
-                                    IconButton(onClick = {
-                                        trackDropDownOpen.openDropDown(
-                                            openIndexName = item.path.toString(),
-                                            openModeForSource = openMode.BUTTON_OPENED
-                                        )
-                                    })
-                                    {
-                                        Icon(Icons.Sharp.MoreVert, "",
-                                            tint = Color(255, 255, 255, 100))
-                                    }
-
-
-                                    createDropDownTrack(
-                                        offsetFromIntToDp = DpOffset(0.dp, 0.dp),
-                                        expanded =
-                                            trackDropDownOpen.openedIndexName == item.path.toString() &&
-                                                    trackDropDownOpen.open == openMode.BUTTON_OPENED
-                                        ,
-                                        onDismissRequest = { trackDropDownOpen.closeDropDown() },
-                                    )
-
-
-                                }
-
-                            }
-
-                        }
-                    }
-
-                    item {
-                        Spacer(Modifier.height(offsetOfBottomBar.value + 16.dp))
-                    }
-                }
-
+                //tracklist draw
+                drawTrackList(
+                    openedAlbumTracks = openedAlbumTracks,
+                    listState = listState,
+                    hazeState = hazeState,
+                    openedAudioSource = openedAudioSource,
+                    offsetOfBottomBar = offsetOfBottomBar
+                )
 
 
             }

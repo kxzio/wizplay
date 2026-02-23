@@ -21,6 +21,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.drawWithCache
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Outline
 import androidx.compose.ui.graphics.Paint
@@ -119,8 +122,6 @@ fun dominantColorFromPathStable(
     clustersCount: Int = 5
 ): Int {
 
-    /* ---------- helpers ---------- */
-
     data class P(val r: Float, val g: Float, val b: Float)
 
     fun clampSaturation(
@@ -189,8 +190,6 @@ fun dominantColorFromPathStable(
                 (p.g.toInt() shl 8) or
                 p.b.toInt()
 
-    /* ---------- load & scale ---------- */
-
     val original = ImageIO.read(File(path))
     val scaled = original.getScaledInstance(targetSize, targetSize, Image.SCALE_FAST)
 
@@ -199,8 +198,6 @@ fun dominantColorFromPathStable(
         drawImage(scaled, 0, 0, null)
         dispose()
     }
-
-    /* ---------- collect points ---------- */
 
     val points = ArrayList<P>(targetSize * targetSize / 4)
 
@@ -222,8 +219,6 @@ fun dominantColorFromPathStable(
     }
 
     if (points.isEmpty()) return 0xFF444444.toInt()
-
-    /* ---------- deterministic k-means ---------- */
 
     val centers = points
         .groupBy { ((it.r + it.g + it.b) / 3f / 256f * clustersCount).toInt() }
@@ -264,7 +259,6 @@ fun dominantColorFromPathStable(
         }
     }
 
-    /* ---------- select dominant ---------- */
 
     fun clampBrightness(
         c: P,
@@ -300,65 +294,6 @@ fun dominantColorFromPathStable(
     val vivid  = clampSaturation(bright, minSaturation = 0.35f)
     return toColorInt(vivid)
 
-}
-
-
-class CustomFlingBehavior(
-    private val decaySpec: DecayAnimationSpec<Float> = exponentialDecay(
-        frictionMultiplier = 5.0f  // Легкое замедление под конец
-    )
-) : FlingBehavior {
-
-    override suspend fun ScrollScope.performFling(initialVelocity: Float): Float {
-        if (abs(initialVelocity) < 1f) return 0f  // Игнор мелких движений
-
-        // Ramp-up: Плавный набор скорости со временем (интерполяция в начале)
-        var currentVelocity = initialVelocity * 0.3f  // Начинаем с низкой (30% от исходной)
-        val rampUpSpec = tween<Float>(
-            durationMillis = 300,  // Время набора (дольше для заметного "разгона")
-            easing = CubicBezierEasing(0.25f, 0.1f, 0.25f, 1f)  // Ease-in-out: Плавный набор и сбавление
-        )
-
-        val rampUpAnimation = Animatable(currentVelocity)
-        rampUpAnimation.animateTo(
-            targetValue = initialVelocity * 1.5f,  // Переходим к повышенной скорости для динамики
-            animationSpec = rampUpSpec
-        ) {
-            val delta = (this.value - currentVelocity) * 0.1f  // Мягкий шаг
-            scrollBy(delta)  // Применяем постепенно
-            currentVelocity = this.value
-        }
-
-        // Decay: Плавное сбавление (интерполяция в конце)
-        var lastValue = 0f
-        val decayState = AnimationState(
-            initialValue = 0f,
-            initialVelocity = currentVelocity
-        )
-        decayState.animateDecay(decaySpec) {
-            val delta = value - lastValue
-            val consumed = scrollBy(delta)
-            lastValue = value
-            if (abs(velocity) < 1f || consumed == 0f) cancelAnimation()  // Полная остановка
-        }
-
-        return 0f  // Возвращаем 0, чтобы дефолт не добавлял свой fling
-    }
-}
-
-@Composable
-inline fun TraceCompose(
-    tag: String,
-    content: @Composable () -> Unit
-) {
-    val recompositions = remember { mutableIntStateOf(0) }
-
-    SideEffect {
-        recompositions.intValue++
-        println("RECOMPOSE [$tag] -> ${recompositions.intValue}")
-    }
-
-    content()
 }
 
 fun pickFolderKDialog(): File? {
@@ -497,6 +432,24 @@ fun Modifier.dashedBorder(
                 )
             )
         }
+    }
+}
+
+fun Modifier.bottomGradient(col: Color) = this.drawWithCache {
+    val gradient = Brush.radialGradient(
+        colors = listOf(
+            col.copy(alpha = 0.10f),
+            Color.Transparent
+        ),
+        center = Offset(size.width / 2f, size.height),
+        radius = size.width * 0.5f
+    )
+
+    val strokeWidth = 1.dp.toPx()
+    val y = strokeWidth / 2
+
+    onDrawBehind {
+        drawRect(gradient)
     }
 }
 

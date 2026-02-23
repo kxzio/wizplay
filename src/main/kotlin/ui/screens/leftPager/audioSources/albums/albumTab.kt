@@ -1,4 +1,4 @@
-package ui.screens.leftPager.albums
+package ui.screens.leftPager.audioSources.albums
 
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.BorderStroke
@@ -80,7 +80,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.example.audioindex.AudioFolderController
 import org.example.audioindex.ScannedAudio
-import org.example.similarity
 import org.example.ui.screens.leftPager.albums.artworkAsync
 import org.example.ui.screens.leftPager.settings.AppPrefs
 import org.example.wizui.wizui
@@ -94,7 +93,13 @@ import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import kotlinx.coroutines.flow.filterNotNull
+import org.example.ui.screens.searchingAlgorithm.albumScore
+import org.example.ui.screens.searchingAlgorithm.matchesQuery
 import org.example.ui.uiHelpers.wizuiUIMove
+import ui.screens.leftPager.audioSources.shared.AlphabetBubble
+import ui.screens.leftPager.audioSources.shared.ScrollProgressThumb
+import ui.screens.leftPager.audioSources.shared.handleAlphabetTouch
+import ui.screens.leftPager.audioSources.shared.rememberScrollFraction
 
 private fun albumKey(a: ScannedAudio): String =
     "${a.album}::${a.year}"
@@ -109,32 +114,6 @@ fun buildAlbumRepresentatives(
                 ?: tracks.first()
         }
 
-fun matchesQuery(query: String, album: ScannedAudio): Boolean {
-    if (query.isBlank()) return true
-
-    val words = query
-        .lowercase()
-        .split(" ")
-        .filter { it.isNotBlank() }
-
-    val fields = listOf(
-        album.album,
-        album.artist,
-        album.year
-    ).map { it.lowercase() }
-
-    return words.all { word ->
-        fields.any { field -> field.contains(word) }
-    }
-}
-
-fun albumScore(query: String, album: ScannedAudio): Float {
-    val q = query.lowercase()
-    return maxOf(
-        similarity(q, album.album.lowercase()),
-        similarity(q, album.artist.lowercase())
-    )
-}
 
 @Composable
 fun albumsWithAlphabetScroller(
@@ -332,121 +311,6 @@ fun albumsWithAlphabetScroller(
         bubbleLetter?.let { letter ->
             AlphabetBubble(letter)
         }
-    }
-}
-
-@Composable
-fun rememberScrollFraction(listState: LazyListState): Float {
-
-    val adapter = rememberScrollbarAdapter(listState)
-
-    val fraction by remember {
-        derivedStateOf {
-
-            val max = adapter.maxScrollOffset
-
-            if (max <= 0.0) 0f
-            else (adapter.scrollOffset / max).toFloat()
-        }
-    }
-
-    return fraction.coerceIn(0f, 1f)
-}
-
-@Composable
-fun ScrollProgressThumb(
-    scrollFraction: Float,
-    modifier: Modifier = Modifier,
-    thumbHeight: Dp = 36.dp
-) {
-    var containerHeightPx by remember { mutableStateOf(0) }
-    val density = LocalDensity.current
-    val thumbHeightPx = with(density) { thumbHeight.toPx() }
-
-    Box(
-        modifier = modifier
-            .padding(top = 76.dp, bottom = 28.dp)
-            .width(1.dp)
-            .fillMaxHeight()
-            .onSizeChanged {
-                containerHeightPx = it.height
-            }
-    ) {
-        // ───── Track ─────
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(
-                    Color.White.copy(alpha = 0.10f),
-                )
-        )
-
-        if (containerHeightPx > 0) {
-            val maxOffset =
-                (containerHeightPx - thumbHeightPx).coerceAtLeast(0f)
-
-            val thumbOffsetY =
-                maxOffset * scrollFraction.coerceIn(0f, 1f)
-
-            // ───── Thumb ─────
-            Box(
-                modifier = Modifier
-                    .offset { IntOffset(0, thumbOffsetY.toInt()) }
-                    .width(3.dp)
-                    .height(thumbHeight)
-                    .background(
-                        MaterialTheme.colorScheme.primary,
-                    )
-            )
-        }
-    }
-}
-
-@Composable
-fun AlphabetBubble(letter: Char) {
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color.Black.copy(alpha = 0.3f)),
-        contentAlignment = Alignment.Center
-    ) {
-        Box(
-            modifier = Modifier
-                .size(96.dp)
-                .background(Color.DarkGray, CircleShape),
-            contentAlignment = Alignment.Center
-        ) {
-            Text(
-                text = letter.toString(),
-                fontSize = 48.sp,
-                color = Color.White
-            )
-        }
-    }
-}
-
-fun handleAlphabetTouch(
-    y: Float,
-    heightPx: Int,
-    letters: List<Char>,
-    letterToIndex: Map<Char, Int>,
-    scope: CoroutineScope,
-    listState: LazyListState,
-    onLetterChanged: (Char) -> Unit
-) {
-    if (heightPx == 0) return
-
-    val letterHeight = heightPx / letters.size
-    val index = (y / letterHeight)
-        .toInt()
-        .coerceIn(0, letters.lastIndex)
-
-    val letter = letters[index]
-    onLetterChanged(letter)
-
-    val targetIndex = letterToIndex[letter] ?: return
-    scope.launch {
-        listState.scrollToItem(targetIndex)
     }
 }
 

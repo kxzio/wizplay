@@ -1,4 +1,4 @@
-package org.example.ui.screens.rightPager
+package org.example.ui.screens.rightPager.bottomBar
 
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.animateFloatAsState
@@ -23,9 +23,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.sharp.Fullscreen
 import androidx.compose.material.icons.sharp.Pause
 import androidx.compose.material.icons.sharp.PlayArrow
-import androidx.compose.material.icons.sharp.Repeat
-import androidx.compose.material.icons.sharp.RepeatOne
-import androidx.compose.material.icons.sharp.Shuffle
 import androidx.compose.material.icons.sharp.SkipNext
 import androidx.compose.material.icons.sharp.SkipPrevious
 import androidx.compose.material.icons.sharp.SurroundSound
@@ -70,15 +67,13 @@ import dev.chrisbanes.haze.HazeTint
 import dev.chrisbanes.haze.hazeEffect
 import org.example.bass.bassController.PlayerState
 import org.example.bass.bassController.prettyString
-import org.example.bass.queue.repeatMods
 import org.example.bassAudioController
 import org.example.bassQueueController
+import org.example.bottomGradient
 import org.example.toTimeString
 import org.example.ui.screens.leftPager.settings.AppPrefs
 import org.example.ui.uiHelpers.wizuiUIMove
 import org.example.wizui.wizui.FlatSliderTrack
-import ui.screens.rightPager.TimePreviewBubble
-import ui.screens.rightPager.bottomGradient
 
 @OptIn(ExperimentalComposeUiApi::class, ExperimentalMaterial3Api::class)
 @Composable
@@ -91,8 +86,7 @@ fun drawBottomBar(
     overlayEnabled: MutableState<Boolean>
 )
 {
-    Box(modifier = Modifier
-    )
+    Box(modifier = Modifier)
     {
         val track = bassQueueController.currentTrack()
 
@@ -246,7 +240,7 @@ fun drawBottomBar(
                                 backgroundColor = Color(25, 25, 25),
                                 blurRadius = 25.dp,
                                 tint = (HazeTint(
-                                    color = Color(100, 100, 100, 20)
+                                    color = Color(10, 10, 10, 150)
                                 )),
                                 noiseFactor = 0.15f
                             )
