@@ -15,10 +15,15 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.sharp.AddToQueue
+import androidx.compose.material.icons.sharp.BookmarkAdded
 import androidx.compose.material.icons.sharp.Close
 import androidx.compose.material.icons.sharp.DragHandle
+import androidx.compose.material.icons.sharp.LibraryAdd
 import androidx.compose.material.icons.sharp.PlayArrow
+import androidx.compose.material.icons.sharp.PlaylistAddCircle
 import androidx.compose.material.icons.sharp.Queue
+import androidx.compose.material.icons.sharp.QueuePlayNext
 import androidx.compose.material.icons.sharp.Remove
 import androidx.compose.material.icons.sharp.Repeat
 import androidx.compose.material.icons.sharp.RepeatOne
@@ -294,11 +299,25 @@ fun drawQueue(offsetOfBottomBar: MutableState<Dp>) {
                                     modifier = Modifier.padding(start = 16.dp).fillMaxWidth()
                                 ) {
 
-                                    Text(
-                                        item.track.title, fontSize = 16.sp,
-                                        color = if (bassQueueController.isPlaying(item.track, item.audioSource))
-                                            MaterialTheme.colorScheme.primary else Color.White
-                                    )
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+
+                                        if (item.addedByUser == true) {
+                                            Icon(
+                                                Icons.Sharp.LibraryAdd, "",
+                                                tint = MaterialTheme.colorScheme.primary
+                                            )
+
+                                            Spacer(Modifier.width(8.dp))
+                                        }
+
+                                        Text(
+                                            item.track.title, fontSize = 16.sp,
+                                            color = if (bassQueueController.isPlaying(item.track, item.audioSource))
+                                                MaterialTheme.colorScheme.primary else Color.White
+                                        )
+
+                                    }
+
 
                                     Spacer(Modifier.height(4.dp))
                                     Text(item.track.artist, fontSize = 12.sp, color = Color(255, 255, 255, 100))

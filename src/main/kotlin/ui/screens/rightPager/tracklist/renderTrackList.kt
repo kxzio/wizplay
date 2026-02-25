@@ -226,6 +226,7 @@ fun drawTrackList(
             drawTrack(
                 num = num,
                 item = item,
+                audioSourceForItem = openedAudioSource.value,
                 trackDropDownOpen = trackDropDownOpen,
                 onPlay = {
 

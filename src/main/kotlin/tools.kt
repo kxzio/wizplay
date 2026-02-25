@@ -34,11 +34,14 @@ import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import java.awt.Desktop
 import java.awt.FileDialog
 import java.awt.Frame
 import java.awt.Image
 import java.awt.image.BufferedImage
 import java.io.File
+import java.io.IOException
+import java.nio.file.Path
 import javax.imageio.ImageIO
 import javax.swing.JFileChooser
 import javax.swing.UIManager
@@ -453,4 +456,58 @@ fun Modifier.bottomGradient(col: Color) = this.drawWithCache {
     }
 }
 
+fun openFileInFileManager(path : Path)
+{
+    val file = path.toFile()
+    val os = System.getProperty("os.name").lowercase()
+
+    try {
+        when {
+            // Windows: открывает проводник и выделяет файл
+            os.contains("win") -> {
+                Runtime.getRuntime().exec("explorer.exe /select,\"${file.absolutePath}\"")
+            }
+
+            // macOS: открывает Finder и выделяет файл (-R = reveal)
+            os.contains("mac") -> {
+                Runtime.getRuntime().exec(arrayOf("open", "-R", file.absolutePath))
+            }
+
+            // Linux: открывает родительскую папку (выделение файла зависит от менеджера, обычно просто папка)
+            os.contains("nix") || os.contains("nux") -> {
+
+                val absolutePath = file.absolutePath
+                val parentPath = file.parentFile?.absolutePath ?: absolutePath
+
+                fun run(vararg cmd: String): Boolean {
+                    return try {
+                        ProcessBuilder(*cmd)
+                            .redirectErrorStream(true)
+                            .start()
+                        true
+                    } catch (e: Exception) {
+                        false
+                    }
+                }
+
+                if (run("nautilus", "--select", absolutePath)) return
+                if (run("dolphin", "--select", absolutePath)) return
+                if (run("nemo", absolutePath)) return
+                if (run("thunar", absolutePath)) return
+
+                run("xdg-open", parentPath)
+            }
+
+            // Фоллбэк на обычное открытие, если ОС не распознана
+            else -> {
+                if (Desktop.isDesktopSupported()) {
+                    Desktop.getDesktop().open(file.parentFile ?: file)
+                }
+            }
+
+        }
+    } catch (e: IOException) {
+        e.printStackTrace()
+    }
+}
 

@@ -5,25 +5,36 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.sharp.DeleteForever
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.Text
+import androidx.compose.material.icons.automirrored.sharp.PlaylistAdd
+import androidx.compose.material.icons.sharp.Folder
+import androidx.compose.material.icons.sharp.LibraryAdd
+import androidx.compose.material.icons.sharp.PlayArrow
+import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import org.example.audioindex.ScannedAudio
+import org.example.bassQueueController
+import org.example.openFileInFileManager
+import java.awt.Desktop
+import java.io.IOException
+import kotlin.io.path.exists
+
 
 @Composable
 fun createDropDownTrack(
     offsetFromIntToDp : DpOffset,
     expanded : Boolean,
+    scannedAudio: ScannedAudio,
+    audioSourceFrom : String,
     onDismissRequest: () -> Unit,
+    onPlaySelected: () -> Unit,
 )
 {
     DropdownMenu(
@@ -37,15 +48,72 @@ fun createDropDownTrack(
             .width(220.dp).padding(horizontal = 8.dp)
     ) {
 
+        Text(scannedAudio.artist + " - " + scannedAudio.title,
+            fontSize = 12.sp,
+            color = Color(255, 255, 255, 100),
+            overflow = TextOverflow.Ellipsis
+        )
+
         DropdownMenuItem(
-            text = { Text("open") },
+            text = {
+
+                Row(verticalAlignment = Alignment.CenterVertically) {
+
+                    Icon(Icons.Sharp.PlayArrow, "",
+                        tint = Color(255, 255, 255, 255))
+
+                    Text(
+                        "play now",
+                        modifier = Modifier.padding(start = 12.dp),
+                        color = Color(255, 255, 255, 255)
+                    )
+                }
+
+            },
             onClick = {
+                onPlaySelected()
                 onDismissRequest()
             }
         )
 
         DropdownMenuItem(
-            text = { Text("rename") },
+            text = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+
+                    Icon(Icons.Sharp.LibraryAdd, "",
+                        tint = Color(255, 255, 255, 255))
+
+                    Text(
+                        "play next",
+                        modifier = Modifier.padding(start = 12.dp),
+                        color = Color(255, 255, 255, 255)
+                    )
+                }
+            },
+            onClick = {
+                onDismissRequest()
+                bassQueueController.addNext(scannedAudio, audioSourceFrom)
+            }
+        )
+
+        HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+
+        DropdownMenuItem(
+            text = {
+
+                Row(verticalAlignment = Alignment.CenterVertically) {
+
+                    Icon(
+                        Icons.AutoMirrored.Sharp.PlaylistAdd, "",
+                        tint = Color(255, 255, 255, 255))
+
+                    Text(
+                        "add to playlist",
+                        modifier = Modifier.padding(start = 12.dp),
+                        color = Color(255, 255, 255, 255)
+                    )
+                }
+            },
             onClick = {
                 onDismissRequest()
             }
@@ -58,18 +126,19 @@ fun createDropDownTrack(
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
 
-                    Icon(Icons.Sharp.DeleteForever, "",
-                        tint = Color(226, 80, 80, 255))
+                    Icon(
+                        Icons.Sharp.Folder, "",
+                        tint = Color(255, 255, 255, 255))
 
                     Text(
-                        "delete",
+                        "open in file manager",
                         modifier = Modifier.padding(start = 12.dp),
-                        color = Color(226, 80, 80, 255)
+                        color = Color(255, 255, 255, 255)
                     )
                 }
             },
             onClick = {
-                onDismissRequest()
+                openFileInFileManager(scannedAudio.path)
             }
         )
     }

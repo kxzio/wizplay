@@ -40,7 +40,7 @@ import org.example.wizui.wizui
 
 @OptIn(ExperimentalComposeUiApi::class)
 @Composable
-fun drawTrack(num: Int, item: ScannedAudio, trackDropDownOpen: dropDownMenuOpenMode, onPlay : () -> Unit)
+fun drawTrack(num: Int, audioSourceForItem : String, item: ScannedAudio, trackDropDownOpen: dropDownMenuOpenMode, onPlay : () -> Unit)
 {
     wizui.wizButton(
         shape = RectangleShape,
@@ -88,6 +88,11 @@ fun drawTrack(num: Int, item: ScannedAudio, trackDropDownOpen: dropDownMenuOpenM
                 trackDropDownOpen.openedIndexName == item.path.toString() &&
                         trackDropDownOpen.open == openMode.CURSOR_OPENED,
             onDismissRequest = { trackDropDownOpen.closeDropDown() },
+            scannedAudio = item,
+            audioSourceFrom = audioSourceForItem,
+            onPlaySelected = {
+                onPlay()
+            }
         )
 
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -132,13 +137,17 @@ fun drawTrack(num: Int, item: ScannedAudio, trackDropDownOpen: dropDownMenuOpenM
                         tint = Color(255, 255, 255, 100))
                 }
 
-
                 createDropDownTrack(
                     offsetFromIntToDp = DpOffset(0.dp, 0.dp),
                     expanded =
                         trackDropDownOpen.openedIndexName == item.path.toString() &&
                                 trackDropDownOpen.open == openMode.BUTTON_OPENED,
                     onDismissRequest = { trackDropDownOpen.closeDropDown() },
+                    scannedAudio = item,
+                    audioSourceFrom = audioSourceForItem,
+                    onPlaySelected = {
+                        onPlay()
+                    }
                 )
 
 
