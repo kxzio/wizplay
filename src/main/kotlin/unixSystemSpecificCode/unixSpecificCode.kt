@@ -1,4 +1,4 @@
-package win32helpers
+package unixSystemSpecificCode
 
 import com.sun.jna.Native
 import com.sun.jna.NativeLong

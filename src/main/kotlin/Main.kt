@@ -28,7 +28,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.withContext
 import org.example.audioindex.AudioFolderController
-import org.example.audioindex.ScannedAudio
 import org.example.bass.bassController.PlayerController
 import org.example.bass.bassController.deserializeAudioOutput
 import org.example.bass.queue.QueueController
@@ -36,8 +35,8 @@ import org.example.folderGetter.FolderScanController
 import org.example.folderGetter.PlaylistController
 import org.example.ui.screens.leftPager.settings.AppPrefs
 import ui.draw
-import win32helpers.CrossPlatformFullscreen
-import win32helpers.WinFullscreen
+import unixSystemSpecificCode.CrossPlatformFullscreen
+import unixSystemSpecificCode.WinFullscreen
 import java.awt.EventQueue
 import java.awt.Rectangle
 import java.awt.event.ActionEvent
