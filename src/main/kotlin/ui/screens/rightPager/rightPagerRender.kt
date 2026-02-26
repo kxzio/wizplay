@@ -383,6 +383,7 @@ fun drawAlbum(
                     openedAlbumTracks = openedAlbumTracks,
                     listState = listState,
                     hazeState = hazeState,
+                    playlistController = playlistController,
                     openedAudioSource = openedAudioSource,
                     offsetOfBottomBar = offsetOfBottomBar
                 )

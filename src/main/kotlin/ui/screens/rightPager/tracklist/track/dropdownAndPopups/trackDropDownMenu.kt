@@ -22,19 +22,17 @@ import androidx.compose.ui.unit.sp
 import org.example.audioindex.ScannedAudio
 import org.example.bassQueueController
 import org.example.openFileInFileManager
-import java.awt.Desktop
-import java.io.IOException
-import kotlin.io.path.exists
 
 
 @Composable
 fun createDropDownTrack(
-    offsetFromIntToDp : DpOffset,
-    expanded : Boolean,
+    offsetFromIntToDp: DpOffset,
+    expanded: Boolean,
     scannedAudio: ScannedAudio,
-    audioSourceFrom : String,
+    audioSourceFrom: String,
     onDismissRequest: () -> Unit,
     onPlaySelected: () -> Unit,
+    onAddToPlaylistSelected: () -> Unit,
 )
 {
     DropdownMenu(
@@ -116,6 +114,7 @@ fun createDropDownTrack(
             },
             onClick = {
                 onDismissRequest()
+                onAddToPlaylistSelected()
             }
         )
 

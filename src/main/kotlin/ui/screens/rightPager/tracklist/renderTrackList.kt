@@ -26,6 +26,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -40,17 +41,21 @@ import androidx.compose.ui.unit.sp
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.hazeSource
 import org.example.audioindex.ScannedAudio
+import org.example.bass.bassController.trackSource
 import org.example.bassAudioController
 import org.example.bassQueueController
+import org.example.folderGetter.PlaylistController
 import org.example.ui.screens.leftPager.albums.artworkAsync
 import org.example.ui.screens.leftPager.playlists.dropDownMenuOpenMode
 import org.example.ui.screens.rightPager.tracklist.track.drawTrack
 import ui.screens.rightPager.formatDuration
+import ui.screens.rightPager.tracklist.track.dropdownAndPopups.handleTracksPopUp
 
 @OptIn(ExperimentalComposeUiApi::class)
 @Composable
 fun drawTrackList(
     openedAlbumTracks: List<ScannedAudio>,
+    playlistController: PlaylistController,
     listState: LazyListState,
     hazeState: HazeState,
     openedAudioSource: MutableState<String>,
@@ -81,6 +86,8 @@ fun drawTrackList(
             )
         }
     }
+
+    var targetTrackPopup = remember { mutableStateOf<ScannedAudio?>(null) }
 
     LazyColumn(
         state = listState,
@@ -140,37 +147,82 @@ fun drawTrackList(
                             }
                         }
 
-                        Column {
+                        if (trackSource.fromString(openedAudioSource.value) is trackSource.album) {
+                            Column {
 
-                            Text(
-                                trackWithArtOrFirst?.album ?: "",
-                                fontSize = 28.sp,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                                color = Color(255, 255, 255)
-                            )
+                                Text(
+                                    trackWithArtOrFirst?.album ?: "",
+                                    fontSize = 28.sp,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    color = Color(255, 255, 255)
+                                )
 
-                            Spacer(Modifier.height(6.dp))
-
-
-                            Text(
-                                ("· " + trackWithArtOrFirst?.artist) ?: "",
-                                fontSize = 16.sp,
-                                color = Color(255, 255, 255, 120)
-                            )
-
-                            Spacer(Modifier.height(6.dp))
-
-                            Text(
-                                trackWithArtOrFirst?.year ?: "",
-                                fontSize = 16.sp,
-                                color = Color(255, 255, 255, 100)
-                            )
-
-                            Spacer(Modifier.height(6.dp))
+                                Spacer(Modifier.height(6.dp))
 
 
+                                Text(
+                                    ("· " + trackWithArtOrFirst?.artist) ?: "",
+                                    fontSize = 16.sp,
+                                    color = Color(255, 255, 255, 120)
+                                )
+
+                                Spacer(Modifier.height(6.dp))
+
+                                Text(
+                                    trackWithArtOrFirst?.year ?: "",
+                                    fontSize = 16.sp,
+                                    color = Color(255, 255, 255, 100)
+                                )
+
+                                Spacer(Modifier.height(6.dp))
+
+
+                            }
                         }
+                        else {
+                            Column {
+
+                                val parsed = trackSource.fromString(openedAudioSource.value)
+                                val playlistId = if (parsed is trackSource.playlist) {
+                                    parsed.playlistId
+                                } else 0
+
+                                val playlist = playlistController.getPlaylistById(playlistId)
+
+
+                                Text(
+                                    playlist?.name ?: "playlist name",
+                                    fontSize = 28.sp,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    color = Color(255, 255, 255)
+                                )
+
+                                Spacer(Modifier.height(6.dp))
+
+
+                                Text(
+                                    "playlist",
+                                    fontSize = 16.sp,
+                                    color = Color(255, 255, 255, 120)
+                                )
+
+                                Spacer(Modifier.height(6.dp))
+
+                                Text(
+                                    text = (playlist?.trackCount ?: 0).toString() + " songs",
+                                    fontSize = 16.sp,
+                                    color = Color(255, 255, 255, 100)
+                                )
+
+                                Spacer(Modifier.height(6.dp))
+
+
+                            }
+                        }
+
+
 
                     }
 
@@ -236,6 +288,9 @@ fun drawTrackList(
                         startTrack = item
                     )
 
+                },
+                onAddToPlaylist = {
+                    targetTrackPopup.value = item
                 }
             )
         }
@@ -244,4 +299,9 @@ fun drawTrackList(
             Spacer(Modifier.height(offsetOfBottomBar.value + 16.dp))
         }
     }
+
+    handleTracksPopUp(
+        targetTrackPopup,
+        playlistController = playlistController
+    )
 }
