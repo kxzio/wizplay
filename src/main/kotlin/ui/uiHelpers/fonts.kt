@@ -23,6 +23,13 @@ val sfFontFamily = FontFamily(
     Font("fonts/SFUIDisplay-Light.ttf", weight = FontWeight.Bold)
 )
 
+val consoleFont = FontFamily(
+    Font("fonts/TerminalVector.ttf", weight = FontWeight.Normal),
+    Font("fonts/TerminalVector.ttf", weight = FontWeight.Bold)
+)
+
+
+
 // Полный набор Typography
 val myTypography = Typography(
     displayLarge = TextStyle(

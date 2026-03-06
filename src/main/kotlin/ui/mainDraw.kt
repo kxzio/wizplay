@@ -27,12 +27,12 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.isCtrlPressed
 import androidx.compose.ui.input.pointer.onPointerEvent
+import core.coreMaster.grooviqCore
 import dev.chrisbanes.haze.hazeSource
 import dev.chrisbanes.haze.rememberHazeState
 import org.example.folderGetter.FolderScanController
 import org.example.FullscreenController
 import org.example.audioindex.AudioFolderController
-import org.example.bassAudioController
 import org.example.folderGetter.PlaylistController
 import org.example.loaderConfig
 import org.example.ui.screens.trackFullScreen
@@ -87,7 +87,7 @@ fun draw(
 
             val hazeState = rememberHazeState()
 
-            val state by bassAudioController.state.collectAsState()
+            val state by grooviqCore.controllers.audioController.bassAudioController.state.collectAsState()
 
             val stateHolder = rememberSaveableStateHolder()
 

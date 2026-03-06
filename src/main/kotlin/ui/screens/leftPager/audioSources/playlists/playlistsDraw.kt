@@ -98,6 +98,7 @@ import org.example.audioindex.AudioFolderController
 import org.example.dashedBorder
 import org.example.folderGetter.Playlist
 import org.example.folderGetter.PlaylistController
+import org.example.ui.screens.leftPager.albums.drawAudioSourceArtwork
 import org.example.ui.screens.leftPager.settings.AppPrefs
 import org.example.ui.screens.searchingAlgorithm.matchesQueryPlaylist
 import org.example.ui.uiHelpers.AniJinPopup
@@ -267,6 +268,7 @@ fun playlistsWithAlphabetScroller(
                                 .background(Color(45, 45, 45))
 
                         ) {
+
 
                             if (openedAudioSource.value == item.playlistKey)
                             {

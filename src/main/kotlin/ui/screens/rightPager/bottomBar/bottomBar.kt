@@ -66,6 +66,7 @@ import androidx.compose.ui.unit.lerp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Popup
 import androidx.compose.ui.zIndex
+import core.coreMaster.grooviqCore
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.HazeStyle
 import dev.chrisbanes.haze.HazeTint
@@ -73,8 +74,6 @@ import dev.chrisbanes.haze.hazeEffect
 import org.example.bass.bassController.PlayerState
 import org.example.bass.bassController.prettyString
 import org.example.bass.queue.repeatMods
-import org.example.bassAudioController
-import org.example.bassQueueController
 import org.example.bottomGradient
 import org.example.toTimeString
 import org.example.ui.screens.leftPager.settings.AppPrefs
@@ -94,7 +93,7 @@ fun drawBottomBar(
 {
     Box(modifier = Modifier)
     {
-        val track = bassQueueController.currentTrack()
+        val track = grooviqCore.controllers.audioController.bassQueueController.currentTrack()
 
         var realHeight by remember { mutableStateOf(0.dp) }
         val density = LocalDensity.current
@@ -146,7 +145,7 @@ fun drawBottomBar(
                         },
                         onValueChangeFinished = {
                             isSeeking = false
-                            bassAudioController.seek(sliderValue.toDouble())
+                            grooviqCore.controllers.audioController.bassAudioController.seek(sliderValue.toDouble())
                         },
                         valueRange = 0f..state.durationSec.toFloat(),
                         modifier = Modifier.fillMaxWidth().zIndex(3f)
@@ -287,9 +286,9 @@ fun drawBottomBar(
                             onClick = {
 
                                 if (state.isPlaying)
-                                    bassAudioController.pause()
+                                    grooviqCore.controllers.audioController.bassAudioController.pause()
                                 else
-                                    bassAudioController.resume()
+                                    grooviqCore.controllers.audioController.bassAudioController.resume()
 
                             }
                         )
@@ -342,12 +341,13 @@ fun drawBottomBar(
                                     Icon(
                                         imageVector = Icons.Sharp.Shuffle, contentDescription = "",
                                         tint =
-                                            if (bassQueueController.isShuffle)
+                                            if (grooviqCore.controllers.audioController.bassQueueController.isShuffle)
                                                 MaterialTheme.colorScheme.primary
                                             else
                                                 Color(255, 255, 255, 100),
                                         modifier = Modifier.size(20.dp).clickable {
-                                            bassQueueController.toggleShuffle(!bassQueueController.isShuffle)
+                                            grooviqCore.controllers.audioController.bassQueueController
+                                                .toggleShuffle(!grooviqCore.controllers.audioController.bassQueueController.isShuffle)
                                         }
                                     )
 
@@ -355,21 +355,21 @@ fun drawBottomBar(
 
                                     Icon(
                                         imageVector =
-                                            if (bassQueueController.repeatMode == repeatMods.REPEAT_OFF)
+                                            if (grooviqCore.controllers.audioController.bassQueueController.repeatMode == repeatMods.REPEAT_OFF)
                                                 Icons.Sharp.Repeat
-                                            else if (bassQueueController.repeatMode == repeatMods.REPEAT_ALL)
+                                            else if (grooviqCore.controllers.audioController.bassQueueController.repeatMode == repeatMods.REPEAT_ALL)
                                                 Icons.Sharp.Repeat
                                             else
                                                 Icons.Sharp.RepeatOne
                                         ,
                                         contentDescription = "",
                                         tint =
-                                            if (bassQueueController.repeatMode == repeatMods.REPEAT_OFF)
+                                            if (grooviqCore.controllers.audioController.bassQueueController.repeatMode == repeatMods.REPEAT_OFF)
                                                 Color(255, 255, 255, 100)
                                             else
                                                 MaterialTheme.colorScheme.primary,
                                         modifier = Modifier.size(20.dp).clickable {
-                                            bassQueueController.toggleRepeat()
+                                            grooviqCore.controllers.audioController.bassQueueController.toggleRepeat()
                                         }
                                     )
 
@@ -460,7 +460,7 @@ fun drawBottomBar(
                                         ),
                                         onClick = {
 
-                                            bassQueueController.movePrev()
+                                            grooviqCore.controllers.audioController.bassQueueController.movePrev()
                                         }
                                     )
                                     {
@@ -484,7 +484,7 @@ fun drawBottomBar(
                                         ),
                                         onClick = {
 
-                                            bassQueueController.moveNext()
+                                            grooviqCore.controllers.audioController.bassQueueController.moveNext()
 
                                         }
                                     )

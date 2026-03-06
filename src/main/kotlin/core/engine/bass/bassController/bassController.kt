@@ -104,7 +104,7 @@ class PlayerController {
 
     private fun loadPlugin(name: String) {
 
-        val file = if (OS.isLinux) "bass/linux/lib$name${OS.libExt()}" else "core.bass/microslop/$name${OS.libExt()}"
+        val file = if (OS.isLinux) "bass/linux/lib$name${OS.libExt()}" else "bass/microslop/$name${OS.libExt()}"
 
         val handle = bass.BASS_PluginLoad(file, 0)
 

@@ -19,8 +19,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import core.coreMaster.grooviqCore
 import org.example.audioindex.ScannedAudio
-import org.example.bassQueueController
 import org.example.openFileInFileManager
 
 
@@ -90,7 +90,7 @@ fun createDropDownTrack(
             },
             onClick = {
                 onDismissRequest()
-                bassQueueController.addNext(scannedAudio, audioSourceFrom)
+                grooviqCore.controllers.audioController.bassQueueController.addNext(scannedAudio, audioSourceFrom)
             }
         )
 

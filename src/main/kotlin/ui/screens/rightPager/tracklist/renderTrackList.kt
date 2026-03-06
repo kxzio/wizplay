@@ -38,18 +38,20 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import core.coreMaster.grooviqCore
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.hazeSource
 import org.example.audioindex.ScannedAudio
 import org.example.bass.bassController.trackSource
-import org.example.bassAudioController
-import org.example.bassQueueController
+
 import org.example.folderGetter.PlaylistController
 import org.example.ui.screens.leftPager.albums.artworkAsync
+import org.example.ui.screens.leftPager.albums.drawAudioSourceArtwork
 import org.example.ui.screens.leftPager.playlists.dropDownMenuOpenMode
 import org.example.ui.screens.rightPager.tracklist.track.drawTrack
 import ui.screens.rightPager.formatDuration
 import ui.screens.rightPager.tracklist.track.dropdownAndPopups.handleTracksPopUp
+import java.nio.file.Path
 
 @OptIn(ExperimentalComposeUiApi::class)
 @Composable
@@ -82,7 +84,7 @@ fun drawTrackList(
     ) {
         value = albumDurationCache.getOrPut(openedAudioSource.value) {
             formatDuration(
-                bassAudioController.getAlbumDurationSec(openedAlbumTracks)
+                grooviqCore.controllers.audioController.bassAudioController.getAlbumDurationSec(openedAlbumTracks)
             )
         }
     }
@@ -124,8 +126,15 @@ fun drawTrackList(
                 }
 
 
+
                 Column(modifier = Modifier.padding(top = 76.dp))
                 {
+
+                    drawAudioSourceArtwork(
+                        pathes = openedAlbumTracks.map { it.artworkPath },
+                        modifier = Modifier.fillMaxSize()
+                    )
+
                     Row(horizontalArrangement = Arrangement.spacedBy(16.dp),
                         modifier = Modifier.padding(
                             top = 32.dp,
@@ -140,6 +149,7 @@ fun drawTrackList(
                                 targetState = trackWithArtOrFirst?.artworkPath,
                                 animationSpec = tween(180)
                             ) { artworkPath ->
+
                                 artworkAsync(
                                     artworkPath,
                                     Modifier.size(250.dp)
@@ -282,7 +292,7 @@ fun drawTrackList(
                 trackDropDownOpen = trackDropDownOpen,
                 onPlay = {
 
-                    bassQueueController.buildFromSource(
+                    grooviqCore.controllers.audioController.bassQueueController.buildFromSource(
                         tracks = openedAlbumTracks,
                         audioSource = openedAudioSource.value,
                         startTrack = item

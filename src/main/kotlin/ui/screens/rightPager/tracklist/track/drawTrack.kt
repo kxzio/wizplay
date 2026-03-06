@@ -30,8 +30,8 @@ import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import core.coreMaster.grooviqCore
 import org.example.audioindex.ScannedAudio
-import org.example.bassQueueController
 import org.example.dashedBorder
 import org.example.ui.screens.leftPager.playlists.dropDownMenuOpenMode
 import org.example.ui.screens.leftPager.playlists.openMode
@@ -125,7 +125,7 @@ fun drawTrack(
             ) {
 
                 Text(item.title, fontSize = 16.sp,
-                    color = if (bassQueueController.isPlaying(item, item.albumKey))
+                    color = if (grooviqCore.controllers.audioController.bassQueueController.isPlaying(item, item.albumKey))
                         MaterialTheme.colorScheme.primary else Color.White)
 
                 Spacer(Modifier.height(4.dp))

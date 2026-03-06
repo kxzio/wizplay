@@ -83,6 +83,7 @@ import androidx.compose.ui.unit.lerp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.util.lerp
 import androidx.compose.ui.zIndex
+import core.coreMaster.grooviqCore
 import dev.chrisbanes.haze.HazeStyle
 import dev.chrisbanes.haze.HazeTint
 import dev.chrisbanes.haze.hazeEffect
@@ -96,8 +97,6 @@ import org.example.bass.bassController.prettyString
 import org.example.bass.floatWaveToBytes
 import org.example.bass.getData
 import org.example.bass.queue.repeatMods
-import org.example.bassAudioController
-import org.example.bassQueueController
 import org.example.dominantColorFromPathStable
 import org.example.ui.screens.leftPager.albums.artworkAsync
 import org.example.ui.uiHelpers.AnimSpeed
@@ -290,8 +289,8 @@ fun Modifier.radialFadeMask(
 fun trackFullScreen(fullscreen: MutableState<Boolean>)
 {
 
-    val state by bassAudioController.state.collectAsState()
-    val track = bassQueueController.currentTrack() ?: return
+    val state by grooviqCore.controllers.audioController.bassAudioController.state.collectAsState()
+    val track = grooviqCore.controllers.audioController.bassQueueController.currentTrack() ?: return
     val prim = MaterialTheme.colorScheme.primary
 
     val color = remember { if (track.artworkPath == null) prim.toArgb() else dominantColorFromPathStable(track.artworkPath?.pathString ?: "") }
@@ -307,7 +306,7 @@ fun trackFullScreen(fullscreen: MutableState<Boolean>)
         while (fullscreen.value) {
             // FFT (with FLOAT for proper magnitudes)
             Bass.INSTANCE.BASS_ChannelGetData(
-                bassAudioController.mixer,
+                grooviqCore.controllers.audioController.bassAudioController.mixer,
                 fftBuf.memory,
                 BASS_DATA_FFT2048 or Bass.BASS_DATA_FLOAT
             )
@@ -315,7 +314,7 @@ fun trackFullScreen(fullscreen: MutableState<Boolean>)
 
             // WAVEFORM (request full 1024 floats: 4096 bytes)
             Bass.INSTANCE.BASS_ChannelGetData(
-                bassAudioController.mixer,
+                grooviqCore.controllers.audioController.bassAudioController.mixer,
                 waveBuf.memory,
                 Bass.BASS_DATA_FLOAT or (1024 * 4)
             )
@@ -494,7 +493,7 @@ fun trackFullScreen(fullscreen: MutableState<Boolean>)
                                     ),
                                     onClick = {
 
-                                        bassQueueController.movePrev()
+                                        grooviqCore.controllers.audioController.bassQueueController.movePrev()
                                     }
                                 )
                                 {
@@ -515,9 +514,9 @@ fun trackFullScreen(fullscreen: MutableState<Boolean>)
                                     onClick = {
 
                                         if (state.isPlaying)
-                                            bassAudioController.pause()
+                                            grooviqCore.controllers.audioController.bassAudioController.pause()
                                         else
-                                            bassAudioController.resume()
+                                            grooviqCore.controllers.audioController.bassAudioController.resume()
 
                                     }
                                 )
@@ -539,7 +538,7 @@ fun trackFullScreen(fullscreen: MutableState<Boolean>)
                                     ),
                                     onClick = {
 
-                                        bassQueueController.moveNext()
+                                        grooviqCore.controllers.audioController.bassQueueController.moveNext()
 
                                     }
                                 )
@@ -568,7 +567,11 @@ fun trackFullScreen(fullscreen: MutableState<Boolean>)
                                         containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.0f)
                                     ),
                                     onClick = {
-                                        bassQueueController.toggleShuffle(!bassQueueController.isShuffle)
+                                        grooviqCore.controllers.audioController.bassQueueController
+                                            .toggleShuffle(
+                                                !grooviqCore.controllers.audioController.
+                                                bassQueueController.isShuffle
+                                            )
                                     }
                                 )
                                 {
@@ -576,7 +579,7 @@ fun trackFullScreen(fullscreen: MutableState<Boolean>)
                                         modifier = Modifier.size(24.dp),
                                         imageVector = Icons.Sharp.Shuffle, contentDescription = "",
                                         tint =
-                                            if (bassQueueController.isShuffle)
+                                            if (grooviqCore.controllers.audioController.bassQueueController.isShuffle)
                                                 Color(color)
                                             else
                                                 Color(255, 255, 255, 100)
@@ -592,23 +595,23 @@ fun trackFullScreen(fullscreen: MutableState<Boolean>)
                                         containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.0f)
                                     ),
                                     onClick = {
-                                        bassQueueController.toggleRepeat()
+                                        grooviqCore.controllers.audioController.bassQueueController.toggleRepeat()
                                     }
                                 )
                                 {
                                     Icon(
                                         modifier = Modifier.size(24.dp),
                                         imageVector =
-                                            if (bassQueueController.repeatMode == repeatMods.REPEAT_OFF)
+                                            if (grooviqCore.controllers.audioController.bassQueueController.repeatMode == repeatMods.REPEAT_OFF)
                                                 Icons.Sharp.Repeat
-                                            else if (bassQueueController.repeatMode == repeatMods.REPEAT_ALL)
+                                            else if (grooviqCore.controllers.audioController.bassQueueController.repeatMode == repeatMods.REPEAT_ALL)
                                                 Icons.Sharp.Repeat
                                             else
                                                 Icons.Sharp.RepeatOne
                                         ,
                                         contentDescription = "",
                                         tint =
-                                            if (bassQueueController.repeatMode == repeatMods.REPEAT_OFF)
+                                            if (grooviqCore.controllers.audioController.bassQueueController.repeatMode == repeatMods.REPEAT_OFF)
                                                 Color(255, 255, 255, 100)
                                             else
                                                 Color(color)
@@ -647,7 +650,7 @@ fun trackFullScreen(fullscreen: MutableState<Boolean>)
                                 },
                                 onValueChangeFinished = {
                                     isSeeking = false
-                                    bassAudioController.seek(sliderValue.toDouble())
+                                    grooviqCore.controllers.audioController.bassAudioController.seek(sliderValue.toDouble())
                                 },
                                 valueRange = 0f..state.durationSec.toFloat(),
                                 modifier = Modifier.fillMaxWidth().zIndex(3f)

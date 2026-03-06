@@ -1,4 +1,4 @@
-package org.example
+package core.preferencesAndToolsForCore
 import java.awt.Rectangle
 import java.util.prefs.Preferences
 

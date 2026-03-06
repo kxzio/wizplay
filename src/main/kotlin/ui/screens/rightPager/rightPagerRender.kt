@@ -65,6 +65,7 @@ import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import core.coreMaster.grooviqCore
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.HazeStyle
 import dev.chrisbanes.haze.HazeTint
@@ -74,8 +75,6 @@ import dev.chrisbanes.haze.rememberHazeState
 import org.example.audioindex.AudioFolderController
 import org.example.audioindex.ScannedAudio
 import org.example.bass.bassController.trackSource
-import org.example.bassAudioController
-import org.example.bassQueueController
 import org.example.dashedBorder
 import org.example.folderGetter.PlaylistController
 import org.example.ui.screens.leftPager.albums.artworkAsync
@@ -107,7 +106,7 @@ fun renderRightPager(
 
     val offsetOfBottomBar = rememberSaveable { mutableStateOf(0.dp) }
 
-    val state by bassAudioController.state.collectAsState()
+    val state by grooviqCore.controllers.audioController.bassAudioController.state.collectAsState()
 
 
     Box(Modifier.padding()            .drawWithCache {

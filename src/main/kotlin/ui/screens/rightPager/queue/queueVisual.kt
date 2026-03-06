@@ -46,13 +46,13 @@ import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import core.coreMaster.grooviqCore
 import org.burnoutcrew.reorderable.ReorderableItem
 import org.burnoutcrew.reorderable.detectReorder
 import org.burnoutcrew.reorderable.rememberReorderableLazyListState
 import org.burnoutcrew.reorderable.reorderable
 import org.example.bass.queue.QueueItem
 import org.example.bass.queue.repeatMods
-import org.example.bassQueueController
 import org.example.ui.screens.leftPager.albums.artworkAsync
 import org.example.wizui.wizui
 
@@ -87,8 +87,8 @@ fun drawQueue(offsetOfBottomBar: MutableState<Dp>) {
             color = MaterialTheme.colorScheme.primary
         )
 
-        val currentQueue = bassQueueController.queue
-        val currentIndex = bassQueueController.posInQueue
+        val currentQueue = grooviqCore.controllers.audioController.bassQueueController.queue
+        val currentIndex = grooviqCore.controllers.audioController.bassQueueController.posInQueue
 
         val localQueue = remember { mutableStateListOf<QueueItem>() }
         val visualQueue = remember { mutableStateListOf<QueueItem>() }
@@ -115,13 +115,13 @@ fun drawQueue(offsetOfBottomBar: MutableState<Dp>) {
 
                 modifier = Modifier.border(1.dp, Color(255, 255, 255, 20)),
                 shape = RectangleShape,
-                toggleVariable = bassQueueController.isShuffle,
+                toggleVariable = grooviqCore.controllers.audioController.bassQueueController.isShuffle,
                 turnOffToggleIndication = true,
                 contentColorToggled = Color(255, 255, 255),
                 contentColor = Color(255, 255, 255, 100),
                 backgroundColor = Color(20, 20, 20),
                 onClick = {
-                    bassQueueController.toggleShuffle(!bassQueueController.isShuffle)
+                    grooviqCore.controllers.audioController.bassQueueController.toggleShuffle(!grooviqCore.controllers.audioController.bassQueueController.isShuffle)
                 }
             )
             {
@@ -131,13 +131,13 @@ fun drawQueue(offsetOfBottomBar: MutableState<Dp>) {
                         modifier = Modifier.size(24.dp),
                         imageVector = Icons.Sharp.Shuffle, contentDescription = "",
                         tint =
-                            if (bassQueueController.isShuffle)
+                            if (grooviqCore.controllers.audioController.bassQueueController.isShuffle)
                                 MaterialTheme.colorScheme.primary
                             else
                                 Color(255, 255, 255, 100)
                     )
 
-                    Text("shuffle : " + if (bassQueueController.isShuffle) "on" else "off", modifier = Modifier.padding(start = 16.dp))
+                    Text("shuffle : " + if (grooviqCore.controllers.audioController.bassQueueController.isShuffle) "on" else "off", modifier = Modifier.padding(start = 16.dp))
 
                 }
 
@@ -152,7 +152,7 @@ fun drawQueue(offsetOfBottomBar: MutableState<Dp>) {
                 contentColor = Color(255, 255, 255),
                 backgroundColor = Color(20, 20, 20),
                 onClick = {
-                    bassQueueController.toggleRepeat()
+                    grooviqCore.controllers.audioController.bassQueueController.toggleRepeat()
                 }
             )
             {
@@ -161,16 +161,16 @@ fun drawQueue(offsetOfBottomBar: MutableState<Dp>) {
                     Icon(
                         modifier = Modifier.size(24.dp),
                         imageVector =
-                            if (bassQueueController.repeatMode == repeatMods.REPEAT_OFF)
+                            if (grooviqCore.controllers.audioController.bassQueueController.repeatMode == repeatMods.REPEAT_OFF)
                                 Icons.Sharp.Repeat
-                            else if (bassQueueController.repeatMode == repeatMods.REPEAT_ALL)
+                            else if (grooviqCore.controllers.audioController.bassQueueController.repeatMode == repeatMods.REPEAT_ALL)
                                 Icons.Sharp.Repeat
                             else
                                 Icons.Sharp.RepeatOne
                         ,
                         contentDescription = "",
                         tint =
-                            if (bassQueueController.repeatMode == repeatMods.REPEAT_OFF)
+                            if (grooviqCore.controllers.audioController.bassQueueController.repeatMode == repeatMods.REPEAT_OFF)
                                 Color(255, 255, 255, 100)
                             else
                                 MaterialTheme.colorScheme.primary
@@ -196,7 +196,7 @@ fun drawQueue(offsetOfBottomBar: MutableState<Dp>) {
                 // Запрет: нельзя вставить выше текущего (to.index < 1)
                 if (to.index < 1) return@rememberReorderableLazyListState
 
-                val windowOffset = bassQueueController.posInQueue
+                val windowOffset = grooviqCore.controllers.audioController.bassQueueController.posInQueue
 
                 val fromGlobalIdx = windowOffset + from.index
                 val toGlobalIdx = windowOffset + to.index
@@ -210,7 +210,7 @@ fun drawQueue(offsetOfBottomBar: MutableState<Dp>) {
             },
             onDragEnd = { _, _ ->
                 // Commit changes to controller
-                bassQueueController.setQueue(localQueue.toList())
+                grooviqCore.controllers.audioController.bassQueueController.setQueue(localQueue.toList())
             }
         )
 
@@ -248,7 +248,7 @@ fun drawQueue(offsetOfBottomBar: MutableState<Dp>) {
                         contentColor = Color(255, 255, 255),
                         backgroundColor = Color(35, 35, 35, 0),
                         onClick = {
-                            bassQueueController.moveToNewPosInQueueById(item.id)
+                            grooviqCore.controllers.audioController.bassQueueController.moveToNewPosInQueueById(item.id)
                         }
                     ) {
 
@@ -262,7 +262,7 @@ fun drawQueue(offsetOfBottomBar: MutableState<Dp>) {
                                     // index 0 = текущий трек → запрещаем
                                     if (index == 0) return@IconButton
 
-                                    val windowOffset = bassQueueController.posInQueue
+                                    val windowOffset = grooviqCore.controllers.audioController.bassQueueController.posInQueue
                                     val globalIndex = windowOffset + index
 
                                     if (globalIndex !in localQueue.indices) return@IconButton
@@ -274,7 +274,7 @@ fun drawQueue(offsetOfBottomBar: MutableState<Dp>) {
                                     visualQueue.removeAt(index)
 
                                     // закоммитить изменения
-                                    bassQueueController.setQueue(localQueue.toList())
+                                    grooviqCore.controllers.audioController.bassQueueController.setQueue(localQueue.toList())
                                 })
                                 {
                                     Icon(Icons.Sharp.Close, "",
@@ -312,7 +312,7 @@ fun drawQueue(offsetOfBottomBar: MutableState<Dp>) {
 
                                         Text(
                                             item.track.title, fontSize = 16.sp,
-                                            color = if (bassQueueController.isPlaying(item.track, item.audioSource))
+                                            color = if (grooviqCore.controllers.audioController.bassQueueController.isPlaying(item.track, item.audioSource))
                                                 MaterialTheme.colorScheme.primary else Color.White
                                         )
 

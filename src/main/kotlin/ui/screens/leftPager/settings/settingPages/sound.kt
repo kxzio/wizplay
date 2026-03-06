@@ -1,9 +1,6 @@
 package org.example.ui.screens.leftPager.settings.settingPages
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -15,17 +12,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.sharp.Close
-import androidx.compose.material.icons.sharp.Devices
-import androidx.compose.material.icons.sharp.DevicesOther
 import androidx.compose.material.icons.sharp.Headset
-import androidx.compose.material.icons.sharp.Refresh
-import androidx.compose.material.icons.sharp.SpatialAudio
-import androidx.compose.material.icons.sharp.Stream
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
@@ -37,33 +26,26 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.DrawModifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import core.coreMaster.grooviqCore
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
-import org.example.PREF_AUDIOOUTPUT
-import org.example.PREF_AUDIO_VOLUME
-import org.example.PREF_NORMALIZATION
-import org.example.PREF_REPLAY_GAIN
-import org.example.audioVolumeConfig
+import core.preferencesAndToolsForCore.PREF_AUDIOOUTPUT
+import core.preferencesAndToolsForCore.PREF_AUDIO_VOLUME
+import core.preferencesAndToolsForCore.PREF_REPLAY_GAIN
 import org.example.bass.bassController.serializeAudioOutput
-import org.example.bassAudioController
-import org.example.folderGetter.FolderScanState
-import org.example.loaderConfig
-import org.example.prefs
-import org.example.ui.screens.leftPager.settings.AppPrefs
+import core.preferencesAndToolsForCore.prefs
 import org.example.wizui.wizui
 import kotlin.math.roundToInt
 
 @Composable
 fun drawSoundOutputsSettings()
 {
-    val devices = remember { bassAudioController.getAudioDevices() }
+    val devices = remember { grooviqCore.controllers.audioController.bassAudioController.getAudioDevices() }
 
     Column(modifier = Modifier.fillMaxSize()) {
 
@@ -87,13 +69,13 @@ fun drawSoundOutputsSettings()
                 contentColor = Color(255, 255, 255),
                 backgroundColor = Color(35, 35, 35),
                 onClick = {
-                    bassAudioController.switchAudioDevice(item.id)
+                    grooviqCore.controllers.audioController.bassAudioController.switchAudioDevice(item.id)
                     prefs.put(PREF_AUDIOOUTPUT, serializeAudioOutput(item))
 
                 }
             ) {
 
-                val currentDevice by bassAudioController.state
+                val currentDevice by grooviqCore.controllers.audioController.bassAudioController.state
                     .map { it.currentDevice }
                     .distinctUntilChanged()
                     .collectAsState(initial = -1)
@@ -149,7 +131,7 @@ fun drawSoundSettings()
             onValueChange = {
                 volume = it
                 prefs.putFloat(PREF_AUDIO_VOLUME, it)
-                bassAudioController.setVolume(it)
+                grooviqCore.controllers.audioController.bassAudioController.setVolume(it)
             },
             valueRange = 0f..1.0f,
             steps = 9,
@@ -174,7 +156,7 @@ fun drawSoundSettings()
             checked = replayGain,
             onCheckedChange = { checked ->
                 replayGain = checked
-                bassAudioController.setReplayGainEnabled(checked)
+                grooviqCore.controllers.audioController.bassAudioController.setReplayGainEnabled(checked)
                 prefs.putBoolean(PREF_REPLAY_GAIN, checked)
             }
         )
