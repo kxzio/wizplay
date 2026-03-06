@@ -91,6 +91,8 @@ fun drawTrackList(
 
     var targetTrackPopup = remember { mutableStateOf<ScannedAudio?>(null) }
 
+    val isAlbum = trackSource.fromString(openedAudioSource.value) is trackSource.album
+
     LazyColumn(
         state = listState,
         modifier = Modifier
@@ -130,11 +132,6 @@ fun drawTrackList(
                 Column(modifier = Modifier.padding(top = 76.dp))
                 {
 
-                    drawAudioSourceArtwork(
-                        pathes = openedAlbumTracks.map { it.artworkPath },
-                        modifier = Modifier.fillMaxSize()
-                    )
-
                     Row(horizontalArrangement = Arrangement.spacedBy(16.dp),
                         modifier = Modifier.padding(
                             top = 32.dp,
@@ -145,16 +142,26 @@ fun drawTrackList(
 
                         Box(Modifier.size(250.dp)) {
 
-                            Crossfade(
-                                targetState = trackWithArtOrFirst?.artworkPath,
-                                animationSpec = tween(180)
-                            ) { artworkPath ->
+                            if (isAlbum)
+                            {
+                                Crossfade(
+                                    targetState = trackWithArtOrFirst?.artworkPath,
+                                    animationSpec = tween(180)
+                                ) { artworkPath ->
 
-                                artworkAsync(
-                                    artworkPath,
+                                    artworkAsync(
+                                        artworkPath,
+                                        Modifier.size(250.dp)
+                                    )
+                                }
+                            }
+                            else {
+                                drawAudioSourceArtwork(
+                                    pathes = openedAlbumTracks.map { it.artworkPath } ,
                                     Modifier.size(250.dp)
                                 )
                             }
+
                         }
 
                         if (trackSource.fromString(openedAudioSource.value) is trackSource.album) {

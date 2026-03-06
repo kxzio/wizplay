@@ -260,10 +260,6 @@ fun renderRightPager(
 
         }
 
-
-
-
-
     }
 }
 

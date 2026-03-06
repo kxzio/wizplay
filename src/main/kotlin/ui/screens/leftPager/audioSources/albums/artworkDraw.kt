@@ -18,6 +18,7 @@ import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Canvas
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.FilterQuality
@@ -114,58 +115,110 @@ fun artworkAsync(
     }
 }
 
-fun bakeArtworkGrid(
-    bitmaps: List<ImageBitmap>,
-    size: Int = 256
-): ImageBitmap {
+fun bakeArtworkGrid(images: List<ImageBitmap>, size: Int = 500): ImageBitmap {
 
     val result = ImageBitmap(size, size)
     val canvas = Canvas(result)
+
     val paint = Paint()
 
-    val count = bitmaps.size.coerceAtMost(4)
-    val half = size / 2
+    fun drawFit(
+        canvas: Canvas,
+        img: ImageBitmap,
+        dstX: Int,
+        dstY: Int,
+        dstW: Int,
+        dstH: Int,
+        paint: Paint
+    ) {
 
-    fun drawCrop(bmp: ImageBitmap, x: Int, y: Int) {
+        val scale = minOf(
+            dstW.toFloat() / img.width,
+            dstH.toFloat() / img.height
+        )
 
-        val srcSize = minOf(bmp.width, bmp.height)
+        val w = (img.width * scale).toInt()
+        val h = (img.height * scale).toInt()
+
+        val x = dstX + (dstW - w) / 2
+        val y = dstY + (dstH - h) / 2
 
         canvas.drawImageRect(
-            bmp,
-            IntOffset(
-                (bmp.width - srcSize) / 2,
-                (bmp.height - srcSize) / 2
-            ),
-            IntSize(srcSize, srcSize),   // квадратный кроп
-            IntOffset(x, y),
-            IntSize(srcSize, srcSize),   // 1:1 без изменения
-            paint
+            image = img,
+            srcOffset = IntOffset.Zero,
+            srcSize = IntSize(img.width, img.height),
+            dstOffset = IntOffset(x, y),
+            dstSize = IntSize(w, h),
+            paint = paint
         )
     }
 
-    when (count) {
+    fun drawCrop(
+        canvas: Canvas,
+        img: ImageBitmap,
+        dstX: Int,
+        dstY: Int,
+        dstW: Int,
+        dstH: Int,
+        paint: Paint
+    ) {
+
+        val srcRatio = img.width.toFloat() / img.height
+        val dstRatio = dstW.toFloat() / dstH
+
+        val srcX: Int
+        val srcY: Int
+        val srcW: Int
+        val srcH: Int
+
+        if (srcRatio > dstRatio) {
+            // шире → режем по ширине (центр)
+            srcH = img.height
+            srcW = (srcH * dstRatio).toInt()
+            srcX = (img.width - srcW) / 2
+            srcY = 0
+        } else {
+            // выше → режем по высоте (прижимаем вверх)
+            srcW = img.width
+            srcH = (srcW / dstRatio).toInt()
+            srcX = 0
+            srcY = 0
+        }
+
+        canvas.drawImageRect(
+            image = img,
+            srcOffset = IntOffset(srcX, srcY),
+            srcSize = IntSize(srcW, srcH),
+            dstOffset = IntOffset(dstX, dstY),
+            dstSize = IntSize(dstW, dstH),
+            paint = paint
+        )
+    }
+    
+    val half = size / 2
+
+    when (images.size) {
 
         1 -> {
-            drawCrop(bitmaps[0], 0, 0)
+            drawCrop(canvas, images[0], 0, 0, size, size, paint)
         }
 
         2 -> {
-            drawCrop(bitmaps[0], 0, 0)
-            drawCrop(bitmaps[1], 0, half)
+            drawCrop(canvas, images[0], 0, 0, half, size, paint)
+            drawCrop(canvas, images[1], half, 0, half, size, paint)
         }
 
         3 -> {
-            drawCrop(bitmaps[0], 0, 0)
-            drawCrop(bitmaps[1], half, 0)
-            drawCrop(bitmaps[2], 0, half)
+            drawCrop(canvas, images[0], 0, 0, half, half, paint)
+            drawCrop(canvas, images[1], half, 0, half, half, paint)
+            drawCrop(canvas, images[2], 0, half, size, half, paint)
         }
 
         else -> {
-            bitmaps.take(4).forEachIndexed { i, bmp ->
-                val x = (i % 2) * half
-                val y = (i / 2) * half
-                drawCrop(bmp, x, y)
-            }
+            drawCrop(canvas, images[0], 0, 0, half, half, paint)
+            drawCrop(canvas, images[1], half, 0, half, half, paint)
+            drawCrop(canvas, images[2], 0, half, half, half, paint)
+            drawCrop(canvas, images[3], half, half, half, half, paint)
         }
     }
 
@@ -200,7 +253,7 @@ fun drawAudioSourceArtwork(
 
             val request = ImageRequest.Builder(context)
                 .data(path.toString())
-                .size(256)
+                .size(500)
                 .crossfade(false)
                 .build()
 
